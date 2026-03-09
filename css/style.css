@@ -149,17 +149,17 @@ body {
 /* --- Narrative Panel --- */
 #narrative-panel {
   flex: 1;
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
   border-right: 1px solid var(--border-dim);
 }
 
 #narrative-content {
-  flex: 1;
+  height: 100%;
   overflow-y: auto;
-  padding: 36px 48px 24px;
+  padding: 36px 48px 48px;
   scroll-behavior: smooth;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Custom scrollbar */
@@ -265,14 +265,14 @@ body {
 }
 
 /* --- Choice Area --- */
+/* Sits inline in the scroll container, below the story text */
 #choice-area {
-  padding: 24px 48px 32px;
-  border-top: 1px solid var(--border-dim);
-  background: linear-gradient(to bottom, transparent, rgba(13, 15, 26, 0.6));
+  padding: 28px 0 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  flex-shrink: 0;
+  /* Push to bottom of flex column when there's less content than viewport height */
+  margin-top: auto;
 }
 
 .choice-btn {
@@ -706,12 +706,10 @@ body {
   }
 
   #narrative-content {
-    padding: 24px 20px 16px;
+    padding: 24px 20px 32px;
   }
 
-  #choice-area {
-    padding: 16px 20px 24px;
-  }
+  /* choice-area inherits the scroll container padding, no extra override needed */
 
   #game-header {
     padding: 10px 16px;
@@ -745,4 +743,3 @@ body {
   color: var(--amber);
   font-weight: 600;
 }
-
