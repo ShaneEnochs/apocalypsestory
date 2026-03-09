@@ -169,16 +169,20 @@ function _doRender(node) {
   // Update chapter title
   dom.chapterTitle.textContent = node.title || '—';
 
-  // Clear content
-  dom.narrativeContent.innerHTML = '';
+  // Clear only the narrative paragraphs/system blocks — leave #choice-area in place
+  // (choice-area is now a child of narrative-content, so innerHTML = '' would destroy it)
+  Array.from(dom.narrativeContent.children).forEach(el => {
+    if (el !== dom.choiceArea) el.remove();
+  });
   dom.choiceArea.innerHTML = '';
 
-  // Build text array: combine base text + class-specific text + afterClassText
+  // Build text array: combine base text + flagText + class-specific text + afterClassText
   const textItems = buildTextArray(node);
 
   // Render paragraphs and system blocks with staggered animation
+  // Insert before choice-area so text appears above choices
   textItems.forEach((item, index) => {
-    const delay = index * 80; // ms stagger
+    const delay = index * 80;
     if (typeof item === 'string') {
       renderParagraph(item, delay);
     } else if (item && item.system) {
@@ -186,10 +190,10 @@ function _doRender(node) {
     }
   });
 
-  // Scroll narrative to top
+  // Scroll to top
   dom.narrativeContent.scrollTop = 0;
 
-  // Render choices
+  // Render choices (inside choice-area, which is already in the DOM)
   const visibleChoices = (node.choices || []).filter(choice =>
     !choice.condition || choice.condition(playerState)
   );
@@ -197,6 +201,14 @@ function _doRender(node) {
   visibleChoices.forEach((choice, index) => {
     renderChoiceButton(choice, index, visibleChoices.length);
   });
+
+  // After all staggered animations complete, scroll choices into view
+  if (visibleChoices.length > 0) {
+    const lastDelay = (textItems.length + visibleChoices.length) * 80 + 400;
+    setTimeout(() => {
+      dom.choiceArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, lastDelay);
+  }
 }
 
 /**
@@ -240,7 +252,8 @@ function renderParagraph(text, delayMs) {
   p.className = 'narrative-paragraph';
   p.style.animationDelay = `${delayMs}ms`;
   p.innerHTML = formatText(text);
-  dom.narrativeContent.appendChild(p);
+  // Insert before choice-area so text stays above choices
+  dom.narrativeContent.insertBefore(p, dom.choiceArea);
 }
 
 /**
@@ -261,7 +274,7 @@ function renderSystemBlock(text, delayMs) {
     .replace(/\n/g, '<br>');
 
   div.innerHTML = formatted;
-  dom.narrativeContent.appendChild(div);
+  dom.narrativeContent.insertBefore(div, dom.choiceArea);
 }
 
 /**
@@ -521,7 +534,11 @@ function resetGame() {
   pendingStatPoints = 0;
   pendingSkillPoints = 0;
   statAllocations = {};
-  dom.narrativeContent.innerHTML = '';
+  // Clear paragraphs without destroying the #choice-area child element
+  Array.from(dom.narrativeContent.children).forEach(el => {
+    if (el !== dom.choiceArea) el.remove();
+  });
+  dom.choiceArea.innerHTML = '';
   goToNode('intro');
 }
 
