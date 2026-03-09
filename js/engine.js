@@ -268,12 +268,20 @@ function renderSystemBlock(text, delayMs) {
   div.className = `system-block${isXP ? ' xp-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
   div.style.animationDelay = `${delayMs}ms`;
 
-  // Replace [Skill Name] with highlighted spans
-  const formatted = text
+  // Label line (replaces ::before pseudo-element so it isn't clipped)
+  const label = document.createElement('span');
+  label.className = 'system-block-label';
+  label.textContent = isXP ? '[ XP GAINED ]' : isLevelUp ? '[ LEVEL UP ]' : '[ SYSTEM ]';
+  div.appendChild(label);
+
+  // Content — replace [Skill Name] with highlighted spans
+  const content = document.createElement('span');
+  content.className = 'system-block-text';
+  content.innerHTML = text
     .replace(/\[([^\]]+)\]/g, '<span class="sys-highlight">[$1]</span>')
     .replace(/\n/g, '<br>');
+  div.appendChild(content);
 
-  div.innerHTML = formatted;
   dom.narrativeContent.insertBefore(div, dom.choiceArea);
 }
 
@@ -449,40 +457,62 @@ function _renderLevelUpContent() {
     const base = s.stats[key];
     const bonus = statAllocations[key] || 0;
     const total = base + bonus;
-    html += `<div class="stat-alloc-item${bonus > 0 ? ' selected' : ''}" data-stat="${key}">
+    html += `<div class="stat-alloc-item${bonus > 0 ? ' selected' : ''}">
       <span class="stat-alloc-name">${label}</span>
-      <span class="stat-alloc-val${bonus > 0 ? ' buffed' : ''}">${total}</span>
-      ${bonus > 0 ? `<span style="font-size:0.6rem;color:var(--green);display:block;">+${bonus}</span>` : '<span style="font-size:0.6rem;color:transparent;display:block;">+0</span>'}
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0;">
+        <button class="alloc-btn alloc-minus" data-stat="${key}" ${bonus <= 0 ? 'disabled' : ''}>−</button>
+        <span class="stat-alloc-val${bonus > 0 ? ' buffed' : ''}">${total}</span>
+        <button class="alloc-btn alloc-plus" data-stat="${key}" ${remaining <= 0 ? 'disabled' : ''}>+</button>
+      </div>
+      <span style="font-size:0.6rem;color:var(--green);min-height:1em;display:block;">${bonus > 0 ? '+'+bonus : ''}</span>
     </div>`;
   });
 
   html += `</div>
   <div style="font-size:0.65rem;color:var(--text-faint);margin-top:10px;">
-    Click a stat to add a point · Click again to remove
+    Use + and − to distribute your ${pendingStatPoints} stat points
   </div>`;
 
   dom.levelupContent.innerHTML = html;
-  dom.levelupClose.textContent = remaining > 0 ? `Allocate ${remaining} remaining` : 'Confirm & Continue';
-  dom.levelupClose.style.opacity = remaining > 0 ? '0.5' : '1';
+
+  // Confirm button state
+  dom.levelupClose.textContent = remaining > 0 ? `Confirm (${remaining} left)` : 'Confirm & Continue';
+  dom.levelupClose.style.opacity = remaining > 0 ? '0.55' : '1';
   dom.levelupClose.style.pointerEvents = remaining > 0 ? 'none' : 'auto';
 
-  dom.levelupContent.querySelectorAll('.stat-alloc-item').forEach(tile => {
-    tile.addEventListener('click', () => {
-      const key = tile.dataset.stat;
+  // Bind + buttons
+  dom.levelupContent.querySelectorAll('.alloc-plus').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const key = btn.dataset.stat;
       const curSpent = Object.values(statAllocations).reduce((a,b)=>a+b, 0);
+      if (curSpent < pendingStatPoints) {
+        statAllocations[key] = (statAllocations[key] || 0) + 1;
+        _renderLevelUpContent();
+      }
+    });
+  });
+
+  // Bind − buttons
+  dom.levelupContent.querySelectorAll('.alloc-minus').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const key = btn.dataset.stat;
       if (statAllocations[key] > 0) {
         statAllocations[key]--;
-      } else if (curSpent < pendingStatPoints) {
-        statAllocations[key]++;
+        _renderLevelUpContent();
       }
-      _renderLevelUpContent();
     });
   });
 }
 
 dom.levelupClose.addEventListener('click', () => {
   const spent = Object.values(statAllocations).reduce((a,b)=>a+b, 0);
-  if (spent < pendingStatPoints) return;
+  const remaining = pendingStatPoints - spent;
+  // If points remain, auto-distribute them to fortitude (safety valve - shouldn't normally happen)
+  if (remaining > 0) {
+    statAllocations['fortitude'] = (statAllocations['fortitude'] || 0) + remaining;
+  }
   Object.entries(statAllocations).forEach(([k,v]) => { playerState.stats[k] += v; });
   pendingStatPoints = 0;
   pendingSkillPoints = 0;
