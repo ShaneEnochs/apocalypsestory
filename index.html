@@ -31,10 +31,13 @@
 
   <main id="game-main">
 
-    <!-- Narrative panel: story text + choices -->
+    <!-- Narrative panel: story text + choices scroll together -->
     <section id="narrative-panel">
-      <div id="narrative-content"></div>
-      <div id="choice-area"></div>
+      <div id="narrative-content">
+        <!-- #choice-area is a sibling inside the scroll container so choices
+             appear naturally below the text rather than pinned to the bottom -->
+        <div id="choice-area"></div>
+      </div>
     </section>
 
     <!-- Status sidebar -->
