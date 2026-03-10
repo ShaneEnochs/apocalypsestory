@@ -54,6 +54,15 @@ But first — the most important decision of your new life.
 *label class_rogue
 *comment TITLE: The Rogue's Path
 "Select [Rogue]," you commanded aloud. The System responded to verbal orders combined with clear intent — a trick that took most people weeks to figure out.
+*set class_name "Rogue"
+*set mana 110
+*set max_mana 110
+*set fortitude 11
+*set perception 10
+*set strength 9
+*set agility 11
+*set magic_power 11
+*set magic_regen 10
 *system "SYSTEM MESSAGE: Class selected: Rogue.\nYou have received 5 Skill points. Base stats adjusted.\n\nName: Alex  |  Class: Rogue  |  Level: 0\nHP: Healthy  |  Mana: 110/110\nFortitude: 11  |  Perception: 10  |  Strength: 9\nAgility: 11  |  Magic Power: 11  |  Magic Regen: 10\nFree Points: 0 Stat, 5 Skill"
 You used your skill points immediately, picking the same loadout that had carried you through three years of hell: [Stealth], [Knives], and [Hundred Faces] — a disguise skill that was far more useful than it sounded. That left two points for [Piercing Strike], an armor-penetrating attack invaluable against tougher monsters.
 *system "Skills acquired: Stealth I  |  Knives I  |  Hundred Faces I  |  Piercing Strike I"
@@ -67,6 +76,15 @@ You flicked the status screen away, threw on clothes, grabbed your phone, keys, 
 *label class_mage
 *comment TITLE: The Mage's Path
 "Select [Mage]," you spoke clearly, feeling the System acknowledge your intent.
+*set class_name "Mage"
+*set mana 130
+*set max_mana 130
+*set fortitude 9
+*set perception 10
+*set strength 8
+*set agility 9
+*set magic_power 13
+*set magic_regen 12
 *system "SYSTEM MESSAGE: Class selected: Mage.\nYou have received 5 Skill points. Base stats adjusted.\n\nName: Alex  |  Class: Mage  |  Level: 0\nHP: Healthy  |  Mana: 130/130\nFortitude: 9  |  Perception: 10  |  Strength: 8\nAgility: 9  |  Magic Power: 13  |  Magic Regen: 12\nFree Points: 0 Stat, 5 Skill"
 Higher mana pool, better magical stats — at the cost of being physically frailer. You allocated your skill points to [Mana Bolt], [Arcane Shield], and [Ritual Knowledge] — a rare pick at character creation that most people overlooked. It wouldn't help in combat, but it meant you could set up summoning circles immediately.
 *system "Skills acquired: Mana Bolt I  |  Arcane Shield I  |  Ritual Knowledge I"
@@ -81,6 +99,15 @@ You got dressed, grabbed your essentials, and started planning.
 *label class_fighter
 *comment TITLE: The Fighter's Path
 "Select [Fighter]." No hesitation. No second-guessing.
+*set class_name "Fighter"
+*set mana 90
+*set max_mana 90
+*set fortitude 13
+*set perception 9
+*set strength 12
+*set agility 10
+*set magic_power 8
+*set magic_regen 8
 *system "SYSTEM MESSAGE: Class selected: Fighter.\nYou have received 5 Skill points. Base stats adjusted.\n\nName: Alex  |  Class: Fighter  |  Level: 0\nHP: Healthy  |  Mana: 90/90\nFortitude: 13  |  Perception: 9  |  Strength: 12\nAgility: 10  |  Magic Power: 8  |  Magic Regen: 8\nFree Points: 0 Stat, 5 Skill"
 Less mana, less magical talent — but significantly tougher and stronger than anyone had any right to be on Day One. You dumped your points into [Power Strike], [Iron Skin] — a passive that reduced physical damage — and [Sweeping Blow], an area attack critical for when monsters started showing up.
 *system "Skills acquired: Power Strike I  |  Iron Skin I  |  Sweeping Blow I"
@@ -120,21 +147,21 @@ As you headed for checkout, your phone buzzed nonstop with frantic messages.
 
 *label buy_rituals
 *comment TITLE: Arcane Prep
-You filled your cart with industrial chalk, sea salt, iron nails, copper wire, candles, and spare lighters.
-Most people saw random craft supplies. You saw survivability.
-With the right circle and timing, you could summon low-tier entities for controlled XP gains days before anyone else.
-*system "Inventory updated: Ritual Chalk, Sea Salt, Iron Nails, Copper Wire, Candles"
-Near the register, screaming broke out near the entrance. Panic was spreading.
+You loaded your cart with chalk, coarse salt, iron nails, candles, and a camping stove.
+To everyone else, it looked random.
+To you, it looked like survival.
+*system "Inventory updated: Ritual components secured."
 *choice
   #Call Maya now
     *goto call_maya
-  #Get home immediately with supplies
+  #Get home and secure your apartment first
     *goto return_home
 
 *label buy_balanced
-*comment TITLE: Pragmatist
-You moved fast, taking a little of everything: weapons, first aid, water filters, ritual materials.
-Preparedness beat specialization when the world was collapsing.
+*comment TITLE: Balanced Approach
+You split your route efficiently:
+tools from aisle seven, salts and candles from outdoor supplies, first-aid from the emergency section.
+Prepared for both steel and spell.
 *system "Inventory updated: Mixed survival kit assembled."
 As you loaded your bags, your thoughts turned to Maya.
 In the old timeline, she'd died in Week 2.
@@ -329,236 +356,258 @@ Every creak of the building, every distant shout jolted you awake.
 At some point around 3 AM, something scratched at the window — something with too many fingers and not enough body.
 You held your breath.
 It moved on.
+Dawn came gray and cold.
+You were alive. So was the city, barely.
 *choice
-  #Start day two by exploring the city
-    *goto day_two_explore
-  #Start day two with more ritual grinding
-    *goto summon_specter
+  #Head out at first light to scout
+    *goto venture_outside
+  #Stay in and fortify further
+    *goto fortify_home
 
 *label check_maya_night
-*comment TITLE: Quiet Check-In
-Maya was awake, sitting cross-legged on the couch with a kitchen knife she clearly didn't know how to use.
-She looked up as you entered.
-"Still alive?"
-"Barely," you said, and managed a tired grin.
-She laughed — a real one, brief and fragile.
-*system "Morale improved."
+*comment TITLE: Late-Night Check
+You knocked softly on Maya's door.
+She opened quickly, relief flashing in her eyes.
+"Couldn't sleep?" she asked.
+You gave a tired smile. "Not really."
+You compared notes, shared supplies, and set a morning rally plan.
+Small coordination now could save lives later.
 *choice
-  #Rest
+  #Return and sleep
     *goto rest_night
-  #Plan tomorrow with Maya
-    *goto plan_day_two
+  #Do one final equipment check
+    *goto fortify_home
 
-*label plan_day_two
-*comment TITLE: Strategy
-You spread a hand-drawn map across the table.
-Shelters. choke points. likely spawn zones.
-Maya listened, asked smart questions, and took notes.
-By dawn, you had a workable plan.
+*label fortify_home
+*comment TITLE: Layered Defense
+You reinforced your apartment in layers:
+noise traps, furniture barricades, fallback routes.
+It wasn't perfect.
+It was enough.
+*system "Defensive setup improved."
 *choice
-  #Follow the plan cautiously
-    *goto day_two_explore
-  #Take a high-risk high-reward route
+  #Scout outside at dawn
     *goto venture_outside
 
 *label publish_guide
-*comment TITLE: Information Warfare
-You opened a blank document and started typing.
-No fluff. No dramatics. Just survival instructions:
-how to choose early skills, avoid lethal traps, and prioritize XP routes that didn't get people killed.
-You posted it everywhere you could:
-forums, social feeds, encrypted channels.
-*system "Guide uploaded: 'Initialization Survival — Day 1.'"
-Whether anyone listened was another question.
+*comment TITLE: Information Weapon
+You wrote and posted a blunt survival thread:
+water storage, neighborhood watch rotation, avoid crowds, watch for System anomalies.
+Most people ignored it.
+A few listened.
+In apocalypse math, a few was everything.
 *choice
-  #Keep updating the guide through the night
-    *goto guide_deep_dive
-  #Sleep and prepare for fieldwork
+  #Go to sleep
     *goto rest_night
+  #Stay up and monitor responses
+    *goto monitor_responses
 
-*label guide_deep_dive
-*comment TITLE: Night Broadcast
-You wrote until your wrists hurt.
-The response snowballed faster than expected.
-Questions poured in from three continents.
-By sunrise, the guide had been mirrored hundreds of times.
-*system "Global visibility increased."
+*label monitor_responses
+*comment TITLE: Signals
+Replies poured in:
+confusion, fear, trolls — and scattered useful intel.
+Several posts mentioned shadow creatures near transit hubs.
+You marked locations on a map.
+Patterns already.
 *choice
-  #Pivot to on-the-ground action
-    *goto day_two_explore
-  #Double down on information campaign
-    *goto ending_savior
+  #Sleep for a few hours
+    *goto rest_night
+  #Head out immediately
+    *goto venture_outside
 
 *label venture_outside
-*comment TITLE: Into the City
-The streets were changed.
-Not ruined — not yet — but altered in subtler, more unsettling ways.
-People moved in armed groups.
-Storefronts were boarded.
-Every alley felt like it was holding its breath.
+*comment TITLE: Day One, Outside
+The streets looked wrong.
+Too empty in some places, too crowded in others.
+Cars abandoned at odd angles.
+Storefront glass shattered.
+The world had not ended overnight — but it had cracked.
 *choice
-  #Investigate reports of a dangerous manifestation
-    *goto phantom_event
-  #Recruit capable survivors
-    *goto recruit_allies
-  #Scout known resource points
-    *goto scout_resources
+  #Investigate nearby transit station reports
+    *goto station_investigation
+  #Check community center shelter status
+    *goto shelter_check
+  #Search for combat-capable allies
+    *goto find_allies
 
-*label phantom_event
-*comment TITLE: Phantom Warning
-You found the source near the park:
-a distortion in the air, thin as glass and trembling with violet light.
-A partial manifestation.
-Too early, too strong.
-Exactly the kind of thing that ended runs.
+*label station_investigation
+*comment TITLE: Transit Shadows
+At the station entrance, temperature dropped like a cliff.
+A skittering sound echoed from below.
+You spotted three minor shades feeding on panic.
+You chose your angle carefully.
 *choice
-  #Engage anyway
-    *goto death_phantom
-  #Fall back and prepare first
-    *goto recruit_allies
+  #Ambush from above
+    *goto fight_shades
+  #Lure one out first
+    *goto lure_shade
 
-*label recruit_allies
-*comment TITLE: Allies
-You found Cole in a looted convenience store, organizing survivors instead of panicking.
-Even before classes, he had presence.
-You gave him the short version: train now, trust fewer people, move in teams.
-He believed you faster than most.
+*label fight_shades
+*comment TITLE: Controlled Engagement
+You struck fast and kept moving.
+The first shade burst into black mist.
+The second nearly clipped your shoulder.
+The third fled into darkness.
+Not clean — but a win.
+*system "XP gained: +55"
+*choice
+  #Pursue the fleeing shade
+    *goto chase_shade
+  #Disengage and regroup
+    *goto regroup_after_station
+
+*label lure_shade
+*comment TITLE: Isolation Tactics
+You baited one shade with sound, drew it up a stairwell, and finished it before the others noticed.
+Efficient. Quiet.
+Then you repeated it.
+By the third kill, your arms shook from adrenaline.
+*system "XP gained: +65"
+*choice
+  #Push deeper into station
+    *goto chase_shade
+  #Return to surface and report intel
+    *goto regroup_after_station
+
+*label chase_shade
+*comment TITLE: Deeper Dark
+The tunnels twisted like veins.
+You found signs of a larger nest.
+Too early for this.
+You logged the location and retreated before greed killed you.
+*choice
+  #Head to shelter
+    *goto shelter_check
+  #Find allies before returning
+    *goto find_allies
+
+*label regroup_after_station
+*comment TITLE: Tactical Pause
+You stepped back, breathing hard, and updated your mental map.
+You were stronger than yesterday.
+Still not strong enough for mistakes.
+*choice
+  #Check shelter
+    *goto shelter_check
+  #Find allies
+    *goto find_allies
+
+*label shelter_check
+*comment TITLE: Shelter Math
+The community center was overcrowded and understaffed.
+Too many civilians. Not enough defenders.
+You helped organize food lines, exits, and watch rotations.
+A former EMT named Cole stood out — calm, decisive.
+*choice
+  #Recruit Cole for field ops
+    *goto recruit_cole
+  #Leave Cole to run shelter triage
+    *goto leave_cole
+
+*label recruit_cole
+*comment TITLE: New Ally
+Cole listened, asked exactly three practical questions, then nodded.
+"Fine. I’m in. But if this gets people killed, I walk."
+Fair.
+You respected that.
 *flag ally_cole
 *choice
-  #Bring Cole into your core group
-    *goto group_formed
-  #Leave him with instructions and move on
-    *goto scout_resources
+  #Take Cole to scout monster routes
+    *goto alley_patrol
+  #Return home to plan with Maya
+    *goto return_home_plan
 
-*label scout_resources
-*comment TITLE: Resource Sweep
-You marked water points, backup power locations, and defensible rooftops.
-You also found two unopened storage units worth raiding later.
-Knowledge was gear.
+*label leave_cole
+*comment TITLE: Necessary Roles
+Cole stayed to stabilize the shelter.
+You left him with a supply checklist and fallback protocol.
+Not everyone needed to be on the front line to matter.
 *choice
-  #Return to base and consolidate
-    *goto base_consolidate
-  #Keep pushing outward
-    *goto ending_hunter
+  #Scout alone
+    *goto alley_patrol
+  #Return home
+    *goto return_home_plan
 
-*label group_formed
-*comment TITLE: Core Team
-With Maya and Cole onboard, your odds improved dramatically.
-Three perspectives. Three specialties.
-You spent the evening drilling roles and fallback plans.
+*label find_allies
+*comment TITLE: Searching
+You checked known capable contacts from your old timeline.
+Most were still in denial.
+One wasn’t.
+Rin — skeptical, sharp, and terrifying with a spear — answered your message with:
+"Prove it."
+*choice
+  #Meet Rin at the designated intersection
+    *goto meet_rin
+  #Postpone and prioritize shelter routes
+    *goto shelter_check
+
+*label meet_rin
+*comment TITLE: Trial by Combat
+Rin tested you the only way she trusted: sparring.
+You held back just enough not to reveal too much.
+She noticed anyway.
+"You’ve done this before," she said.
+You didn’t answer.
+She smirked. "Good enough."
 *flag team_formed
 *choice
-  #Focus on protecting civilians
-    *goto ending_savior
-  #Focus on power growth and elite readiness
-    *goto ending_power
-  #Head to wild zones to get ahead of the curve
-    *goto ending_hunter
+  #Run a joint patrol
+    *goto alley_patrol
+  #Bring Rin to meet Maya
+    *goto return_home_plan
 
-*label base_consolidate
-*comment TITLE: Consolidation
-Back in your apartment as darkness settled over the city.
-The first day was ending, and you were alive, armed, and further ahead than anyone else on the planet.
-You wrote tomorrow's priorities on the wall in marker:
-Survive. Strengthen. Prepare others.
+*label alley_patrol
+*comment TITLE: Alley Patrol
+Backstreets were chokepoints and ambush lanes.
+Perfect for small-team fighting.
+You cleared two clusters of weak monsters and marked safe corridors.
+*system "XP gained: +80"
 *choice
-  #Publish refined public guidance
-    *goto ending_savior
-  #Begin elite power path
-    *goto ending_power
-  #Take the hunter route
-    *goto ending_hunter
+  #Return home to consolidate gains
+    *goto return_home_plan
+  #Attempt one final risky sweep
+    *goto risky_sweep
 
-*label ending_savior
-*comment TITLE: Ending — The Signal
-*comment ENDING: win (THE SIGNAL)
-Your guide spread faster than anyone expected.
-Local communities formed around practical instructions instead of rumors.
-The first-week death curve bent — not enough, but noticeably.
-People called you many things:
-alarmist, prophet, manipulator, hero.
-You kept publishing anyway.
-*comment flagText branch from story.js exported without condition
-Maya became your co-author on civilian safety protocols, adding practical details and empathy your blunt style lacked.
-*comment flagText branch from story.js exported without condition
-Cole organized neighborhood defense teams based on your tactical outlines.
-By the time the first true waves hit, thousands were better prepared than they had any right to be.
-*system "ENDING SUBTITLE: You chose to save as many as possible through information, structure, and relentless preparation. The world still burns — but fewer people burn with it."
-*ending
+*label risky_sweep
+*comment TITLE: Overextension
+You pushed one district too far.
+A larger aberration appeared — armored, fast, and angry.
+You escaped by meters, not skill.
+Lesson remembered.
+*choice
+  #Fall back immediately
+    *goto return_home_plan
+  #Set trap for tomorrow
+    *goto set_trap_plan
 
-*label ending_power
-*comment TITLE: Ending — The Weapon
-*comment ENDING: win (THE WEAPON)
-You chose efficiency over popularity.
-While others argued online, you optimized routes, farmed controlled summons, and hunted high-yield encounters with clinical precision.
-Every day, stronger.
-Every day, sharper.
-*comment flagText branch from story.js exported without condition
-Maya matched your pace, covering angles and patching you up through fights that should have killed you twice over. You owed her your life three times and counting.
-*comment flagText branch from story.js exported without condition
-Cole trained alongside you, selecting [Warrior] and pushing himself with the kind of iron discipline that only military service could instill. He was Level 2 and climbing.
-*comment flagText branch from story.js exported without condition
-That night, you finally activated the Aspect of the Specter. The power that flooded through you was intoxicating — the ability to phase through walls, to become half-ghost, to walk between the physical and ethereal worlds. A rare power, claimed on Day 4.
-*system "Aspect of the Specter: ACTIVATED\n[Spectral Shift] acquired — Phase through solid matter for 3 seconds.\n+5 Magic Regeneration applied.\nThis Aspect is visible to all System users."
-By Day 3, you were Level 4 — weeks ahead of where anyone else on the planet should be.
-On Day 4, when the first wild Phantom materialized in the park three blocks away, you were waiting for it. The fight was fast, brutal, and one-sided — in your favor. The creature barely landed a hit before your combined assault tore it apart.
-The XP surge pushed you to Level 5.
-The Demon Lords were still years away. But when they came, you'd be ready.
-*system "ENDING SUBTITLE: You chose power. Raw, personal, devastating power. The apocalypse is still coming, but this time it will meet a blade sharp enough to cut fate itself. Whether you can protect others while chasing strength remains to be seen."
-*ending
+*label set_trap_plan
+*comment TITLE: Planning Ahead
+You sketched a kill zone layout:
+funnels, elevation points, emergency retreat.
+If executed right, it could swing tomorrow’s odds.
+If not, it could kill everyone involved.
+*choice
+  #Finalize plan at home
+    *goto return_home_plan
 
-*label ending_hunter
-*comment TITLE: Ending — The Pioneer
-*comment ENDING: win (THE PIONEER)
-While the rest of the city hunkered down, you went *out*.
-The forest on the city's outskirts was already changing. The mana was thicker here — trees seemed taller, shadows deeper, and the air had an electric tingle that made your skin crawl. This was where the first natural creatures would appear, and you intended to be waiting.
-*comment flagText branch from story.js exported without condition
-Cole came with you. "If we're going to fight monsters in the woods," he said, lacing up boots, "I'd rather do it with someone who knows what they're doing than sit in an apartment waiting to be surprised."
-You set up a base camp, laid summoning circles for practice fights, and patrolled the perimeter with a methodical intensity that bordered on obsession.
-On Day 3, you found it: a spot where the mana was pooling, thickening, coalescing. A natural spawning point. The first one within miles of the city. You marked it, set traps around it, and waited.
-The creature that appeared on Day 4 was a Mana Wolf — not on any summoning list, not in any guide. Beautiful and terrible, glowing blue eyes and teeth that could bite through steel.
-The fight was the hardest of your new life. The wolf was fast, smart, and had abilities you'd never seen at this tier level. But you had three years of apocalypse survival honed to a razor's edge.
-When it finally fell, the System notification was something you'd never seen before.
-*system "First Kill bonus — Natural Mana Beast (regional).\nTitle earned: [Pioneer]\n+100 bonus XP. +1 to all stats.\nThis title is permanent and visible to all System users."
-You stood over the dissolving wolf, breathing hard, blood running from a dozen small wounds, and grinned.
-The apocalypse was coming. But this time, you were hunting *it*.
-*system "ENDING SUBTITLE: You chose the wild path — to meet the coming storm head-on, in the places where the world was changing fastest. The frontier calls."
-*ending
+*label return_home_plan
+*comment TITLE: Night Debrief
+Back home, you and your allies compared intel.
+Routes. Threat clusters. Civilian chokepoints.
+For the first time, this timeline felt... different.
+Not safe.
+But viable.
+*choice
+  #End Chapter
+    *ending
 
 *label death_summoning
-*comment TITLE: Hubris
-*comment ENDING: death
-The Spirit erupted from the circle — bigger, faster, angrier than any Ghost. A Tier 2 creature at Level 0 was suicide, and you knew it even as you made the choice.
-The fight lasted twelve seconds.
-Your last thought, as the world went dark for the second time, was that you really should have known better.
-*system "DEATH: Killed by Spirit (Tier 2).\nOverconfidence is a slow and insidious killer —\nunless it gets you killed immediately."
-*choice
-  #Try again
-    *goto return_home
-  #End story
-    *ending
-
-*label death_phantom
-*comment TITLE: Too Much, Too Soon
-*comment ENDING: death
-The partially manifested Phantom was stronger than anything you'd faced in either timeline at this level. Your skills weren't enough. Your stats weren't enough.
-You knew, in those final seconds, that foreknowledge wasn't invincibility. It just meant you could see exactly how badly things had gone wrong.
-As the creature's spectral jaws closed, you thought: *at least I got further than last time.*
-Small comfort.
-*system "DEATH: Killed by Phantom (Tier 2, partial manifestation).\nKnowledge without power is a story with no ending."
-*choice
-  #Try again
-    *goto venture_outside
-  #End story
-    *ending
-
-*label day_two_explore
-*comment TITLE: A New Dawn
-Morning light revealed a changed world. The streets were quieter than yesterday — fewer panicking crowds, more barricaded windows. People were adapting. Slowly, clumsily, but adapting.
-You could feel the mana density ticking upward, slow and steady, like a tide coming in. In three days it would crest into something tangible. Something dangerous.
-You had four days before wild creatures appeared. The question was how to use them.
-*choice
-  #Set up the summoning circle and start grinding — no more delays
-    *goto summon_specter
-  #Explore the city, find allies, gather intelligence
-    *goto venture_outside
+*comment TITLE: Bad End — Devoured by Ambition
+The thing that emerged from the rift was not minor.
+Not manageable.
+Not survivable.
+You fought anyway, because that's what you did at the end of the world.
+It wasn't enough.
+Darkness closed in.
+Somewhere, very far away, Janus sighed.
+*ending
