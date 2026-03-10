@@ -149,7 +149,9 @@ function addSystem(text) {
   div.className = 'system-block';
   div.style.animationDelay = `${delayIndex * 80}ms`;
   delayIndex += 1;
-  div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatText(text)}</span>`;
+  // Convert literal \\n escape sequences to <br> so multi-line system messages render correctly
+  const formatted = formatText(text).replace(/\\n/g, '<br>');
+  div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
   dom.narrativeContent.insertBefore(div, dom.choiceArea);
 }
 
@@ -494,9 +496,10 @@ function renderChoices(choices) {
       dom.choiceArea.querySelectorAll('button').forEach(b => b.disabled = true);
       const ctx = awaitingChoice;
       awaitingChoice = null;
-      // If the choice was inside an executeBlock, resume after that block ends.
-      // Otherwise resume after the *choice command's own parsed end.
       ip = ctx._savedIp !== undefined ? ctx._savedIp : ctx.end;
+      // Clear the screen and animate the transition before rendering new content
+      clearNarrative();
+      applyTransition();
       await executeBlock(choice.start, choice.end);
       if (!awaitingChoice) await runInterpreter();
     });
