@@ -10,7 +10,8 @@ The [Demon Lord] at the center of the horde raised one massive fist.
 You charged.
 The battle was brief. Brutal. And ultimately, hopeless.
 As you lay dying, the world going dark around you, a voice cut through the silence — cultured, calm, and distinctly amused.
-*system "A figure appeared. Toga-clad, two-faced, radiating an authority that made your skin crawl.\nJanus — the god of doorways. He was real, and he was standing over your broken body.\n\n\"A single person may travel back. To the very beginning. The Initialization.\nI can send you — but you will arrive with nothing but your memories.\""
+A figure appeared. Toga-clad, two-faced, radiating an authority that made your skin crawl. Janus — the god of doorways. He was real, and he was standing over your broken body.
+"A single person may travel back. To the very beginning. The Initialization.\nI can send you — but you will arrive with nothing but your memories." 
 *choice
   #"Send me back. I'll fix everything."
     *goto awakening
