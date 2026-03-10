@@ -140,23 +140,22 @@ function addParagraph(text, cls = 'narrative-paragraph') {
   p.className = cls;
   p.style.animationDelay = `${delayIndex * 80}ms`;
   p.innerHTML = formatText(text);
-  delayIndex += 1;
   dom.narrativeContent.insertBefore(p, dom.choiceArea);
+  delayIndex += 1;
 }
 
 function addSystem(text) {
   const div = document.createElement('div');
   div.className = 'system-block';
   div.style.animationDelay = `${delayIndex * 80}ms`;
-  delayIndex += 1;
-  // Convert literal \\n escape sequences to <br> so multi-line system messages render correctly
-  const formatted = formatText(text).replace(/\\n/g, '<br>');
+  const formatted = formatText(text).replace(/\n/g, '<br>');
   div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
   dom.narrativeContent.insertBefore(div, dom.choiceArea);
+  delayIndex += 1;
 }
 
 function clearNarrative() {
-  Array.from(dom.narrativeContent.children).forEach(el => {
+  [...dom.narrativeContent.children].forEach(el => {
     if (el !== dom.choiceArea) el.remove();
   });
   dom.choiceArea.innerHTML = '';
@@ -165,34 +164,31 @@ function clearNarrative() {
 
 function applyTransition() {
   dom.narrativePanel.classList.add('transitioning');
-  setTimeout(() => dom.narrativePanel.classList.remove('transitioning'), 220);
+  setTimeout(() => dom.narrativePanel.classList.remove('transitioning'), 260);
 }
 
-async function parseStartup() {
-  const text = await fetchTextFile('startup');
-  const lines = parseLines(text);
-  playerState = {};
+function parseStartup(content) {
+  const lines = parseLines(content);
   startup.sceneList = [];
-
   let inSceneList = false;
-
   for (const line of lines) {
     if (!line.trimmed || line.trimmed.startsWith('//')) continue;
     if (line.trimmed.startsWith('*create')) {
-      inSceneList = false; // a *create after *scene_list would be malformed — reset
       const m = line.trimmed.match(/^\*create\s+([a-zA-Z_][\w]*)\s+(.+)$/);
-      if (!m) continue;
-      const [, key, value] = m;
-      playerState[key] = evalValue(value);
+      if (m) playerState[m[1]] = evalValue(m[2]);
+      inSceneList = false; // a *create after *scene_list would be malformed — reset
       continue;
     }
+
     if (line.trimmed.startsWith('*scene_list')) {
       inSceneList = true;
       continue;
     }
+
     // Only collect indented non-command lines when we're inside a *scene_list block
-    if (inSceneList && !line.trimmed.startsWith('*') && line.indent > 0) {
+    if (inSceneList && line.indent > 0 && !line.trimmed.startsWith('*')) {
       startup.sceneList.push(line.trimmed);
+      continue;
     }
   }
 }
@@ -201,7 +197,7 @@ function indexLabels(sceneName, lines) {
   const map = {};
   lines.forEach((line, idx) => {
     const m = line.trimmed.match(/^\*label\s+([\w_\-]+)/);
-    if (m) map[m[1]] = idx;
+    if (m) map[m[1]] = idx + 1;
   });
   labelsCache.set(sceneName, map);
 }
@@ -210,28 +206,25 @@ function showEngineError(message) {
   clearNarrative();
   const div = document.createElement('div');
   div.className = 'system-block';
-  div.style.borderLeftColor = 'var(--red)';
-  div.style.color = 'var(--red)';
+  div.style.borderColor = '#ff4d4f';
+  div.style.boxShadow = '0 0 0 1px rgba(255,77,79,0.35), 0 0 22px rgba(255,77,79,0.12)';
   div.innerHTML = `<span class="system-block-label">[ ENGINE ERROR ]</span><span class="system-block-text">${message}\n\nUse the Restart button to reload.</span>`;
   dom.narrativeContent.insertBefore(div, dom.choiceArea);
-  dom.chapterTitle.textContent = 'ERROR';
 }
 
 async function gotoScene(name, label = null) {
-  let text;
   try {
-    text = await fetchTextFile(name);
+    const content = await fetchTextFile(name);
+    currentScene = name;
+    currentLines = parseLines(content);
+    indexLabels(name, currentLines);
   } catch (err) {
     showEngineError(`Could not load scene "${name}".\n${err.message}`);
     return;
   }
-  currentScene = name;
-  currentLines = parseLines(text);
-  indexLabels(name, currentLines);
-  ip = 0;
   clearNarrative();
   applyTransition();
-  dom.chapterTitle.textContent = name.toUpperCase();
+  ip = 0;
   if (label) {
     const labels = labelsCache.get(name) || {};
     ip = labels[label] ?? 0;
@@ -326,7 +319,10 @@ async function executeBlock(start, end) {
       return;
     }
   }
-  ip = savedIp;
+  // Only restore the caller's instruction pointer when the block completed
+  // naturally. If a command inside the block changed control flow (e.g. *goto,
+  // *goto_scene), preserve that new instruction pointer.
+  if (ip === end) ip = savedIp;
 }
 
 async function executeCurrentLine() {
@@ -529,134 +525,177 @@ async function runStatsScene() {
     const t = line.trimmed;
     if (!t || t.startsWith('//')) return;
 
-    if (t.startsWith('*stat_group')) {
-      const name = t.replace('*stat_group', '').trim().replace(/^"|"$/g, '');
-      entries.push({ type: 'group', name });
-    } else if (t.startsWith('*stat_color')) {
-      const [, key, color] = t.split(/\s+/);
-      styleState.colors[key] = color;
-    } else if (t.startsWith('*stat_icon')) {
-      const m = t.match(/^\*stat_icon\s+([\w_]+)\s+"(.+)"$/);
+    if (t.startsWith('*group')) {
+      const m = t.match(/^\*group\s+([a-zA-Z_][\w]*)\s*"([^"]+)"/);
+      if (m) styleState.groups.push({ key: m[1], name: m[2] });
+      return;
+    }
+    if (t.startsWith('*color')) {
+      const m = t.match(/^\*color\s+([a-zA-Z_][\w]*)\s+([a-zA-Z_][\w]*)/);
+      if (m) styleState.colors[m[1]] = m[2];
+      return;
+    }
+    if (t.startsWith('*icon')) {
+      const m = t.match(/^\*icon\s+([a-zA-Z_][\w]*)\s+"([^"]+)"/);
       if (m) styleState.icons[m[1]] = m[2];
-    } else if (t.startsWith('*inventory')) {
-      entries.push({ type: 'inventory' });
-    } else if (t.startsWith('*stat')) {
-      const m = t.match(/^\*stat\s+([\w_]+)\s+"(.+)"$/);
+      return;
+    }
+    if (t.startsWith('*stat')) {
+      const m = t.match(/^\*stat\s+([a-zA-Z_][\w]*)\s+"([^"]+)"/);
       if (m) entries.push({ type: 'stat', key: m[1], label: m[2] });
+      return;
+    }
+    if (t.startsWith('*inventory')) {
+      entries.push({ type: 'inventory' });
     }
   });
 
+  const grouped = new Map();
+  styleState.groups.forEach(g => grouped.set(g.key, []));
+  const ungrouped = [];
+
   entries.forEach(e => {
-    if (e.type === 'group') {
-      html += `<div class="status-section"><div class="status-label status-section-header">${e.name}</div>`;
-    }
-    if (e.type === 'stat') {
-      const colorClass = styleState.colors[e.key] || '';
-      const icon = styleState.icons[e.key] ?? '';
-      // Only prepend icon + space when an icon is actually defined for this key
-      const labelHtml = icon ? `${icon} ${e.label}` : e.label;
-      html += `<div class="status-row"><span class="status-label">${labelHtml}</span><span class="status-value ${colorClass}">${playerState[e.key] ?? '—'}</span></div>`;
-    }
-    if (e.type === 'inventory') {
-      const items = Array.isArray(playerState.inventory) && playerState.inventory.length
-        ? playerState.inventory.map(i => `<li>${i}</li>`).join('')
-        : '<li class="tag-empty">Empty</li>';
-      html += `<div class="status-section"><div class="status-label status-section-header">Inventory</div><ul class="tag-list">${items}</ul></div>`;
-    }
-    if (e.type === 'group') html += `</div>`;
+    if (e.type !== 'stat') return;
+    const g = playerState[`${e.key}_group`];
+    if (g && grouped.has(g)) grouped.get(g).push(e);
+    else ungrouped.push(e);
   });
+
+  const renderStat = (e) => {
+    const colorClass = styleState.colors[e.key] ? `stat-${styleState.colors[e.key]}` : '';
+    const icon = styleState.icons[e.key] || '';
+    const labelHtml = icon ? `${icon} ${e.label}` : e.label;
+    html += `<div class="status-row"><span class="status-label">${labelHtml}</span><span class="status-value ${colorClass}">${playerState[e.key] ?? '—'}</span></div>`;
+  };
+
+  styleState.groups.forEach(g => {
+    const items = grouped.get(g.key) || [];
+    if (!items.length) return;
+    html += `<div class="status-section"><div class="status-label status-section-header">${g.name}</div>`;
+    items.forEach(renderStat);
+    html += `</div>`;
+  });
+
+  if (ungrouped.length) {
+    html += `<div class="status-section"><div class="status-label status-section-header">Stats</div>`;
+    ungrouped.forEach(renderStat);
+    html += `</div>`;
+  }
+
+  if (entries.some(e => e.type === 'inventory')) {
+    const inv = Array.isArray(playerState.inventory) ? playerState.inventory : [];
+    const items = inv.length ? inv.map(i => `<li>${i}</li>`).join('') : '<li>None</li>';
+    html += `<div class="status-section"><div class="status-label status-section-header">Inventory</div><ul class="tag-list">${items}</ul></div>`;
+  }
 
   dom.statusPanel.innerHTML = html;
 }
 
 function showLevelUpOverlay() {
-  const keys = ['fortitude', 'perception', 'strength', 'agility', 'magic_power', 'magic_regen'];
+  if (!dom.levelupOverlay) return;
+  const keys = ['fortitude','perception','strength','agility','magic_power','magic_regen'];
   const labels = {
-    fortitude: 'Fortitude', perception: 'Perception', strength: 'Strength',
-    agility: 'Agility', magic_power: 'Mag.Power', magic_regen: 'Mag.Regen'
+    fortitude: 'Fortitude',
+    perception: 'Perception',
+    strength: 'Strength',
+    agility: 'Agility',
+    magic_power: 'Magic Power',
+    magic_regen: 'Magic Regen'
   };
+
   const alloc = Object.fromEntries(keys.map(k => [k, 0]));
+  let remaining = pendingStatPoints;
 
   const render = () => {
-    const spent = Object.values(alloc).reduce((a, b) => a + b, 0);
-    const remain = pendingStatPoints - spent;
     dom.levelupContent.innerHTML = `
-      <div style="color:var(--cyan);margin-bottom:6px;">Reached <strong>Level ${playerState.level}</strong></div>
-      <div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--amber);margin-bottom:14px;">Stat points: <strong>${remain}</strong></div>
+      <div>You gained a level! Distribute stat points.</div>
+      <div style="margin-top:8px; font-size:0.75rem; color:#7ad5ff;">Points remaining: <span id="alloc-remaining">${remaining}</span></div>
       <div class="stat-alloc-grid">
-      ${keys.map(k => `
-        <div class="stat-alloc-item ${alloc[k] ? 'selected' : ''}">
-          <span class="stat-alloc-name">${labels[k]}</span>
-          <div style="display:flex;justify-content:center;gap:8px;">
-            <button class="alloc-btn" data-op="minus" data-k="${k}" ${alloc[k] <= 0 ? 'disabled' : ''}>−</button>
-            <span class="stat-alloc-val ${alloc[k] ? 'buffed' : ''}">${Number(playerState[k] || 0) + alloc[k]}</span>
-            <button class="alloc-btn" data-op="plus" data-k="${k}" ${remain <= 0 ? 'disabled' : ''}>+</button>
+        ${keys.map(k => `
+          <div class="stat-alloc-item" data-key="${k}">
+            <span class="stat-alloc-name">${labels[k]}</span>
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+              <button class="alloc-btn" data-act="dec" data-key="${k}" ${alloc[k] ? '' : 'disabled'}>-</button>
+              <span class="stat-alloc-val ${alloc[k] ? 'buffed' : ''}" data-val="${k}">${playerState[k] || 0}${alloc[k] ? ` +${alloc[k]}` : ''}</span>
+              <button class="alloc-btn" data-act="inc" data-key="${k}" ${remaining ? '' : 'disabled'}>+</button>
+            </div>
           </div>
-        </div>
-      `).join('')}
-      </div>`;
+        `).join('')}
+      </div>
+      <button id="alloc-confirm" class="overlay-btn" ${remaining === 0 ? '' : 'disabled'}>Confirm</button>
+    `;
 
     dom.levelupContent.querySelectorAll('.alloc-btn').forEach(btn => {
-      btn.onclick = () => {
-        const key = btn.dataset.k;
-        if (btn.dataset.op === 'plus' && Object.values(alloc).reduce((a, b) => a + b, 0) < pendingStatPoints) alloc[key] += 1;
-        if (btn.dataset.op === 'minus' && alloc[key] > 0) alloc[key] -= 1;
+      btn.addEventListener('click', () => {
+        const k = btn.dataset.key;
+        const act = btn.dataset.act;
+        if (act === 'inc' && remaining > 0) {
+          alloc[k] += 1; remaining -= 1;
+        } else if (act === 'dec' && alloc[k] > 0) {
+          alloc[k] -= 1; remaining += 1;
+        }
         render();
-      };
+      });
     });
+
+    const confirm = dom.levelupContent.querySelector('#alloc-confirm');
+    if (confirm) {
+      confirm.addEventListener('click', () => {
+        if (remaining !== 0) return;
+        keys.forEach(k => {
+          if (alloc[k]) playerState[k] = Number(playerState[k] || 0) + alloc[k];
+        });
+        pendingStatPoints = 0;
+        dom.levelupOverlay.classList.add('hidden');
+        scheduleStatsRender();
+      });
+    }
   };
 
   render();
   dom.levelupOverlay.classList.remove('hidden');
-  dom.levelupClose.onclick = () => {
-    Object.entries(alloc).forEach(([k, v]) => playerState[k] = Number(playerState[k] || 0) + v);
-    pendingStatPoints = 0;
-    dom.levelupOverlay.classList.add('hidden');
-    runStatsScene();
-  };
 }
 
-function showEndingScreen(title, subtitle) {
+function showEndingScreen(title, body) {
+  if (!dom.endingOverlay) return;
   dom.endingTitle.textContent = title;
-  dom.endingContent.textContent = subtitle;
-  dom.endingStats.innerHTML = `Level: ${playerState.level || 0}<br>XP: ${playerState.xp || 0}<br>Class: ${playerState.class_name || 'Unclassed'}`;
-  dom.endingActionBtn.textContent = 'Play Again';
-  dom.endingActionBtn.onclick = () => location.reload();
+  dom.endingContent.innerHTML = formatText(body);
+  const tracked = ['level', 'xp', 'class_name', 'health', 'mana', 'fortitude', 'perception', 'strength', 'agility', 'magic_power', 'magic_regen'];
+  dom.endingStats.innerHTML = tracked
+    .map(k => `<div><span class="status-label">${k.replace(/_/g, ' ').toUpperCase()}</span>: <span class="status-value">${playerState[k] ?? '—'}</span></div>`)
+    .join('');
+  dom.endingActionBtn.textContent = 'Restart';
+  dom.endingActionBtn.onclick = () => window.location.reload();
   dom.endingOverlay.classList.remove('hidden');
 }
 
-function resetGame() {
-  location.reload();
-}
+function setupUI() {
+  if (dom.statusToggle && dom.statusPanel) {
+    dom.statusToggle.addEventListener('click', () => {
+      const isVisible = dom.statusPanel.classList.toggle('status-visible');
+      dom.statusPanel.classList.toggle('status-hidden', !isVisible);
+      dom.statusToggle.setAttribute('aria-expanded', isVisible ? 'true' : 'false');
+    });
+  }
 
-function wireUI() {
-  dom.statusToggle.addEventListener('click', () => {
-    dom.statusPanel.classList.toggle('status-hidden');
-    dom.statusPanel.classList.toggle('status-visible');
-    runStatsScene();
-  });
+  if (dom.restartBtn) {
+    dom.restartBtn.addEventListener('click', () => window.location.reload());
+  }
 
-  document.addEventListener('click', (e) => {
-    if (window.innerWidth <= 768 && !dom.statusPanel.contains(e.target) && e.target !== dom.statusToggle) {
-      dom.statusPanel.classList.remove('status-visible');
-      dom.statusPanel.classList.add('status-hidden');
-    }
-  });
-
-  dom.restartBtn.addEventListener('click', () => {
-    if (confirm('Restart from the beginning?')) resetGame();
-  });
-}
-
-async function boot() {
-  wireUI();
-  try {
-    await parseStartup();
-    await runStatsScene();
-    await gotoScene(startup.sceneList[0] || 'prologue');
-  } catch (err) {
-    showEngineError(`Boot failed: ${err.message}`);
+  if (dom.levelupClose && dom.levelupOverlay) {
+    dom.levelupClose.addEventListener('click', () => {
+      if (pendingStatPoints === 0) dom.levelupOverlay.classList.add('hidden');
+    });
   }
 }
 
-document.addEventListener('DOMContentLoaded', boot);
+(async function main() {
+  try {
+    setupUI();
+    const startupText = await fetchTextFile('startup');
+    parseStartup(startupText);
+    await gotoScene(startup.sceneList[0] || 'prologue');
+  } catch (err) {
+    showEngineError(err.message || String(err));
+  }
+})();
