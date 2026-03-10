@@ -151,6 +151,7 @@ body {
 /* --- Narrative Panel --- */
 #narrative-panel {
   flex: 1;
+  min-width: 0; /* allow flex item to shrink on narrow screens */
   overflow: hidden;
   border-right: 1px solid var(--border-dim);
 }
@@ -158,6 +159,7 @@ body {
 #narrative-content {
   height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 36px 48px calc(48px + env(safe-area-inset-bottom));
   scroll-behavior: smooth;
   display: flex;
@@ -279,6 +281,7 @@ body {
 }
 
 .choice-btn {
+  max-width: 100%;
   font-family: var(--font-body);
   font-size: 1rem;
   text-align: left;
