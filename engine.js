@@ -145,6 +145,7 @@ function addParagraph(text, cls = 'narrative-paragraph') {
 }
 
 function addSystem(text) {
+  applySystemRewards(text);
   const div = document.createElement('div');
   div.className = 'system-block';
   div.style.animationDelay = `${delayIndex * 80}ms`;
@@ -153,6 +154,24 @@ function addSystem(text) {
   const formatted = formatText(text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
   div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
   dom.narrativeContent.insertBefore(div, dom.choiceArea);
+}
+
+function applySystemRewards(text) {
+  // Story files often report rewards via *system text (e.g. "XP gained: +35").
+  // Parse those lines so progression still works even when scenes omit explicit *set commands.
+  const xpMatches = text.match(/XP\s+gained\s*:\s*\+\s*\d+/gi) || [];
+  if (!xpMatches.length) return;
+
+  let gainedTotal = 0;
+  xpMatches.forEach((entry) => {
+    const amount = Number((entry.match(/\d+/) || [0])[0]);
+    if (Number.isFinite(amount) && amount > 0) gainedTotal += amount;
+  });
+
+  if (gainedTotal <= 0) return;
+  playerState.xp = Number(playerState.xp || 0) + gainedTotal;
+  checkAndApplyLevelUp();
+  scheduleStatsRender();
 }
 
 function clearNarrative() {
@@ -577,9 +596,12 @@ async function runStatsScene() {
     }
   });
 
+  let inGroup = false;
   entries.forEach(e => {
     if (e.type === 'group') {
+      if (inGroup) html += `</div>`;
       html += `<div class="status-section"><div class="status-label status-section-header">${e.name}</div>`;
+      inGroup = true;
     }
     if (e.type === 'stat') {
       const colorClass = styleState.colors[e.key] || '';
@@ -589,13 +611,18 @@ async function runStatsScene() {
       html += `<div class="status-row"><span class="status-label">${labelHtml}</span><span class="status-value ${colorClass}">${playerState[e.key] ?? '—'}</span></div>`;
     }
     if (e.type === 'inventory') {
+      if (inGroup) {
+        html += `</div>`;
+        inGroup = false;
+      }
       const items = Array.isArray(playerState.inventory) && playerState.inventory.length
         ? playerState.inventory.map(i => `<li>${i}</li>`).join('')
         : '<li class="tag-empty">Empty</li>';
       html += `<div class="status-section"><div class="status-label status-section-header">Inventory</div><ul class="tag-list">${items}</ul></div>`;
     }
-    if (e.type === 'group') html += `</div>`;
   });
+
+  if (inGroup) html += `</div>`;
 
   dom.statusPanel.innerHTML = html;
 }
