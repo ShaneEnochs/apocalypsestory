@@ -163,7 +163,7 @@ The System was real. Society was about to fracture. Monsters were coming.
 To your relief, she didn't slam the door.
 She stared for ten long seconds, then nodded once.
 "Okay. I don't understand this. But I trust you."
-*system "Flag gained: maya_trust_high"
+*flag maya_trust_high
 *choice
   #Bring Maya with you to gather supplies
     *goto bring_maya_store
@@ -177,7 +177,7 @@ You kept it practical:
 Maya looked unconvinced but scared enough to listen.
 "Okay... okay. I'll fill the bathtub and lock down."
 Not ideal — but better than nothing.
-*system "Flag gained: maya_warned"
+*flag maya_warned
 *choice
   #Go to hardware store
     *goto hardware_store
@@ -190,7 +190,7 @@ You and Maya moved quickly through crowded streets, dividing tasks naturally.
 She handled food, meds, and batteries while you secured weapons and ritual components.
 At checkout, she gave you a look equal parts fear and determination.
 "If you're right, we survive this together."
-*system "Companion unlocked: Maya"
+*flag companion_maya
 *choice
   #Return home and begin preparations
     *goto return_home
@@ -203,7 +203,7 @@ You leaned against a shelf and kept your voice low.
 "Yeah. It's real, and it's going to get worse. Listen — I need you to stay inside, stock up on water, and don't open the door for anyone you don't know. I'll explain everything when I get back."
 Silence. Then:
 "Okay... okay. I'll trust you."
-*system "Flag gained: maya_warned"
+*flag maya_warned
 *choice
   #Return home immediately
     *goto return_home
@@ -250,7 +250,7 @@ Good instincts.
 You reinforced door hinges, blocked sightlines from windows, and mapped escape routes.
 Maya watched every step and copied your motions.
 By the end, she looked less afraid and more focused.
-*system "Flag gained: maya_prepared"
+*flag maya_prepared
 *choice
   #Return to your apartment
     *goto return_home
@@ -260,7 +260,7 @@ By the end, she looked less afraid and more focused.
 You moved Maya to your apartment under cover of evening, avoiding crowded intersections.
 Two sets of eyes. Two sets of hands.
 Better odds.
-*system "Flag gained: maya_with_you"
+*flag maya_with_you
 *choice
   #Begin night-one setup
     *goto return_home
@@ -422,7 +422,7 @@ You found Cole in a looted convenience store, organizing survivors instead of pa
 Even before classes, he had presence.
 You gave him the short version: train now, trust fewer people, move in teams.
 He believed you faster than most.
-*system "Ally potential: Cole"
+*flag ally_cole
 *choice
   #Bring Cole into your core group
     *goto group_formed
@@ -445,7 +445,7 @@ Knowledge was gear.
 With Maya and Cole onboard, your odds improved dramatically.
 Three perspectives. Three specialties.
 You spent the evening drilling roles and fallback plans.
-*system "Team formed: You, Maya, Cole"
+*flag team_formed
 *choice
   #Focus on protecting civilians
     *goto ending_savior
