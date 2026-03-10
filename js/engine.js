@@ -106,7 +106,6 @@ function goToNode(nodeId) {
 
   // Snapshot state before onEnter mutations (for diff animations)
   prevStats = { ...playerState.stats };
-  prevXP = playerState.xp;
   prevLevel = playerState.level;
 
   // Run onEnter state mutations
@@ -188,12 +187,10 @@ function _doRender(node) {
     renderChoiceButton(choice, index, visibleChoices.length);
   });
 
-  // After all staggered animations complete, scroll choices into view
-  if (visibleChoices.length > 0) {
-    const lastDelay = (textItems.length + visibleChoices.length) * 80 + 400;
-    setTimeout(() => {
-      dom.choiceArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }, lastDelay);
+  // Keep the narrative pinned at the top after navigation.
+  // Using scrollIntoView on mobile can cause unintended page-level scrolling.
+  if (window.innerWidth <= 768) {
+    requestAnimationFrame(() => { dom.narrativeContent.scrollTop = 0; });
   }
 }
 
@@ -410,14 +407,19 @@ const STAT_LABELS = {
 };
 
 function checkAndApplyLevelUp() {
-  if (playerState.xp >= playerState.xpToNext && playerState.level === prevLevel) {
+  // If the node already sets level explicitly, do not apply XP-driven level-ups.
+  if (playerState.level !== prevLevel) return false;
+
+  let leveledUp = false;
+  while (playerState.xp >= playerState.xpToNext) {
     playerState.level += 1;
     playerState.xpToNext = Math.floor(playerState.xpToNext * 2.2);
     pendingStatPoints += 10;
     pendingSkillPoints += 3;
-    return true;
+    leveledUp = true;
   }
-  return false;
+
+  return leveledUp;
 }
 
 
