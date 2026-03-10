@@ -1,0 +1,20 @@
+*comment global variable initialization
+*create name "Alex"
+*create class_name "Unclassed"
+*create level 0
+*create xp 0
+*create xp_to_next 100
+*create health 100
+*create mana 100
+*create max_mana 100
+*create fortitude 10
+*create perception 10
+*create strength 10
+*create agility 10
+*create magic_power 10
+*create magic_regen 10
+*create inventory []
+*create loop_counter 0
+
+*scene_list
+  prologue
