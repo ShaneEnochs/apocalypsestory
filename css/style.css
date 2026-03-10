@@ -694,13 +694,16 @@ body {
 
   #game-main {
     position: relative;
+    overflow-x: clip;
   }
 
   #status-panel {
     position: absolute;
-    top: 0; right: 0;
+    top: 0;
+    right: env(safe-area-inset-right);
     height: 100%;
-    width: 260px;
+    width: min(260px, 86vw);
+    max-width: 100%;
     z-index: 20;
     transform: translateX(100%);
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
