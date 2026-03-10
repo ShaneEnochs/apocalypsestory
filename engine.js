@@ -156,22 +156,88 @@ function addSystem(text) {
   dom.narrativeContent.insertBefore(div, dom.choiceArea);
 }
 
-function applySystemRewards(text) {
-  // Story files often report rewards via *system text (e.g. "XP gained: +35").
-  // Parse those lines so progression still works even when scenes omit explicit *set commands.
-  const xpMatches = text.match(/XP\s+gained\s*:\s*\+\s*\d+/gi) || [];
-  if (!xpMatches.length) return;
+function addInventoryItem(item) {
+  const normalized = String(item || '').trim();
+  if (!normalized) return false;
+  if (!Array.isArray(playerState.inventory)) playerState.inventory = [];
+  if (playerState.inventory.includes(normalized)) return false;
+  playerState.inventory.push(normalized);
+  return true;
+}
 
+function parseInventoryUpdateText(text) {
+  const m = text.match(/Inventory\s+updated\s*:\s*([^\n]+)/i);
+  if (!m) return [];
+
+  const payload = m[1].trim();
+  if (!payload || /^(mixed\s+survival\s+kit\s+assembled\.?|medical\s+supplies\s+acquired\.?|ritual\s+components\s+secured\.?)$/i.test(payload)) {
+    return [];
+  }
+
+  return payload
+    .split(',')
+    .map((entry) => entry.trim().replace(/\.$/, ''))
+    .filter(Boolean);
+}
+
+function applySystemRewards(text) {
+  let stateChanged = false;
+
+  // Parse XP from both "XP gained: +35" and "+100 bonus XP" style messages.
+  const xpMatches = [
+    ...(text.match(/XP\s+gained\s*:\s*\+\s*\d+/gi) || []),
+    ...(text.match(/\+\s*\d+\s*(?:bonus\s+)?XP\b/gi) || [])
+  ];
   let gainedTotal = 0;
   xpMatches.forEach((entry) => {
     const amount = Number((entry.match(/\d+/) || [0])[0]);
     if (Number.isFinite(amount) && amount > 0) gainedTotal += amount;
   });
+  if (gainedTotal > 0) {
+    playerState.xp = Number(playerState.xp || 0) + gainedTotal;
+    checkAndApplyLevelUp();
+    stateChanged = true;
+  }
 
-  if (gainedTotal <= 0) return;
-  playerState.xp = Number(playerState.xp || 0) + gainedTotal;
-  checkAndApplyLevelUp();
-  scheduleStatsRender();
+  // Parse broad stat rewards surfaced in system text.
+  const allStatsMatch = text.match(/\+\s*(\d+)\s+to\s+all\s+stats?/i);
+  if (allStatsMatch) {
+    const bonus = Number(allStatsMatch[1]);
+    if (bonus > 0) {
+      ['fortitude', 'perception', 'strength', 'agility', 'magic_power', 'magic_regen'].forEach((key) => {
+        playerState[key] = Number(playerState[key] || 0) + bonus;
+      });
+      stateChanged = true;
+    }
+  }
+
+  const explicitStatPatterns = [
+    { regex: /\+\s*(\d+)\s+magic\s+regeneration\b/i, key: 'magic_regen' },
+    { regex: /\+\s*(\d+)\s+magic\s+regen\b/i, key: 'magic_regen' },
+    { regex: /\+\s*(\d+)\s+magic\s+power\b/i, key: 'magic_power' },
+    { regex: /\+\s*(\d+)\s+fortitude\b/i, key: 'fortitude' },
+    { regex: /\+\s*(\d+)\s+perception\b/i, key: 'perception' },
+    { regex: /\+\s*(\d+)\s+strength\b/i, key: 'strength' },
+    { regex: /\+\s*(\d+)\s+agility\b/i, key: 'agility' },
+    { regex: /\+\s*(\d+)\s+max\s+mana\b/i, key: 'max_mana' },
+    { regex: /\+\s*(\d+)\s+mana\b/i, key: 'mana' },
+    { regex: /\+\s*(\d+)\s+health\b/i, key: 'health' }
+  ];
+  explicitStatPatterns.forEach(({ regex, key }) => {
+    const m = text.match(regex);
+    if (!m) return;
+    const bonus = Number(m[1]);
+    if (bonus <= 0) return;
+    playerState[key] = Number(playerState[key] || 0) + bonus;
+    stateChanged = true;
+  });
+
+  const inventoryItems = parseInventoryUpdateText(text);
+  inventoryItems.forEach((item) => {
+    if (addInventoryItem(item)) stateChanged = true;
+  });
+
+  if (stateChanged) scheduleStatsRender();
 }
 
 function clearNarrative() {
@@ -433,6 +499,16 @@ async function executeCurrentLine() {
 
   if (t.startsWith('*set')) {
     setVar(t);
+    ip += 1;
+    return;
+  }
+
+  if (t.startsWith('*flag')) {
+    const key = t.replace('*flag', '').trim();
+    if (key) {
+      playerState[key] = true;
+      scheduleStatsRender();
+    }
     ip += 1;
     return;
   }
