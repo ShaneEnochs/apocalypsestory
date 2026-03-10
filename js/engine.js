@@ -133,20 +133,6 @@ function goToNode(nodeId) {
 }
 
 /**
- * Check if XP threshold crossed and apply level-up.
- * Returns true if a level-up occurred.
- */
-function checkAndApplyLevelUp() {
-  if (playerState.xp >= playerState.xpToNext && playerState.level === prevLevel) {
-    playerState.level += 1;
-    playerState.xpToNext = Math.floor(playerState.xpToNext * 2.2);
-    // Note: actual stat/skill points distributed at level-up screen
-    return true;
-  }
-  return false;
-}
-
-/**
  * Render the narrative content and choices for a node.
  * Uses a transition fade if not first load.
  */
@@ -401,8 +387,10 @@ function updateStatusPanel(didLevelUp = false) {
     });
   }
 
-  // Trigger level-up overlay if needed
-  if (didLevelUp) {
+  // Trigger level-up overlay only when there are points to allocate.
+  // (Nodes like grinding_montage hard-set level in onEnter and handle stat
+  // distribution themselves — pendingStatPoints stays 0 in those cases.)
+  if (didLevelUp && pendingStatPoints > 0) {
     setTimeout(() => showLevelUpOverlay(), 1200);
   }
 }
@@ -475,10 +463,10 @@ function _renderLevelUpContent() {
 
   dom.levelupContent.innerHTML = html;
 
-  // Confirm button state
-  dom.levelupClose.textContent = remaining > 0 ? `Confirm (${remaining} left)` : 'Confirm & Continue';
-  dom.levelupClose.style.opacity = remaining > 0 ? '0.55' : '1';
-  dom.levelupClose.style.pointerEvents = remaining > 0 ? 'none' : 'auto';
+  // Confirm button state — always clickable; leftover points auto-go to Fortitude
+  dom.levelupClose.textContent = remaining > 0 ? `Confirm (${remaining} to Fortitude)` : 'Confirm & Continue';
+  dom.levelupClose.style.opacity = '1';
+  dom.levelupClose.style.pointerEvents = 'auto';
 
   // Bind + buttons
   dom.levelupContent.querySelectorAll('.alloc-plus').forEach(btn => {
