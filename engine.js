@@ -1,40 +1,71 @@
 // Extended ChoiceScript-lite engine for System Awakening
+//
+// STAT SYSTEM — fully data-driven, zero hardcoded stat names:
+//   • *create_stat key "Label" defaultValue  (in startup.txt)
+//       Registers a stat. Use any key, any label, any default.
+//       These are the stats shown in the level-up allocation screen.
+//       Example: *create_stat cunning "Cunning" 10
+//   • *stat_registered  (in stats.txt)
+//       Expands to one display row per *create_stat entry.
+//       Put it once in stats.txt where you want attributes shown —
+//       you never need to list stat names in two places.
+//   • xp_up_mult / lvl_up_stat_gain  (plain *create in startup.txt)
+//       Control XP threshold multiplier and stat points per level-up.
+//
+// OTHER FEATURES:
+//   • Stacking inventory — duplicate items become "Item (2)", "Item (3)", etc.
+//   • *temp varName value — scene-scoped variable, cleared on scene/label transitions
 
+// ---------------------------------------------------------------------------
+// DOM cache
+// ---------------------------------------------------------------------------
 const dom = {
   narrativeContent: document.getElementById('narrative-content'),
-  choiceArea: document.getElementById('choice-area'),
-  chapterTitle: document.getElementById('chapter-title'),
-  narrativePanel: document.getElementById('narrative-panel'),
-  statusPanel: document.getElementById('status-panel'),
-  statusToggle: document.getElementById('status-toggle'),
-  restartBtn: document.getElementById('restart-btn'),
-  levelupOverlay: document.getElementById('levelup-overlay'),
-  levelupContent: document.getElementById('levelup-content'),
-  levelupClose: document.getElementById('levelup-close'),
-  endingOverlay: document.getElementById('ending-overlay'),
-  endingTitle: document.getElementById('ending-title'),
-  endingContent: document.getElementById('ending-content'),
-  endingStats: document.getElementById('ending-stats'),
-  endingActionBtn: document.getElementById('ending-action-btn')
+  choiceArea:       document.getElementById('choice-area'),
+  chapterTitle:     document.getElementById('chapter-title'),
+  narrativePanel:   document.getElementById('narrative-panel'),
+  statusPanel:      document.getElementById('status-panel'),
+  statusToggle:     document.getElementById('status-toggle'),
+  restartBtn:       document.getElementById('restart-btn'),
+  levelupOverlay:   document.getElementById('levelup-overlay'),
+  levelupContent:   document.getElementById('levelup-content'),
+  levelupClose:     document.getElementById('levelup-close'),
+  endingOverlay:    document.getElementById('ending-overlay'),
+  endingTitle:      document.getElementById('ending-title'),
+  endingContent:    document.getElementById('ending-content'),
+  endingStats:      document.getElementById('ending-stats'),
+  endingActionBtn:  document.getElementById('ending-action-btn')
 };
 
-// Warn at startup if any expected DOM element is missing — catches HTML/ID drift early.
 Object.entries(dom).forEach(([key, el]) => {
   if (!el) console.warn(`[engine] DOM element missing for key "${key}" — check index.html IDs`);
 });
 
-let playerState = {};
-let startup = { sceneList: [] };
-let currentScene = null;
-let currentLines = [];
-let ip = 0;
-let delayIndex = 0;
+// ---------------------------------------------------------------------------
+// Engine state
+// ---------------------------------------------------------------------------
+let playerState   = {};   // persistent variables (survives scene changes)
+let tempState     = {};   // *temp variables — cleared on scene/label transitions
+let startup       = { sceneList: [] };
+
+// Stat registry — populated by *create_stat in startup.txt.
+// Each entry: { key: string, label: string, defaultVal: number }
+let statRegistry  = [];
+
+let currentScene  = null;
+let currentLines  = [];
+let ip            = 0;
+let delayIndex    = 0;
 let awaitingChoice = null;
 let pendingStatPoints = 0;
-const sceneCache = new Map();
-const labelsCache = new Map();
-const styleState = { groups: [], colors: {}, icons: {} };
 
+const sceneCache  = new Map();
+const labelsCache = new Map();
+const styleState  = { groups: [], colors: {}, icons: {} };
+
+// ---------------------------------------------------------------------------
+// Deferred stats render (batches rapid successive calls into one frame)
+// ---------------------------------------------------------------------------
 let _statsRenderPending = false;
 function scheduleStatsRender() {
   if (_statsRenderPending) return;
@@ -42,6 +73,9 @@ function scheduleStatsRender() {
   Promise.resolve().then(() => { _statsRenderPending = false; runStatsScene(); });
 }
 
+// ---------------------------------------------------------------------------
+// File loading
+// ---------------------------------------------------------------------------
 async function fetchTextFile(name) {
   const key = name.endsWith('.txt') ? name : `${name}.txt`;
   if (sceneCache.has(key)) return sceneCache.get(key);
@@ -52,32 +86,36 @@ async function fetchTextFile(name) {
   return text;
 }
 
+// ---------------------------------------------------------------------------
+// Line parsing
+// ---------------------------------------------------------------------------
 function parseLines(text) {
   return text.split(/\r?\n/).map(raw => {
     const indentMatch = raw.match(/^\s*/)?.[0] || '';
-    return {
-      raw,
-      trimmed: raw.trim(),
-      indent: indentMatch.length
-    };
+    return { raw, trimmed: raw.trim(), indent: indentMatch.length };
   });
 }
 
+// ---------------------------------------------------------------------------
+// Text formatting (variable interpolation + markdown)
+// ---------------------------------------------------------------------------
 function formatText(text) {
   return text
-    .replace(/\$\{([a-zA-Z_][\w]*)\}/g, (_, v) => playerState[v] ?? '')
+    // Interpolate ${varName} — check tempState first, then playerState
+    .replace(/\$\{([a-zA-Z_][\w]*)\}/g, (_, v) =>
+      tempState[v] !== undefined ? tempState[v] : (playerState[v] ?? ''))
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>');
 }
 
+// ---------------------------------------------------------------------------
+// Expression evaluator
+// Resolves variables from tempState (priority) then playerState.
+// ---------------------------------------------------------------------------
 function evalValue(expr) {
   const trimmed = expr.trim();
-  // Fast-path: plain array literal — don't run through variable substitution
   if (trimmed === '[]') return [];
 
-  // Extract quoted string literals before variable substitution so that
-  // special characters inside strings (operators, brackets, keywords) are
-  // not mangled by the token-replacement regex.
   const stringSlots = [];
   const withPlaceholders = trimmed.replace(/"([^"\\]|\\.)*"/g, (match) => {
     stringSlots.push(match);
@@ -86,55 +124,95 @@ function evalValue(expr) {
 
   const sanitized = withPlaceholders
     .replace(/\band\b/g, '&&')
-    .replace(/\bor\b/g, '||')
+    .replace(/\bor\b/g,  '||')
     .replace(/\bnot\b/g, '!')
-    .replace(/\btrue\b/gi, 'true')
+    .replace(/\btrue\b/gi,  'true')
     .replace(/\bfalse\b/gi, 'false')
     .replace(/[a-zA-Z_][\w]*/g, (token) => {
       if (['true', 'false'].includes(token)) return token;
-      // Restore string placeholders untouched
       if (/^__STR\d+__$/.test(token)) return token;
+      // tempState has priority over playerState
+      if (Object.prototype.hasOwnProperty.call(tempState, token))   return `__t.${token}`;
       if (Object.prototype.hasOwnProperty.call(playerState, token)) return `__s.${token}`;
       return token;
     })
-    // Restore the original quoted strings
     .replace(/__STR(\d+)__/g, (_, i) => stringSlots[Number(i)]);
 
   try {
-    return Function('__s', `return (${sanitized});`)(playerState);
+    return Function('__s', '__t', `return (${sanitized});`)(playerState, tempState);
   } catch {
-    // Last resort: strip outer quotes and return as plain string
     return trimmed.replace(/^"|"$/g, '');
   }
 }
 
+// ---------------------------------------------------------------------------
+// Variable setters
+// ---------------------------------------------------------------------------
+
+/**
+ * *set varName value — sets in tempState if the variable was declared with
+ * *temp, otherwise in playerState.
+ */
 function setVar(command) {
   const m = command.match(/^\*set\s+([a-zA-Z_][\w]*)\s+(.+)$/);
   if (!m) return;
   const [, key, rhs] = m;
-  if (/^[+\-*/]\s*[\d\w]/.test(rhs) && typeof playerState[key] === 'number') {
-    playerState[key] = evalValue(`${playerState[key]} ${rhs}`);
+
+  // Decide which store owns this variable
+  const inTemp   = Object.prototype.hasOwnProperty.call(tempState, key);
+  const inPlayer = Object.prototype.hasOwnProperty.call(playerState, key);
+  const store    = inTemp ? tempState : playerState;
+
+  if (/^[+\-*/]\s*[\d\w]/.test(rhs) && typeof store[key] === 'number') {
+    store[key] = evalValue(`${store[key]} ${rhs}`);
   } else {
-    playerState[key] = evalValue(rhs);
+    store[key] = evalValue(rhs);
   }
-  checkAndApplyLevelUp();
-  scheduleStatsRender();
+
+  if (!inTemp) {
+    checkAndApplyLevelUp();
+    scheduleStatsRender();
+  }
 }
 
+/**
+ * *temp varName value — declares a scene-scoped variable.
+ * The variable is cleared at the next scene/label transition.
+ */
+function declareTemp(command) {
+  const m = command.match(/^\*temp\s+([a-zA-Z_][\w]*)(?:\s+(.+))?$/);
+  if (!m) return;
+  const [, key, rhs] = m;
+  tempState[key] = rhs !== undefined ? evalValue(rhs) : 0;
+}
+
+/**
+ * Clear all temp variables. Called on scene and label transitions.
+ */
+function clearTempState() {
+  tempState = {};
+}
+
+// ---------------------------------------------------------------------------
+// Level-up logic — uses startup-configurable multipliers
+// ---------------------------------------------------------------------------
 function checkAndApplyLevelUp() {
-  const xp = Number(playerState.xp || 0);
-  const next = Number(playerState.xp_to_next || 0);
-  if (!next) return;
+  if (!Number(playerState.xp_to_next || 0)) return;
+  const mult     = Number(playerState.xp_up_mult    ?? 2.2);
+  const gain     = Number(playerState.lvl_up_stat_gain ?? 5);
   let changed = false;
   while (Number(playerState.xp) >= Number(playerState.xp_to_next)) {
-    playerState.level = Number(playerState.level || 0) + 1;
-    playerState.xp_to_next = Math.floor(Number(playerState.xp_to_next) * 2.2);
-    pendingStatPoints += 5;
+    playerState.level     = Number(playerState.level || 0) + 1;
+    playerState.xp_to_next = Math.floor(Number(playerState.xp_to_next) * mult);
+    pendingStatPoints    += gain;
     changed = true;
   }
   if (changed) showLevelUpOverlay();
 }
 
+// ---------------------------------------------------------------------------
+// Narrative rendering helpers
+// ---------------------------------------------------------------------------
 function addParagraph(text, cls = 'narrative-paragraph') {
   const p = document.createElement('p');
   p.className = cls;
@@ -150,46 +228,95 @@ function addSystem(text) {
   div.className = 'system-block';
   div.style.animationDelay = `${delayIndex * 80}ms`;
   delayIndex += 1;
-  // Support both escaped (\n) and real newlines for multi-line system messages.
   const formatted = formatText(text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
   div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
   dom.narrativeContent.insertBefore(div, dom.choiceArea);
 }
 
+// ---------------------------------------------------------------------------
+// Inventory helpers — stacking support
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the base name of an item, stripping any " (N)" suffix.
+ * e.g. "Iron Sword (2)" → "Iron Sword"
+ */
+function itemBaseName(item) {
+  return String(item).replace(/\s*\(\d+\)$/, '').trim();
+}
+
+/**
+ * Add an item to the inventory with stacking support.
+ * • First copy  → stored as plain name:  "Iron Sword"
+ * • Second copy → renamed to:            "Iron Sword (2)"
+ * • Third copy  → renamed to:            "Iron Sword (3)"   ...etc.
+ * One inventory slot per item type always shows the current quantity.
+ * Returns true if the state changed.
+ */
 function addInventoryItem(item) {
-  const normalized = String(item || '').trim();
+  const normalized = itemBaseName(item);
   if (!normalized) return false;
   if (!Array.isArray(playerState.inventory)) playerState.inventory = [];
-  if (playerState.inventory.includes(normalized)) return false;
-  playerState.inventory.push(normalized);
+
+  // Find the existing slot for this base name (if any)
+  const idx = playerState.inventory.findIndex(i => itemBaseName(i) === normalized);
+
+  if (idx === -1) {
+    // Brand new item — store plain name
+    playerState.inventory.push(normalized);
+  } else {
+    // Already exists — bump the quantity counter
+    const stackEntry = playerState.inventory[idx];
+    const countMatch = stackEntry.match(/\((\d+)\)$/);
+    const currentQty = countMatch ? Number(countMatch[1]) : 1;
+    playerState.inventory[idx] = `${normalized} (${currentQty + 1})`;
+  }
+
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// System reward text parsers
+// ---------------------------------------------------------------------------
 function parseInventoryUpdateText(text) {
   const m = text.match(/Inventory\s+updated\s*:\s*([^\n]+)/i);
   if (!m) return [];
 
   const payload = m[1].trim();
-  if (!payload || /^(mixed\s+survival\s+kit\s+assembled\.?|medical\s+supplies\s+acquired\.?|ritual\s+components\s+secured\.?)$/i.test(payload)) {
+  if (!payload ||
+      /^(mixed\s+survival\s+kit\s+assembled\.?|medical\s+supplies\s+acquired\.?|ritual\s+components\s+secured\.?)$/i.test(payload)) {
     return [];
   }
 
   return payload
     .split(',')
-    .map((entry) => entry.trim().replace(/\.$/, ''))
+    .map(entry => entry.trim().replace(/\.$/, ''))
     .filter(Boolean);
+}
+
+/**
+ * Returns the list of stat keys that appear in the level-up allocation screen.
+ * These are exactly the stats declared with *create_stat in startup.txt.
+ * Returns an empty array (and warns) when no stats have been registered —
+ * the game will still run, level-ups will simply award no allocatable points.
+ */
+function getAllocatableStatKeys() {
+  if (statRegistry.length === 0) {
+    console.warn('[engine] No *create_stat entries found in startup.txt — level-up allocation will be empty.');
+  }
+  return statRegistry.map(e => e.key);
 }
 
 function applySystemRewards(text) {
   let stateChanged = false;
 
-  // Parse XP from both "XP gained: +35" and "+100 bonus XP" style messages.
+  // XP gains
   const xpMatches = [
-    ...(text.match(/XP\s+gained\s*:\s*\+\s*\d+/gi) || []),
-    ...(text.match(/\+\s*\d+\s*(?:bonus\s+)?XP\b/gi) || [])
+    ...(text.match(/XP\s+gained\s*:\s*\+\s*\d+/gi)     || []),
+    ...(text.match(/\+\s*\d+\s*(?:bonus\s+)?XP\b/gi)    || [])
   ];
   let gainedTotal = 0;
-  xpMatches.forEach((entry) => {
+  xpMatches.forEach(entry => {
     const amount = Number((entry.match(/\d+/) || [0])[0]);
     if (Number.isFinite(amount) && amount > 0) gainedTotal += amount;
   });
@@ -199,31 +326,44 @@ function applySystemRewards(text) {
     stateChanged = true;
   }
 
-  // Parse broad stat rewards surfaced in system text.
+  // "+N to all stats" — uses registry so custom stat keys are included
   const allStatsMatch = text.match(/\+\s*(\d+)\s+to\s+all\s+stats?/i);
   if (allStatsMatch) {
     const bonus = Number(allStatsMatch[1]);
     if (bonus > 0) {
-      ['fortitude', 'perception', 'strength', 'agility', 'magic_power', 'magic_regen'].forEach((key) => {
+      getAllocatableStatKeys().forEach(key => {
         playerState[key] = Number(playerState[key] || 0) + bonus;
       });
       stateChanged = true;
     }
   }
 
-  const explicitStatPatterns = [
-    { regex: /\+\s*(\d+)\s+magic\s+regeneration\b/i, key: 'magic_regen' },
-    { regex: /\+\s*(\d+)\s+magic\s+regen\b/i, key: 'magic_regen' },
-    { regex: /\+\s*(\d+)\s+magic\s+power\b/i, key: 'magic_power' },
-    { regex: /\+\s*(\d+)\s+fortitude\b/i, key: 'fortitude' },
-    { regex: /\+\s*(\d+)\s+perception\b/i, key: 'perception' },
-    { regex: /\+\s*(\d+)\s+strength\b/i, key: 'strength' },
-    { regex: /\+\s*(\d+)\s+agility\b/i, key: 'agility' },
+  // Stat-gain patterns built entirely from the registry — no hardcoded names.
+  // For each registered stat we match both its human label ("Magic Power") and
+  // its snake_case key ("magic_power"), so authors can use either form in *system text.
+  // The three structural vitals (health / mana / max_mana) are always included.
+  const vitalsPatterns = [
     { regex: /\+\s*(\d+)\s+max\s+mana\b/i, key: 'max_mana' },
-    { regex: /\+\s*(\d+)\s+mana\b/i, key: 'mana' },
-    { regex: /\+\s*(\d+)\s+health\b/i, key: 'health' }
+    { regex: /\+\s*(\d+)\s+mana\b/i,        key: 'mana'     },
+    { regex: /\+\s*(\d+)\s+health\b/i,       key: 'health'   },
   ];
-  explicitStatPatterns.forEach(({ regex, key }) => {
+
+  const statPatterns = [];
+  statRegistry.forEach(({ key, label }) => {
+    // Match by human label  e.g. "+5 Magic Power"
+    const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    statPatterns.push({ regex: new RegExp(`\\+\\s*(\\d+)\\s+${escapedLabel}\\b`, 'i'), key });
+
+    // Match by snake_case key  e.g. "+5 magic_power"  (only when different from label)
+    const normKey   = key.toLowerCase();
+    const normLabel = label.toLowerCase().replace(/\s+/g, '_');
+    if (normKey !== normLabel) {
+      const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/_/g, '[ _]');
+      statPatterns.push({ regex: new RegExp(`\\+\\s*(\\d+)\\s+${escapedKey}\\b`, 'i'), key });
+    }
+  });
+
+  [...vitalsPatterns, ...statPatterns].forEach(({ regex, key }) => {
     const m = text.match(regex);
     if (!m) return;
     const bonus = Number(m[1]);
@@ -231,15 +371,20 @@ function applySystemRewards(text) {
     playerState[key] = Number(playerState[key] || 0) + bonus;
     stateChanged = true;
   });
+  });
 
+  // Inventory items embedded in system text
   const inventoryItems = parseInventoryUpdateText(text);
-  inventoryItems.forEach((item) => {
+  inventoryItems.forEach(item => {
     if (addInventoryItem(item)) stateChanged = true;
   });
 
   if (stateChanged) scheduleStatsRender();
 }
 
+// ---------------------------------------------------------------------------
+// Narrative clear
+// ---------------------------------------------------------------------------
 function clearNarrative() {
   Array.from(dom.narrativeContent.children).forEach(el => {
     if (el !== dom.choiceArea) el.remove();
@@ -253,35 +398,63 @@ function applyTransition() {
   setTimeout(() => dom.narrativePanel.classList.remove('transitioning'), 220);
 }
 
+// ---------------------------------------------------------------------------
+// Startup parser
+// Handles: *create, *create_stat, *scene_list, xp_up_mult, lvl_up_stat_gain
+// ---------------------------------------------------------------------------
 async function parseStartup() {
   const text = await fetchTextFile('startup');
   const lines = parseLines(text);
-  playerState = {};
+  playerState  = {};
+  tempState    = {};
+  statRegistry = [];
   startup.sceneList = [];
 
   let inSceneList = false;
 
   for (const line of lines) {
     if (!line.trimmed || line.trimmed.startsWith('//')) continue;
+
+    // *create_stat key "Label" defaultValue
+    if (line.trimmed.startsWith('*create_stat')) {
+      inSceneList = false;
+      // Format: *create_stat key "Human Label" defaultValue
+      const m = line.trimmed.match(/^\*create_stat\s+([a-zA-Z_][\w]*)\s+"([^"]+)"\s+(.+)$/);
+      if (!m) {
+        console.warn(`[engine] Malformed *create_stat: ${line.trimmed}`);
+        continue;
+      }
+      const [, key, label, valStr] = m;
+      const defaultVal = evalValue(valStr);
+      playerState[key] = defaultVal;
+      statRegistry.push({ key, label, defaultVal });
+      continue;
+    }
+
+    // *create key value  (regular variable — not a registered stat)
     if (line.trimmed.startsWith('*create')) {
-      inSceneList = false; // a *create after *scene_list would be malformed — reset
+      inSceneList = false;
       const m = line.trimmed.match(/^\*create\s+([a-zA-Z_][\w]*)\s+(.+)$/);
       if (!m) continue;
       const [, key, value] = m;
       playerState[key] = evalValue(value);
       continue;
     }
+
     if (line.trimmed.startsWith('*scene_list')) {
       inSceneList = true;
       continue;
     }
-    // Only collect indented non-command lines when we're inside a *scene_list block
+
     if (inSceneList && !line.trimmed.startsWith('*') && line.indent > 0) {
       startup.sceneList.push(line.trimmed);
     }
   }
 }
 
+// ---------------------------------------------------------------------------
+// Label indexer
+// ---------------------------------------------------------------------------
 function indexLabels(sceneName, lines) {
   const map = {};
   lines.forEach((line, idx) => {
@@ -291,6 +464,9 @@ function indexLabels(sceneName, lines) {
   labelsCache.set(sceneName, map);
 }
 
+// ---------------------------------------------------------------------------
+// Error display
+// ---------------------------------------------------------------------------
 function showEngineError(message) {
   clearNarrative();
   const div = document.createElement('div');
@@ -302,6 +478,9 @@ function showEngineError(message) {
   dom.chapterTitle.textContent = 'ERROR';
 }
 
+// ---------------------------------------------------------------------------
+// Scene navigation
+// ---------------------------------------------------------------------------
 async function gotoScene(name, label = null) {
   let text;
   try {
@@ -310,8 +489,9 @@ async function gotoScene(name, label = null) {
     showEngineError(`Could not load scene "${name}".\n${err.message}`);
     return;
   }
-  currentScene = name;
-  currentLines = parseLines(text);
+  clearTempState();   // ← temp vars cleared on every scene change
+  currentScene  = name;
+  currentLines  = parseLines(text);
   indexLabels(name, currentLines);
   ip = 0;
   clearNarrative();
@@ -324,6 +504,9 @@ async function gotoScene(name, label = null) {
   await runInterpreter();
 }
 
+// ---------------------------------------------------------------------------
+// Block / flow helpers
+// ---------------------------------------------------------------------------
 function findBlockEnd(fromIndex, parentIndent) {
   let i = fromIndex;
   while (i < currentLines.length) {
@@ -339,16 +522,13 @@ function findIfChainEnd(fromIndex, indent) {
   while (i < currentLines.length) {
     const line = currentLines[i];
     if (!line.trimmed) { i += 1; continue; }
-    // Anything indented less than the *if means we've left the chain entirely
     if (line.indent < indent) break;
     if (line.indent === indent) {
       if (line.trimmed.startsWith('*elseif') || line.trimmed.startsWith('*else')) {
-        // Skip the body of this branch so we don't misread its contents
         const bodyEnd = findBlockEnd(i + 1, indent);
         i = bodyEnd;
         continue;
       }
-      // Same-indent non-chain keyword — chain is over
       break;
     }
     i += 1;
@@ -357,7 +537,11 @@ function findIfChainEnd(fromIndex, indent) {
 }
 
 function evaluateCondition(raw) {
-  const condition = raw.replace(/^\*if\s*/, '').replace(/^\*elseif\s*/, '').replace(/^\*loop\s*/, '').trim();
+  const condition = raw
+    .replace(/^\*if\s*/,     '')
+    .replace(/^\*elseif\s*/, '')
+    .replace(/^\*loop\s*/,   '')
+    .trim();
   return !!evalValue(condition.replace(/^\(|\)$/g, ''));
 }
 
@@ -369,31 +553,26 @@ function parseChoice(startIndex, indent) {
     if (!line.trimmed) { i += 1; continue; }
     if (line.indent <= indent) break;
 
-    let selectable = true;
-    let optionText = '';
+    let selectable   = true;
+    let optionText   = '';
     let optionIndent = line.indent;
 
     if (line.trimmed.startsWith('*selectable_if')) {
       const m = line.trimmed.match(/^\*selectable_if\s*\((.+)\)\s*#(.*)$/);
-      if (m) {
-        selectable = !!evalValue(m[1]);
-        optionText = m[2].trim();
-      }
+      if (m) { selectable = !!evalValue(m[1]); optionText = m[2].trim(); }
     } else if (line.trimmed.startsWith('#')) {
       optionText = line.trimmed.slice(1).trim();
     }
 
     if (optionText) {
       const start = i + 1;
-      const end = findBlockEnd(start, optionIndent);
+      const end   = findBlockEnd(start, optionIndent);
       choices.push({ text: optionText, selectable, start, end });
       i = end;
       continue;
     }
-
     i += 1;
   }
-
   return { choices, end: i };
 }
 
@@ -403,17 +582,11 @@ async function executeBlock(start, end) {
   while (ip < end) {
     await executeCurrentLine();
     if (awaitingChoice) {
-      // Don't restore ip — the choice handler will set ip = ctx.end after the
-      // player picks, then call runInterpreter() to continue from there.
-      // We do record the block's end so the choice handler can resume correctly.
-      awaitingChoice._blockEnd = end;
-      awaitingChoice._savedIp = savedIp;
+      awaitingChoice._blockEnd  = end;
+      awaitingChoice._savedIp   = savedIp;
       return;
     }
   }
-  // Only restore the caller's instruction pointer when the block completed
-  // naturally. If a command inside the block changed control flow (e.g. *goto,
-  // *goto_scene), preserve that new instruction pointer.
   if (ip === end) ip = savedIp;
 }
 
@@ -429,37 +602,31 @@ function parseSystemBlock(startIndex) {
   return { text: '', endIp: currentLines.length, ok: false };
 }
 
+// ---------------------------------------------------------------------------
+// Main interpreter
+// ---------------------------------------------------------------------------
 async function executeCurrentLine() {
   const line = currentLines[ip];
   if (!line) return;
-  if (!line.trimmed || line.trimmed.startsWith('//')) {
-    ip += 1;
-    return;
-  }
+  if (!line.trimmed || line.trimmed.startsWith('//')) { ip += 1; return; }
 
   const t = line.trimmed;
 
-  if (!t.startsWith('*')) {
-    addParagraph(t);
-    ip += 1;
-    return;
-  }
+  // Plain narrative text
+  if (!t.startsWith('*')) { addParagraph(t); ip += 1; return; }
 
   if (t.startsWith('*title')) {
     dom.chapterTitle.textContent = t.replace('*title', '').trim();
-    ip += 1;
-    return;
+    ip += 1; return;
   }
 
   if (t.startsWith('*label')) {
-    ip += 1;
-    return;
+    // Clear temp vars on label transitions too — treats *label like a soft scene boundary
+    clearTempState();
+    ip += 1; return;
   }
 
-  if (t.startsWith('*comment')) {
-    ip += 1;
-    return;
-  }
+  if (t.startsWith('*comment')) { ip += 1; return; }
 
   if (t.startsWith('*goto_scene')) {
     const target = t.replace('*goto_scene', '').trim();
@@ -475,6 +642,7 @@ async function executeCurrentLine() {
       ip = currentLines.length;
       return;
     }
+    clearTempState();   // ← temp vars cleared on *goto too
     ip = labels[label];
     applyTransition();
     return;
@@ -493,66 +661,66 @@ async function executeCurrentLine() {
       return;
     }
     addSystem(t.replace('*system', '').trim().replace(/^"|"$/g, ''));
-    ip += 1;
-    return;
+    ip += 1; return;
+  }
+
+  // *temp — scene-scoped variable declaration
+  if (t.startsWith('*temp')) {
+    declareTemp(t);
+    ip += 1; return;
   }
 
   if (t.startsWith('*set')) {
     setVar(t);
-    ip += 1;
-    return;
+    ip += 1; return;
   }
 
   if (t.startsWith('*flag')) {
     const key = t.replace('*flag', '').trim();
-    if (key) {
-      playerState[key] = true;
-      scheduleStatsRender();
-    }
-    ip += 1;
-    return;
+    if (key) { playerState[key] = true; scheduleStatsRender(); }
+    ip += 1; return;
   }
 
   if (t.startsWith('*uppercase')) {
     const key = t.replace('*uppercase', '').trim();
-    if (typeof playerState[key] === 'string') playerState[key] = playerState[key].toUpperCase();
-    ip += 1;
-    return;
+    const store = Object.prototype.hasOwnProperty.call(tempState, key) ? tempState : playerState;
+    if (typeof store[key] === 'string') store[key] = store[key].toUpperCase();
+    ip += 1; return;
   }
 
   if (t.startsWith('*lowercase')) {
     const key = t.replace('*lowercase', '').trim();
-    if (typeof playerState[key] === 'string') playerState[key] = playerState[key].toLowerCase();
-    ip += 1;
-    return;
+    const store = Object.prototype.hasOwnProperty.call(tempState, key) ? tempState : playerState;
+    if (typeof store[key] === 'string') store[key] = store[key].toLowerCase();
+    ip += 1; return;
   }
 
   if (t.startsWith('*add_item')) {
     const item = t.replace('*add_item', '').trim().replace(/^"|"$/g, '');
     if (!Array.isArray(playerState.inventory)) playerState.inventory = [];
-    if (!playerState.inventory.includes(item)) playerState.inventory.push(item);
+    addInventoryItem(item);
     scheduleStatsRender();
-    ip += 1;
-    return;
+    ip += 1; return;
   }
 
   if (t.startsWith('*check_item')) {
     const item = t.replace('*check_item', '').trim().replace(/^"|"$/g, '');
-    playerState._check_item = Array.isArray(playerState.inventory) && playerState.inventory.includes(item);
-    ip += 1;
-    return;
+    // Result goes into tempState so it's automatically cleared after the scene
+    tempState._check_item = Array.isArray(playerState.inventory) &&
+      playerState.inventory.some(i => itemBaseName(i) === itemBaseName(item));
+    ip += 1; return;
   }
 
   if (t.startsWith('*if')) {
     const chainEnd = findIfChainEnd(ip, line.indent);
-    let cursor = ip;
+    let cursor  = ip;
     let executed = false;
     while (cursor < chainEnd) {
       const c = currentLines[cursor];
       if (!c.trimmed) { cursor += 1; continue; }
       if (c.trimmed.startsWith('*if') || c.trimmed.startsWith('*elseif')) {
         const blockStart = cursor + 1;
-        const blockEnd = findBlockEnd(blockStart, c.indent);
+        const blockEnd   = findBlockEnd(blockStart, c.indent);
         if (!executed && evaluateCondition(c.trimmed)) {
           await executeBlock(blockStart, blockEnd);
           executed = true;
@@ -563,7 +731,7 @@ async function executeCurrentLine() {
       }
       if (c.trimmed.startsWith('*else')) {
         const blockStart = cursor + 1;
-        const blockEnd = findBlockEnd(blockStart, c.indent);
+        const blockEnd   = findBlockEnd(blockStart, c.indent);
         if (!executed) {
           await executeBlock(blockStart, blockEnd);
           if (awaitingChoice) return;
@@ -579,15 +747,16 @@ async function executeCurrentLine() {
 
   if (t.startsWith('*loop')) {
     const blockStart = ip + 1;
-    const blockEnd = findBlockEnd(blockStart, line.indent);
+    const blockEnd   = findBlockEnd(blockStart, line.indent);
     let guard = 0;
     while (evaluateCondition(t) && guard < 100) {
       await executeBlock(blockStart, blockEnd);
       if (awaitingChoice) return;
       guard += 1;
     }
-    if (guard >= 100) console.warn(`[engine] *loop guard tripped at line ${ip} — possible infinite loop in scene "${currentScene}"`);
-
+    if (guard >= 100) {
+      console.warn(`[engine] *loop guard tripped at line ${ip} — possible infinite loop in "${currentScene}"`);
+    }
     ip = blockEnd;
     return;
   }
@@ -607,6 +776,9 @@ async function executeCurrentLine() {
   ip += 1;
 }
 
+// ---------------------------------------------------------------------------
+// Choice rendering
+// ---------------------------------------------------------------------------
 function renderChoices(choices) {
   dom.choiceArea.innerHTML = '';
   choices.forEach((choice, idx) => {
@@ -620,10 +792,9 @@ function renderChoices(choices) {
     }
     btn.addEventListener('click', async () => {
       dom.choiceArea.querySelectorAll('button').forEach(b => b.disabled = true);
-      const ctx = awaitingChoice;
+      const ctx    = awaitingChoice;
       awaitingChoice = null;
       ip = ctx._savedIp !== undefined ? ctx._savedIp : ctx.end;
-      // Clear the screen and animate the transition before rendering new content
       clearNarrative();
       applyTransition();
       await executeBlock(choice.start, choice.end);
@@ -633,6 +804,9 @@ function renderChoices(choices) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Interpreter loop
+// ---------------------------------------------------------------------------
 async function runInterpreter() {
   while (ip < currentLines.length) {
     await executeCurrentLine();
@@ -642,22 +816,24 @@ async function runInterpreter() {
   runStatsScene();
 }
 
+// ---------------------------------------------------------------------------
+// Stats panel renderer
+// ---------------------------------------------------------------------------
 async function runStatsScene() {
-  const text = await fetchTextFile('stats');
+  const text  = await fetchTextFile('stats');
   const lines = parseLines(text);
   let html = '';
   styleState.groups = [];
   styleState.colors = {};
-  styleState.icons = {};
+  styleState.icons  = {};
 
   const entries = [];
-  lines.forEach((line) => {
+  lines.forEach(line => {
     const t = line.trimmed;
     if (!t || t.startsWith('//')) return;
 
     if (t.startsWith('*stat_group')) {
-      const name = t.replace('*stat_group', '').trim().replace(/^"|"$/g, '');
-      entries.push({ type: 'group', name });
+      entries.push({ type: 'group', name: t.replace('*stat_group', '').trim().replace(/^"|"$/g, '') });
     } else if (t.startsWith('*stat_color')) {
       const [, key, color] = t.split(/\s+/);
       styleState.colors[key] = color;
@@ -666,6 +842,13 @@ async function runStatsScene() {
       if (m) styleState.icons[m[1]] = m[2];
     } else if (t.startsWith('*inventory')) {
       entries.push({ type: 'inventory' });
+    } else if (t === '*stat_registered') {
+      // Expands to one *stat row for every *create_stat entry in startup.txt.
+      // This means you only define your stats in startup.txt — stats.txt just
+      // needs a single *stat_registered line where you want them to appear.
+      statRegistry.forEach(({ key, label }) => {
+        entries.push({ type: 'stat', key, label });
+      });
     } else if (t.startsWith('*stat')) {
       const m = t.match(/^\*stat\s+([\w_]+)\s+"(.+)"$/);
       if (m) entries.push({ type: 'stat', key: m[1], label: m[2] });
@@ -681,16 +864,12 @@ async function runStatsScene() {
     }
     if (e.type === 'stat') {
       const colorClass = styleState.colors[e.key] || '';
-      const icon = styleState.icons[e.key] ?? '';
-      // Only prepend icon + space when an icon is actually defined for this key
-      const labelHtml = icon ? `${icon} ${e.label}` : e.label;
+      const icon       = styleState.icons[e.key] ?? '';
+      const labelHtml  = icon ? `${icon} ${e.label}` : e.label;
       html += `<div class="status-row"><span class="status-label">${labelHtml}</span><span class="status-value ${colorClass}">${playerState[e.key] ?? '—'}</span></div>`;
     }
     if (e.type === 'inventory') {
-      if (inGroup) {
-        html += `</div>`;
-        inGroup = false;
-      }
+      if (inGroup) { html += `</div>`; inGroup = false; }
       const items = Array.isArray(playerState.inventory) && playerState.inventory.length
         ? playerState.inventory.map(i => `<li>${i}</li>`).join('')
         : '<li class="tag-empty">Empty</li>';
@@ -699,20 +878,23 @@ async function runStatsScene() {
   });
 
   if (inGroup) html += `</div>`;
-
   dom.statusPanel.innerHTML = html;
 }
 
+// ---------------------------------------------------------------------------
+// Level-up overlay — driven by statRegistry
+// ---------------------------------------------------------------------------
 function showLevelUpOverlay() {
-  const keys = ['fortitude', 'perception', 'strength', 'agility', 'magic_power', 'magic_regen'];
-  const labels = {
-    fortitude: 'Fortitude', perception: 'Perception', strength: 'Strength',
-    agility: 'Agility', magic_power: 'Mag.Power', magic_regen: 'Mag.Regen'
-  };
+  const keys   = getAllocatableStatKeys();
+
+  // Labels come exclusively from the registry (set via *create_stat in startup.txt).
+  // Falls back to the raw key name if somehow a key isn't in the registry.
+  const labelMap = Object.fromEntries(statRegistry.map(({ key, label }) => [key, label]));
+
   const alloc = Object.fromEntries(keys.map(k => [k, 0]));
 
   const render = () => {
-    const spent = Object.values(alloc).reduce((a, b) => a + b, 0);
+    const spent  = Object.values(alloc).reduce((a, b) => a + b, 0);
     const remain = pendingStatPoints - spent;
     dom.levelupContent.innerHTML = `
       <div style="color:var(--cyan);margin-bottom:6px;">Reached <strong>Level ${playerState.level}</strong></div>
@@ -720,11 +902,11 @@ function showLevelUpOverlay() {
       <div class="stat-alloc-grid">
       ${keys.map(k => `
         <div class="stat-alloc-item ${alloc[k] ? 'selected' : ''}">
-          <span class="stat-alloc-name">${labels[k]}</span>
+          <span class="stat-alloc-name">${labelMap[k] || k}</span>
           <div style="display:flex;justify-content:center;gap:8px;">
             <button class="alloc-btn" data-op="minus" data-k="${k}" ${alloc[k] <= 0 ? 'disabled' : ''}>−</button>
             <span class="stat-alloc-val ${alloc[k] ? 'buffed' : ''}">${Number(playerState[k] || 0) + alloc[k]}</span>
-            <button class="alloc-btn" data-op="plus" data-k="${k}" ${remain <= 0 ? 'disabled' : ''}>+</button>
+            <button class="alloc-btn" data-op="plus"  data-k="${k}" ${remain <= 0  ? 'disabled' : ''}>+</button>
           </div>
         </div>
       `).join('')}
@@ -733,8 +915,9 @@ function showLevelUpOverlay() {
     dom.levelupContent.querySelectorAll('.alloc-btn').forEach(btn => {
       btn.onclick = () => {
         const key = btn.dataset.k;
-        if (btn.dataset.op === 'plus' && Object.values(alloc).reduce((a, b) => a + b, 0) < pendingStatPoints) alloc[key] += 1;
-        if (btn.dataset.op === 'minus' && alloc[key] > 0) alloc[key] -= 1;
+        const spent2 = Object.values(alloc).reduce((a, b) => a + b, 0);
+        if (btn.dataset.op === 'plus'  && spent2 < pendingStatPoints) alloc[key] += 1;
+        if (btn.dataset.op === 'minus' && alloc[key] > 0)             alloc[key] -= 1;
         render();
       };
     });
@@ -743,26 +926,32 @@ function showLevelUpOverlay() {
   render();
   dom.levelupOverlay.classList.remove('hidden');
   dom.levelupClose.onclick = () => {
-    Object.entries(alloc).forEach(([k, v]) => playerState[k] = Number(playerState[k] || 0) + v);
+    Object.entries(alloc).forEach(([k, v]) => {
+      playerState[k] = Number(playerState[k] || 0) + v;
+    });
     pendingStatPoints = 0;
     dom.levelupOverlay.classList.add('hidden');
     runStatsScene();
   };
 }
 
+// ---------------------------------------------------------------------------
+// Ending screen
+// ---------------------------------------------------------------------------
 function showEndingScreen(title, subtitle) {
-  dom.endingTitle.textContent = title;
+  dom.endingTitle.textContent   = title;
   dom.endingContent.textContent = subtitle;
-  dom.endingStats.innerHTML = `Level: ${playerState.level || 0}<br>XP: ${playerState.xp || 0}<br>Class: ${playerState.class_name || 'Unclassed'}`;
+  dom.endingStats.innerHTML     = `Level: ${playerState.level || 0}<br>XP: ${playerState.xp || 0}<br>Class: ${playerState.class_name || 'Unclassed'}`;
   dom.endingActionBtn.textContent = 'Play Again';
-  dom.endingActionBtn.onclick = () => location.reload();
+  dom.endingActionBtn.onclick     = () => location.reload();
   dom.endingOverlay.classList.remove('hidden');
 }
 
-function resetGame() {
-  location.reload();
-}
+function resetGame() { location.reload(); }
 
+// ---------------------------------------------------------------------------
+// UI wiring
+// ---------------------------------------------------------------------------
 function wireUI() {
   dom.statusToggle.addEventListener('click', () => {
     dom.statusPanel.classList.toggle('status-hidden');
@@ -770,8 +959,10 @@ function wireUI() {
     runStatsScene();
   });
 
-  document.addEventListener('click', (e) => {
-    if (window.innerWidth <= 768 && !dom.statusPanel.contains(e.target) && e.target !== dom.statusToggle) {
+  document.addEventListener('click', e => {
+    if (window.innerWidth <= 768 &&
+        !dom.statusPanel.contains(e.target) &&
+        e.target !== dom.statusToggle) {
       dom.statusPanel.classList.remove('status-visible');
       dom.statusPanel.classList.add('status-hidden');
     }
@@ -782,6 +973,9 @@ function wireUI() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------------
 async function boot() {
   wireUI();
   try {
