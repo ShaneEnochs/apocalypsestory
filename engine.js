@@ -313,7 +313,7 @@ function applySystemRewards(text) {
   // XP gains
   const xpMatches = [
     ...(text.match(/XP\s+gained\s*:\s*\+\s*\d+/gi)     || []),
-    ...(text.match(/\+\s*\d+\s*(?:bonus\s+)?XP\b/gi)    || [])
+    ...(text.match(/\+[^\S\n]*\d+[^\S\n]*(?:bonus[^\S\n]+)?XP\b/gi)    || [])
   ];
   let gainedTotal = 0;
   xpMatches.forEach(entry => {
@@ -370,7 +370,6 @@ function applySystemRewards(text) {
     if (bonus <= 0) return;
     playerState[key] = Number(playerState[key] || 0) + bonus;
     stateChanged = true;
-  });
   });
 
   // Inventory items embedded in system text
