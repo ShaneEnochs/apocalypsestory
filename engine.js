@@ -784,13 +784,16 @@ async function executeCurrentLine() {
 // ---------------------------------------------------------------------------
 function renderChoices(choices) {
   // If a level-up is pending when choices are about to render, inject the
-  // allocation block first. showInlineLevelUp() will disable the buttons it
-  // finds in the DOM, but since we haven't added them yet we set a flag here
-  // so the buttons are born disabled and the overlay is appended after them.
-  const levelUpPendingOnRender = pendingLevelUpDisplay;
-  if (levelUpPendingOnRender) {
+  // allocation block first (if it hasn't been injected already by addSystem).
+  if (pendingLevelUpDisplay) {
     showInlineLevelUp();  // inserts block, consumes pendingLevelUpDisplay flag
   }
+
+  // Detect whether an unconfirmed level-up allocation is active.
+  // This covers the case where showInlineLevelUp() was already called earlier
+  // (e.g. from addSystem) before the choice buttons existed — the flag was
+  // consumed but the player still hasn't allocated their points.
+  const levelUpActive = pendingStatPoints > 0;
 
   dom.choiceArea.innerHTML = '';
   choices.forEach((choice, idx) => {
@@ -802,8 +805,8 @@ function renderChoices(choices) {
       btn.disabled = true;
       btn.style.opacity = '0.4';
       btn.dataset.unselectable = '1';
-    } else if (levelUpPendingOnRender) {
-      // Level-up block was just injected — lock this button until allocation confirmed
+    } else if (levelUpActive) {
+      // Level-up block is active — lock this button until allocation confirmed
       btn.disabled = true;
     }
     btn.addEventListener('click', async () => {
@@ -819,9 +822,9 @@ function renderChoices(choices) {
     dom.choiceArea.appendChild(btn);
   });
 
-  // If the level-up block was injected just before these choices, add the
-  // "allocate first" overlay now that all buttons are in the DOM.
-  if (levelUpPendingOnRender) {
+  // If an unconfirmed level-up is active, add the overlay telling the player
+  // to allocate points before continuing.
+  if (levelUpActive) {
     const choiceOverlay = document.createElement('div');
     choiceOverlay.className = 'levelup-choice-overlay';
     choiceOverlay.innerHTML = `<span>↑ Allocate your stat points before continuing</span>`;
@@ -929,15 +932,20 @@ function showInlineLevelUp() {
   delayIndex += 1;
   dom.narrativeContent.insertBefore(block, dom.choiceArea);
 
-  // Disable all choice buttons and add a visual overlay so the player knows
-  // they must allocate stats before proceeding. Both are removed on confirm.
+  // Disable any choice buttons already in the DOM (may be empty if choices
+  // haven't rendered yet — renderChoices will handle that case via
+  // pendingStatPoints > 0 check).
   dom.choiceArea.querySelectorAll('button').forEach(b => {
     if (!b.dataset.unselectable) b.disabled = true;
   });
-  const choiceOverlay = document.createElement('div');
-  choiceOverlay.className = 'levelup-choice-overlay';
-  choiceOverlay.innerHTML = `<span>↑ Allocate your stat points before continuing</span>`;
-  dom.choiceArea.appendChild(choiceOverlay);
+  // Only add overlay if choice buttons already exist; otherwise renderChoices
+  // will add it when the buttons are created.
+  if (dom.choiceArea.querySelector('button')) {
+    const choiceOverlay = document.createElement('div');
+    choiceOverlay.className = 'levelup-choice-overlay';
+    choiceOverlay.innerHTML = `<span>↑ Allocate your stat points before continuing</span>`;
+    dom.choiceArea.appendChild(choiceOverlay);
+  }
 
   const render = () => {
     const spent  = Object.values(alloc).reduce((a, b) => a + b, 0);
