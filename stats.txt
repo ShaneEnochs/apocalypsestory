@@ -16,11 +16,6 @@
 *stat max_mana "Max Mana"
 
 *stat_group "Attributes"
-*stat fortitude "Fortitude"
-*stat perception "Perception"
-*stat strength "Strength"
-*stat agility "Agility"
-*stat magic_power "Magic Power"
-*stat magic_regen "Magic Regen"
+*stat_registered
 
 *inventory
