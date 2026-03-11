@@ -784,11 +784,6 @@ async function executeCurrentLine() {
 // ---------------------------------------------------------------------------
 function renderChoices(choices) {
   dom.choiceArea.innerHTML = '';
-  // If a level-up block is pending in the narrative (pendingLevelUpDisplay was
-  // true when *choice was hit), all buttons start disabled. showInlineLevelUp()
-  // will re-enable them on confirm. Note: pendingLevelUpDisplay is consumed
-  // inside showInlineLevelUp(), so we snapshot whether gating is needed here.
-  const gated = pendingLevelUpDisplay;
   choices.forEach((choice, idx) => {
     const btn = document.createElement('button');
     btn.className = 'choice-btn';
@@ -798,8 +793,6 @@ function renderChoices(choices) {
       btn.disabled = true;
       btn.style.opacity = '0.4';
       btn.dataset.unselectable = '1';  // mark so confirm handler leaves them disabled
-    } else if (gated) {
-      btn.disabled = true;  // temporarily gated — confirm handler will re-enable
     }
     btn.addEventListener('click', async () => {
       dom.choiceArea.querySelectorAll('button').forEach(b => b.disabled = true);
@@ -915,9 +908,15 @@ function showInlineLevelUp() {
   delayIndex += 1;
   dom.narrativeContent.insertBefore(block, dom.choiceArea);
 
-  // Disable any choice buttons that are already rendered (shouldn't normally
-  // happen, but defensive against edge-case ordering)
-  dom.choiceArea.querySelectorAll('button').forEach(b => b.disabled = true);
+  // Disable all choice buttons and add a visual overlay so the player knows
+  // they must allocate stats before proceeding. Both are removed on confirm.
+  dom.choiceArea.querySelectorAll('button').forEach(b => {
+    if (!b.dataset.unselectable) b.disabled = true;
+  });
+  const choiceOverlay = document.createElement('div');
+  choiceOverlay.className = 'levelup-choice-overlay';
+  choiceOverlay.innerHTML = `<span>↑ Allocate your stat points before continuing</span>`;
+  dom.choiceArea.appendChild(choiceOverlay);
 
   const render = () => {
     const spent  = Object.values(alloc).reduce((a, b) => a + b, 0);
@@ -976,10 +975,10 @@ function showInlineLevelUp() {
         </span>`;
       block.classList.add('levelup-inline-block--confirmed');
 
-      // Re-enable choice buttons
+      // Remove the overlay and re-enable selectable choice buttons
+      const overlay = dom.choiceArea.querySelector('.levelup-choice-overlay');
+      if (overlay) overlay.remove();
       dom.choiceArea.querySelectorAll('button').forEach(b => {
-        // Only re-enable buttons that were selectable to begin with
-        // (disabled-for-choice-logic buttons retain their opacity flag)
         if (!b.dataset.unselectable) b.disabled = false;
       });
 
