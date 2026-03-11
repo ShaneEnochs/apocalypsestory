@@ -827,7 +827,7 @@ function renderChoices(choices) {
   if (levelUpActive) {
     const choiceOverlay = document.createElement('div');
     choiceOverlay.className = 'levelup-choice-overlay';
-    choiceOverlay.innerHTML = `<span>↑ Allocate your stat points before continuing</span>`;
+    choiceOverlay.innerHTML = `<span>All stat points must be allocated</span>`;
     dom.choiceArea.appendChild(choiceOverlay);
   }
 }
