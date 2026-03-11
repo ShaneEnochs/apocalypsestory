@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>System Awakening — Test Suite</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jasmine-core@5.1.2/lib/jasmine-core/jasmine.css">
+  <style>
+    body { font-family: sans-serif; background: #0d0f1a; color: #d8ddf0; }
+    #jasmine-content { padding: 12px; }
+    /* Hide the game DOM stubs from view */
+    #game-stubs { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- ── Game DOM stubs ──────────────────────────────────────────────────────
+     engine.js queries these IDs at module-scope. They must exist before the
+     script is parsed.                                                      -->
+<div id="game-stubs">
+  <div id="narrative-panel">
+    <div id="narrative-content">
+      <div id="choice-area"></div>
+    </div>
+  </div>
+  <div id="chapter-title"></div>
+  <div id="status-panel"></div>
+  <button id="status-toggle"></button>
+  <button id="restart-btn"></button>
+  <div id="levelup-overlay" class="hidden">
+    <div id="levelup-content"></div>
+    <button id="levelup-close"></button>
+  </div>
+  <div id="ending-overlay" class="hidden">
+    <div id="ending-title"></div>
+    <div id="ending-content"></div>
+    <div id="ending-stats"></div>
+    <button id="ending-action-btn"></button>
+  </div>
+</div>
+
+<!-- ── Fetch mock ─────────────────────────────────────────────────────────
+     Intercept fetch() calls before engine.js loads so that boot() (fired
+     on DOMContentLoaded) can be silently absorbed.                        -->
+<script>
+  // Minimal file fixtures available to the mock.
+  const MOCK_FILES = {
+    'startup.txt': `*create name "Alex"
+*create class_name "Unclassed"
+*create level 1
+*create xp 0
+*create xp_to_next 100
+*create health 100
+*create mana 100
+*create max_mana 100
+*create fortitude 10
+*create perception 10
+*create strength 10
+*create agility 10
+*create magic_power 10
+*create magic_regen 10
+*create inventory []
+*scene_list
+  prologue`,
+
+    'stats.txt': `*stat_group "Operative"
+*stat_icon name "◈"
+*stat name "Name"
+*stat class_name "Class"
+
+*stat_group "Progress"
+*stat_color level accent-cyan
+*stat level "Level"
+*stat xp "XP"
+*stat xp_to_next "XP To Next"
+
+*stat_group "Vitals"
+*stat_color health accent-green
+*stat health "Health"
+*stat mana "Mana"
+*stat max_mana "Max Mana"
+
+*stat_group "Attributes"
+*stat fortitude "Fortitude"
+*stat perception "Perception"
+*stat strength "Strength"
+*stat agility "Agility"
+*stat magic_power "Magic Power"
+*stat magic_regen "Magic Regen"
+
+*inventory`,
+
+    'prologue.txt': `*title Test Prologue
+Hello world.
+*choice
+  #Option A
+    You chose A.
+  #Option B
+    You chose B.
+*label end_label
+The end.`,
+  };
+
+  window._mockFetchCalls = [];
+
+  window.fetch = function(url) {
+    window._mockFetchCalls.push(url);
+    const content = MOCK_FILES[url] ?? MOCK_FILES[url.replace(/^.*\//, '')];
+    if (content !== undefined) {
+      return Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve(content),
+      });
+    }
+    return Promise.resolve({ ok: false, statusText: 'Not Found' });
+  };
+
+  // Expose fixture helper for tests that need custom scene content.
+  window.setMockFile = function(name, content) {
+    MOCK_FILES[name.endsWith('.txt') ? name : name + '.txt'] = content;
+  };
+</script>
+
+<!-- ── Engine ────────────────────────────────────────────────────────────
+     engine.js fires boot() on DOMContentLoaded. By the time this script
+     tag is parsed, DOMContentLoaded has already fired (it fires before
+     script tags that follow inline DOM). We stub it out by overriding the
+     boot function immediately after load.                                 -->
+<script src="engine.js"></script>
+<script>
+  // Prevent boot() from auto-running and polluting test state.
+  // The DOMContentLoaded listener was already registered but hasn't been
+  // called yet (document is still loading). Override boot before it runs.
+  window._originalBoot = boot;
+  // Redefine boot as a no-op so the DOMContentLoaded handler does nothing.
+  // Individual integration tests call parseStartup() / gotoScene() directly.
+  window.boot = function() {};
+</script>
+
+<!-- ── Jasmine ───────────────────────────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/jasmine-core@5.1.2/lib/jasmine-core/jasmine.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jasmine-core@5.1.2/lib/jasmine-core/jasmine-html.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jasmine-core@5.1.2/lib/jasmine-core/boot0.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jasmine-core@5.1.2/lib/jasmine-core/boot1.js"></script>
+
+<!-- ── Specs ─────────────────────────────────────────────────────────── -->
+<script src="tests.js"></script>
+
+</body>
+</html>
