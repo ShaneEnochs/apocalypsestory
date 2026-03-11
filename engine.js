@@ -27,9 +27,6 @@ const dom = {
   statusPanel:      document.getElementById('status-panel'),
   statusToggle:     document.getElementById('status-toggle'),
   restartBtn:       document.getElementById('restart-btn'),
-  levelupOverlay:   document.getElementById('levelup-overlay'),
-  levelupContent:   document.getElementById('levelup-content'),
-  levelupClose:     document.getElementById('levelup-close'),
   endingOverlay:    document.getElementById('ending-overlay'),
   endingTitle:      document.getElementById('ending-title'),
   endingContent:    document.getElementById('ending-content'),
@@ -58,6 +55,7 @@ let ip            = 0;
 let delayIndex    = 0;
 let awaitingChoice = null;
 let pendingStatPoints = 0;
+let pendingLevelUpDisplay = false;
 
 const sceneCache  = new Map();
 const labelsCache = new Map();
@@ -207,7 +205,7 @@ function checkAndApplyLevelUp() {
     pendingStatPoints    += gain;
     changed = true;
   }
-  if (changed) showLevelUpOverlay();
+  if (changed) pendingLevelUpDisplay = true;
 }
 
 // ---------------------------------------------------------------------------
@@ -231,6 +229,12 @@ function addSystem(text) {
   const formatted = formatText(text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
   div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
   dom.narrativeContent.insertBefore(div, dom.choiceArea);
+
+  // If this system block triggered a level-up, inject the inline allocation
+  // block immediately below it — in reading order, before any choices appear.
+  if (pendingLevelUpDisplay) {
+    showInlineLevelUp();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -780,6 +784,11 @@ async function executeCurrentLine() {
 // ---------------------------------------------------------------------------
 function renderChoices(choices) {
   dom.choiceArea.innerHTML = '';
+  // If a level-up block is pending in the narrative (pendingLevelUpDisplay was
+  // true when *choice was hit), all buttons start disabled. showInlineLevelUp()
+  // will re-enable them on confirm. Note: pendingLevelUpDisplay is consumed
+  // inside showInlineLevelUp(), so we snapshot whether gating is needed here.
+  const gated = pendingLevelUpDisplay;
   choices.forEach((choice, idx) => {
     const btn = document.createElement('button');
     btn.className = 'choice-btn';
@@ -788,6 +797,9 @@ function renderChoices(choices) {
     if (!choice.selectable) {
       btn.disabled = true;
       btn.style.opacity = '0.4';
+      btn.dataset.unselectable = '1';  // mark so confirm handler leaves them disabled
+    } else if (gated) {
+      btn.disabled = true;  // temporarily gated — confirm handler will re-enable
     }
     btn.addEventListener('click', async () => {
       dom.choiceArea.querySelectorAll('button').forEach(b => b.disabled = true);
@@ -810,6 +822,12 @@ async function runInterpreter() {
   while (ip < currentLines.length) {
     await executeCurrentLine();
     if (awaitingChoice) break;
+  }
+  // Edge case: a level-up was triggered (e.g. via *set xp) but there was no
+  // *system block after it to call showInlineLevelUp(). Inject the block now,
+  // before the choices are visible so the player must allocate first.
+  if (pendingLevelUpDisplay) {
+    showInlineLevelUp();
   }
   dom.narrativeContent.scrollTop = 0;
   runStatsScene();
@@ -881,57 +899,95 @@ async function runStatsScene() {
 }
 
 // ---------------------------------------------------------------------------
-// Level-up overlay — driven by statRegistry
+// Inline level-up block — injected into the narrative scroll in reading order
 // ---------------------------------------------------------------------------
-function showLevelUpOverlay() {
-  const keys   = getAllocatableStatKeys();
+function showInlineLevelUp() {
+  pendingLevelUpDisplay = false;  // consume the flag immediately
 
-  // Labels come exclusively from the registry (set via *create_stat in startup.txt).
-  // Falls back to the raw key name if somehow a key isn't in the registry.
+  const keys     = getAllocatableStatKeys();
   const labelMap = Object.fromEntries(statRegistry.map(({ key, label }) => [key, label]));
+  const alloc    = Object.fromEntries(keys.map(k => [k, 0]));
 
-  const alloc = Object.fromEntries(keys.map(k => [k, 0]));
+  // Wrapper block injected before #choice-area, just like addSystem()
+  const block = document.createElement('div');
+  block.className = 'levelup-inline-block';
+  block.style.animationDelay = `${delayIndex * 80}ms`;
+  delayIndex += 1;
+  dom.narrativeContent.insertBefore(block, dom.choiceArea);
+
+  // Disable any choice buttons that are already rendered (shouldn't normally
+  // happen, but defensive against edge-case ordering)
+  dom.choiceArea.querySelectorAll('button').forEach(b => b.disabled = true);
 
   const render = () => {
     const spent  = Object.values(alloc).reduce((a, b) => a + b, 0);
     const remain = pendingStatPoints - spent;
-    dom.levelupContent.innerHTML = `
-      <div style="color:var(--cyan);margin-bottom:6px;">Reached <strong>Level ${playerState.level}</strong></div>
-      <div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--amber);margin-bottom:14px;">Stat points: <strong>${remain}</strong></div>
+    const allSpent = remain === 0;
+
+    block.innerHTML = `
+      <span class="system-block-label">[ LEVEL UP ]</span>
+      <div class="levelup-inline-header">
+        Reached <strong>Level ${playerState.level}</strong>
+        <span class="levelup-points-remaining">${remain} point${remain !== 1 ? 's' : ''} remaining</span>
+      </div>
       <div class="stat-alloc-grid">
-      ${keys.map(k => `
-        <div class="stat-alloc-item ${alloc[k] ? 'selected' : ''}">
-          <span class="stat-alloc-name">${labelMap[k] || k}</span>
-          <div style="display:flex;justify-content:center;gap:8px;">
-            <button class="alloc-btn" data-op="minus" data-k="${k}" ${alloc[k] <= 0 ? 'disabled' : ''}>−</button>
-            <span class="stat-alloc-val ${alloc[k] ? 'buffed' : ''}">${Number(playerState[k] || 0) + alloc[k]}</span>
-            <button class="alloc-btn" data-op="plus"  data-k="${k}" ${remain <= 0  ? 'disabled' : ''}>+</button>
+        ${keys.map(k => `
+          <div class="stat-alloc-item ${alloc[k] ? 'selected' : ''}">
+            <span class="stat-alloc-name">${labelMap[k] || k}</span>
+            <div style="display:flex;justify-content:center;gap:8px;align-items:center;">
+              <button class="alloc-btn" data-op="minus" data-k="${k}" ${alloc[k] <= 0 ? 'disabled' : ''}>−</button>
+              <span class="stat-alloc-val ${alloc[k] ? 'buffed' : ''}">${Number(playerState[k] || 0) + alloc[k]}</span>
+              <button class="alloc-btn" data-op="plus"  data-k="${k}" ${remain <= 0  ? 'disabled' : ''}>+</button>
+            </div>
           </div>
-        </div>
-      `).join('')}
+        `).join('')}
+      </div>
+      <div class="levelup-inline-footer">
+        <button class="levelup-confirm-btn ${allSpent ? '' : 'levelup-confirm-btn--warn'}"
+                data-confirm>
+          ${allSpent ? 'Confirm' : `Confirm (${remain} unspent)`}
+        </button>
       </div>`;
 
-    dom.levelupContent.querySelectorAll('.alloc-btn').forEach(btn => {
+    // +/− buttons
+    block.querySelectorAll('.alloc-btn').forEach(btn => {
       btn.onclick = () => {
-        const key = btn.dataset.k;
+        const key   = btn.dataset.k;
         const spent2 = Object.values(alloc).reduce((a, b) => a + b, 0);
         if (btn.dataset.op === 'plus'  && spent2 < pendingStatPoints) alloc[key] += 1;
         if (btn.dataset.op === 'minus' && alloc[key] > 0)             alloc[key] -= 1;
         render();
       };
     });
+
+    // Confirm button — always available, warns if points are unspent
+    block.querySelector('[data-confirm]').onclick = () => {
+      // Apply allocations
+      Object.entries(alloc).forEach(([k, v]) => {
+        playerState[k] = Number(playerState[k] || 0) + v;
+      });
+      pendingStatPoints = 0;
+
+      // Replace the interactive block with a compact summary line
+      block.innerHTML = `
+        <span class="system-block-label">[ LEVEL UP ]</span>
+        <span class="system-block-text levelup-confirmed-text">
+          Level ${playerState.level} reached — stats allocated.
+        </span>`;
+      block.classList.add('levelup-inline-block--confirmed');
+
+      // Re-enable choice buttons
+      dom.choiceArea.querySelectorAll('button').forEach(b => {
+        // Only re-enable buttons that were selectable to begin with
+        // (disabled-for-choice-logic buttons retain their opacity flag)
+        if (!b.dataset.unselectable) b.disabled = false;
+      });
+
+      scheduleStatsRender();
+    };
   };
 
   render();
-  dom.levelupOverlay.classList.remove('hidden');
-  dom.levelupClose.onclick = () => {
-    Object.entries(alloc).forEach(([k, v]) => {
-      playerState[k] = Number(playerState[k] || 0) + v;
-    });
-    pendingStatPoints = 0;
-    dom.levelupOverlay.classList.add('hidden');
-    runStatsScene();
-  };
 }
 
 // ---------------------------------------------------------------------------
