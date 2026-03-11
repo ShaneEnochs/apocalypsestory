@@ -38,6 +38,7 @@ You woke with a gasp, heart hammering, sheets tangled around your legs. For a lo
 Then the blue box appeared.
 *system "SYSTEM MESSAGE: Greetings. Welcome to the System.\nWould you like to select [Office Drone] as your class?"
 You almost laughed. The same idiotic prompt everyone on Earth was seeing right now — the Initialization, the moment the System had arrived and changed everything. In the other timeline, you'd accepted [Office Drone] because you didn't know any better.
+system "XP gained: +350" 
 Not this time.
 You dismissed the prompt with a thought and swung out of bed. A glance in the mirror confirmed it: younger face, no scars, no haunted look in your eyes. Well, not yet anyway.
 Outside, you could already hear car horns and distant shouting. The panic was starting. Within a few hours, the streets would be chaos.
