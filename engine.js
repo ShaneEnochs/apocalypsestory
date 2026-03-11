@@ -783,6 +783,15 @@ async function executeCurrentLine() {
 // Choice rendering
 // ---------------------------------------------------------------------------
 function renderChoices(choices) {
+  // If a level-up is pending when choices are about to render, inject the
+  // allocation block first. showInlineLevelUp() will disable the buttons it
+  // finds in the DOM, but since we haven't added them yet we set a flag here
+  // so the buttons are born disabled and the overlay is appended after them.
+  const levelUpPendingOnRender = pendingLevelUpDisplay;
+  if (levelUpPendingOnRender) {
+    showInlineLevelUp();  // inserts block, consumes pendingLevelUpDisplay flag
+  }
+
   dom.choiceArea.innerHTML = '';
   choices.forEach((choice, idx) => {
     const btn = document.createElement('button');
@@ -792,7 +801,10 @@ function renderChoices(choices) {
     if (!choice.selectable) {
       btn.disabled = true;
       btn.style.opacity = '0.4';
-      btn.dataset.unselectable = '1';  // mark so confirm handler leaves them disabled
+      btn.dataset.unselectable = '1';
+    } else if (levelUpPendingOnRender) {
+      // Level-up block was just injected — lock this button until allocation confirmed
+      btn.disabled = true;
     }
     btn.addEventListener('click', async () => {
       dom.choiceArea.querySelectorAll('button').forEach(b => b.disabled = true);
@@ -806,6 +818,15 @@ function renderChoices(choices) {
     });
     dom.choiceArea.appendChild(btn);
   });
+
+  // If the level-up block was injected just before these choices, add the
+  // "allocate first" overlay now that all buttons are in the DOM.
+  if (levelUpPendingOnRender) {
+    const choiceOverlay = document.createElement('div');
+    choiceOverlay.className = 'levelup-choice-overlay';
+    choiceOverlay.innerHTML = `<span>↑ Allocate your stat points before continuing</span>`;
+    dom.choiceArea.appendChild(choiceOverlay);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -942,9 +963,9 @@ function showInlineLevelUp() {
         `).join('')}
       </div>
       <div class="levelup-inline-footer">
-        <button class="levelup-confirm-btn ${allSpent ? '' : 'levelup-confirm-btn--warn'}"
-                data-confirm>
-          ${allSpent ? 'Confirm' : `Confirm (${remain} unspent)`}
+        <button class="levelup-confirm-btn ${allSpent ? '' : 'levelup-confirm-btn--locked'}"
+                data-confirm ${allSpent ? '' : 'aria-disabled="true"'}>
+          ${allSpent ? 'Confirm' : `Spend all points to confirm (${remain} remaining)`}
         </button>
       </div>`;
 
@@ -959,8 +980,11 @@ function showInlineLevelUp() {
       };
     });
 
-    // Confirm button — always available, warns if points are unspent
+    // Confirm button — only fires when all points have been spent
     block.querySelector('[data-confirm]').onclick = () => {
+      const spent = Object.values(alloc).reduce((a, b) => a + b, 0);
+      if (spent < pendingStatPoints) return;  // hard block — must spend all points first
+
       // Apply allocations
       Object.entries(alloc).forEach(([k, v]) => {
         playerState[k] = Number(playerState[k] || 0) + v;
