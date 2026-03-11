@@ -771,6 +771,29 @@ body {
   font-style: italic;
 }
 
+.levelup-choice-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 20px;
+  margin-top: 4px;
+  background: rgba(13, 15, 26, 0.75);
+  border: 1px solid rgba(76, 220, 138, 0.2);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--green);
+  opacity: 0;
+  animation: fadeSlideIn 0.4s ease 0.15s forwards;
+  pointer-events: none;  /* overlay is informational only — buttons beneath handle clicks */
+}
+
+.levelup-choice-overlay span::before {
+  content: '⬡';
+  margin-right: 8px;
+  opacity: 0.6;
+}
+
 /* Selected stat items use green glow when inside levelup block */
 .levelup-inline-block .stat-alloc-item.selected {
   border-color: var(--green);
