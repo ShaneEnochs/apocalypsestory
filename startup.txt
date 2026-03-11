@@ -1,0 +1,36 @@
+*comment global variable initialization
+
+*comment --- Core identity (plain *create, not stats) ---
+*create name "Alex"
+*create class_name "Infinite Sword"
+
+*comment --- Level / XP progress ---
+*create level 100
+*create xp 0
+*create xp_to_next 1000000
+
+*comment --- Level-up configuration ---
+*comment xp_up_mult:      multiplier applied to xp_to_next on each level-up (default was 2.2)
+*comment lvl_up_stat_gain: how many stat points are awarded per level-up (default was 5)
+*create xp_up_mult 1.2
+*create lvl_up_stat_gain 2
+
+*comment --- Vitals (plain *create; shown in stats panel but not allocatable) ---
+*create health "Healthy"
+*create mana 10000
+*create max_mana 10000
+
+*comment --- Allocatable stats (registered via *create_stat) ---
+*comment Format: *create_stat key "Human-Readable Label" defaultValue
+*create_stat body "Body" 100
+*create_stat mind "Mind" 100
+*create_stat spirit "Spirit" 100
+*create_stat social "Social" 100
+
+
+*comment --- Misc ---
+*create inventory ["Last Blade of Democles"]
+*create loop_counter 0
+
+*scene_list
+  prologue

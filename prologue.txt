@@ -1,0 +1,33 @@
+*title The End of Everything
+
+*label intro
+*comment TITLE: The End of Everything
+Your story begins at the end. You stand on the ramparts of what had once been an ancient European castle, repurposed into humanity's last fortress. You are shoulder to shoulder with the only other two other humans on the planet.
+
+*system Warning: The World Boss [Demon Lord: Azazel] has been summoned within 10 kilometers of you.
+
+"Man," Kai says with a chuckle, running his fingers through his hair, "just when you think things can't get any worse."
+
+*choice
+  #"That's just how our luck runs."
+    *goto test1
+  #"It'll be fine."
+    *goto test2
+
+*label test1
+*comment TITLE: The End of Everything
+Janus tilted both his heads — one smiling, one frowning.
+"My angle? Self-preservation, frankly. The dark gods broke the rules. They added the monster summoning system to what was meant to be a gift of growth. We made our own small adjustment in response. This portal. One person. One chance."
+He spread his hands. "I gain nothing from your failure. And everything from your success. The cosmos prefers balance, and right now the scales are tipped toward extinction."
+The portal behind him shimmered — a wall of white mist edged in blue light. Through it, you could feel something pulling at you. A sense of *before*. Of mornings and coffee and a world that hadn't yet learned to scream.
+"Every moment you hesitate, the window narrows. The choice is yours."
+*ending
+
+*label test2
+*comment TITLE: The End of Everything
+Janus tilted both his heads — one smiling, one frowning.
+"My angle? Self-preservation, frankly. The dark gods broke the rules. They added the monster summoning system to what was meant to be a gift of growth. We made our own small adjustment in response. This portal. One person. One chance."
+He spread his hands. "I gain nothing from your failure. And everything from your success. The cosmos prefers balance, and right now the scales are tipped toward extinction."
+The portal behind him shimmered — a wall of white mist edged in blue light. Through it, you could feel something pulling at you. A sense of *before*. Of mornings and coffee and a world that hadn't yet learned to scream.
+"Every moment you hesitate, the window narrows. The choice is yours."
+*ending
