@@ -22,6 +22,12 @@ He spread his hands. "I gain nothing from your failure. And everything from your
 The portal behind him shimmered — a wall of white mist edged in blue light. Through it, you could feel something pulling at you. A sense of *before*. Of mornings and coffee and a world that hadn't yet learned to scream.
 "Every moment you hesitate, the window narrows. The choice is yours."
 
+*choice
+  #"That's just how our luck runs."
+    *goto test3
+  #"It'll be fine."
+    *goto test3
+
 
 *label test2
 *comment TITLE: The End of Everything
@@ -30,3 +36,13 @@ Janus tilted both his heads — one smiling, one frowning.
 He spread his hands. "I gain nothing from your failure. And everything from your success. The cosmos prefers balance, and right now the scales are tipped toward extinction."
 The portal behind him shimmered — a wall of white mist edged in blue light. Through it, you could feel something pulling at you. A sense of *before*. Of mornings and coffee and a world that hadn't yet learned to scream.
 "Every moment you hesitate, the window narrows. The choice is yours."
+
+*choice
+  #"That's just how our luck runs."
+    *goto test3
+  #"It'll be fine."
+    *goto test3
+
+*label test3
+This is the end of the story.
+*ending
