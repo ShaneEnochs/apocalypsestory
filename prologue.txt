@@ -133,7 +133,10 @@ Sable spoke without turning her head.
 
 You look down. She's right — there is a figure standing in the center of the empty flagstones below, where there was absolutely no figure a moment ago. Robes the color of old bone. Two heads, where one should be. One face wearing a smile. One face wearing something that might be grief.
 
-*system Unknown Entity Detected. Classification: DIVINE. Threat Level: UNASSESSABLE.
+*system Unknown Entity Detected. 
+Classification: DIVINE. 
+Threat Level: UNASSESSABLE.
+*end_system
 
 "...Huh," says Kai.
 
