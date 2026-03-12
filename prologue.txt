@@ -68,6 +68,8 @@ The three of you. The last three. The sky the color of an open wound.
     *set spirit +1
     *goto responded_silent
 
+*goto sable_speaks
+
 *label responded_dark
 
 *temp player_tone "dark_humor"
@@ -126,6 +128,8 @@ You look down. She's right — there is a figure standing in the center of the e
   #Hand on your blade. You'll go down, but you'll go down ready.
     *set body +1
     *goto descend_armed
+
+*goto title_change
 
 *label watch_first
 
@@ -246,6 +250,8 @@ Kai, behind you, let out a slow breath. "Time travel. Wild. Completely insane. B
     *set spirit +1
     *goto janus_others
 
+*goto janus_how
+
 *label janus_why_you
 
 *temp asked_why true
@@ -319,6 +325,10 @@ You face the portal alone.
   #Square your shoulders. Step through like you own the other side.
     *set body +2
     *goto arrival_warrior
+
+*comment Fallthrough guard — runInterpreter resumes here after the choice block.
+*comment Without this goto, linear execution walks straight into last_look.
+*goto portal_crossing
 
 *label last_look
 
