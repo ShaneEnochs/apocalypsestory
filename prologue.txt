@@ -1,53 +1,145 @@
 *title The End of Everything
 
 *label intro
-*comment TITLE: The End of Everything
-Your story begins at the end. 
+Your story begins at the end.
 
-You stand on the ramparts of what had once been an ancient European castle, repurposed into humanity's last fortress. You are shoulder to shoulder with the only other two other humans on the planet.
+You stand on the ramparts of what had once been an ancient European castle, repurposed into humanity's last fortress. You are shoulder to shoulder with the only other two humans on the planet.
 
 *system Warning: The World Boss [Demon Lord: Azazel] has been summoned within 10 kilometers of you.
 
 "Man," Kai says with a chuckle, running his fingers through his hair, "just when you think things can't get any worse."
 
-This has been updated. 
+*save_point intro
 
 *choice
   #"That's just how our luck runs."
     *set xp +10
-    *goto test1
+    *goto test_xp
   #"It'll be fine."
-    *goto test2
+    *goto test_items
 
-*label test1
-*comment TITLE: The End of Everything
-Janus tilted both his heads — one smiling, one frowning.
-"My angle? Self-preservation, frankly. The dark gods broke the rules. They added the monster summoning system to what was meant to be a gift of growth. We made our own small adjustment in response. This portal. One person. One chance."
-He spread his hands. "I gain nothing from your failure. And everything from your success. The cosmos prefers balance, and right now the scales are tipped toward extinction."
-The portal behind him shimmered — a wall of white mist edged in blue light. Through it, you could feel something pulling at you. A sense of *before*. Of mornings and coffee and a world that hadn't yet learned to scream.
-"Every moment you hesitate, the window narrows. The choice is yours."
+*label test_xp
+*comment Testing: XP gain, level-up system, *temp vars, *if block with *choice inside
+
+*temp has_commented false
+
+*system XP gained: +10
+
+You said what everyone was thinking. Kai laughs — a short, sharp sound — and claps you on the shoulder.
+
+*if xp >= 10
+  Even battered and exhausted, something stirs in you. The System notices.
+  *set has_commented true
+
+*if has_commented
+  "You always had a way with words," Kai says.
+*else
+  Kai just nods silently.
+
+*goto test_items
+
+*label test_items
+*comment Testing: *add_item, *remove_item, *check_item, stacking
+
+*temp has_blade false
+
+You reach for your side and feel the familiar weight of the Last Blade of Democles.
+
+*check_item "Last Blade of Democles" has_blade
+
+*if has_blade
+  Good. The blade is still with you.
+*else
+  Something is wrong — the blade is gone.
+
+*add_item "Ration"
+*add_item "Ration"
+*add_item "Flare"
+
+*system Inventory updated: Two rations and a flare secured from the supply cache.
+
+You rifle through the supply cache bolted to the parapet and pocket what's left.
+
+*remove_item "Ration"
+
+One ration eaten on the spot — you haven't had anything since yesterday.
+
+*save_point items_checked
 
 *choice
-  #"That's just how our luck runs."
-    *goto test3
-  #"It'll be fine."
-    *goto test3
+  #Examine the portal.
+    *goto test_if_chain
+  #Ask Kai what he thinks.
+    *goto test_if_chain
 
+*label test_if_chain
+*comment Testing: *if / *elseif / *else chain with *choice inside a branch
 
-*label test2
-*comment TITLE: The End of Everything
+*temp portal_reaction ""
+
 Janus tilted both his heads — one smiling, one frowning.
+
 "My angle? Self-preservation, frankly. The dark gods broke the rules. They added the monster summoning system to what was meant to be a gift of growth. We made our own small adjustment in response. This portal. One person. One chance."
+
 He spread his hands. "I gain nothing from your failure. And everything from your success. The cosmos prefers balance, and right now the scales are tipped toward extinction."
+
 The portal behind him shimmered — a wall of white mist edged in blue light. Through it, you could feel something pulling at you. A sense of *before*. Of mornings and coffee and a world that hadn't yet learned to scream.
+
+*if spirit >= 100
+  *set portal_reaction "resonance"
+  Your spirit reaches toward the portal instinctively. It hums back at you.
+  *choice
+    #Step closer to the portal.
+      You press forward until the mist licks at your boots. The pull intensifies.
+      *goto test_temp_persist
+    #Hold your ground.
+      You dig your heels in. Whatever it wants, it can wait.
+      *goto test_temp_persist
+*elseif mind >= 100
+  *set portal_reaction "analysis"
+  Your mind catalogues the portal's properties: stable edge, uniform luminosity, non-hostile resonance.
+  *goto test_temp_persist
+*else
+  *set portal_reaction "fear"
+  The portal unsettles you. You take an involuntary step back.
+  *goto test_temp_persist
+
+*label test_temp_persist
+*comment Testing: *temp vars persist through *goto within a scene
+
 "Every moment you hesitate, the window narrows. The choice is yours."
 
-*choice
-  #"That's just how our luck runs."
-    *goto test3
-  #"It'll be fine."
-    *goto test3
+*if portal_reaction = "resonance"
+  Your earlier instinct was right — the portal recognizes something in you.
+*elseif portal_reaction = "analysis"
+  Your assessment proved correct. The portal is safe.
+*elseif portal_reaction = "fear"
+  Fear is a reasonable response. Fear keeps you alive.
+*else
+  You have no words for what you feel.
 
-*label test3
-This is the end of the story.
+*goto final_choice
+
+*label final_choice
+*comment Testing: final *choice before *ending
+
+"Every moment you hesitate," Janus says, "the window narrows. The choice is yours."
+
+*choice
+  #Step through the portal.
+    *goto end_scene
+  #"One last question — what happens to Kai and Sable?"
+    Janus's smiling head answered. His frowning head looked away.
+    "They chose to stay. To give you this moment. That is all I am permitted to say."
+    *goto end_scene
+
+*label end_scene
+*system XP gained: +990
+
+*comment This should push xp to 1000 total if the first branch was taken (+10 earlier),
+*comment triggering a level-up. If the second branch was taken (xp still 0), +990 gets us
+*comment to 990 — just under the threshold of 1000000. Either way we test the system block.
+
+This is the end of everything — and the beginning of something else.
+
 *ending
