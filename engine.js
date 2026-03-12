@@ -119,6 +119,11 @@ let pendingStatPoints     = 0;
 let pendingLevelUpDisplay = false;
 let _pendingLevelUpCount  = 0;
 
+// _gotoJumped: set true by the *goto handler, cleared by executeBlock after
+// each line. When true, executeBlock knows ip was relocated by a *goto and
+// must NOT reset it to resumeAfter — the jump destination must be honoured.
+let _gotoJumped = false;
+
 const sceneCache  = new Map();
 const labelsCache = new Map();
 const styleState  = { colors: {}, icons: {} };
@@ -632,6 +637,15 @@ async function executeBlock(start, end, resumeAfter = end) {
       awaitingChoice._savedIp  = resumeAfter;
       return;
     }
+    // If *goto fired, ip was moved to the label's line — potentially outside
+    // [start, end). The while-condition would exit and the old code would then
+    // overwrite ip with resumeAfter, losing the jump destination entirely.
+    // Detect the escape: clear the flag and return WITHOUT touching ip so
+    // runInterpreter continues from wherever the *goto landed.
+    if (_gotoJumped) {
+      _gotoJumped = false;
+      return;
+    }
   }
   ip = resumeAfter;
 }
@@ -684,7 +698,11 @@ async function executeCurrentLine() {
       return;
     }
     ip = labels[label];
-    applyTransition();
+    // Signal to executeBlock that ip was deliberately relocated so it does not
+    // overwrite ip with resumeAfter when the block loop exits.
+    // applyTransition() is intentionally NOT called here — *goto is an
+    // in-scene jump; only gotoScene() (cross-scene) should wipe the display.
+    _gotoJumped = true;
     return;
   }
 
@@ -1024,6 +1042,7 @@ function showEndingScreen(title, subtitle) {
   dom.endingActionBtn.textContent = 'Play Again';
   dom.endingActionBtn.onclick     = resetGame;
   dom.endingOverlay.classList.remove('hidden');
+  trapFocus(dom.endingOverlay, null); // released by resetGame (page reload)
 }
 
 function resetGame() { location.reload(); }
@@ -1076,6 +1095,10 @@ function saveGameToSlot(slot, label = null) {
   }
 }
 
+// Set to true by loadSaveFromSlot if any slot contained a stale version.
+// Cleared once the splash banner has been shown so it only appears once per boot.
+let _staleSaveFound = false;
+
 function loadSaveFromSlot(slot) {
   const key = saveKeyForSlot(slot);
   if (!key) return null;
@@ -1085,6 +1108,7 @@ function loadSaveFromSlot(slot) {
     const save = JSON.parse(raw);
     if (save.version !== SAVE_VERSION) {
       console.warn(`[engine] Slot "${slot}" version mismatch — discarding.`);
+      _staleSaveFound = true;
       return null;
     }
     return save;
@@ -1145,7 +1169,7 @@ function refreshAllSlotCards() {
         nameEl:    document.getElementById(`save-slot-name-${s}`),
         metaEl:    document.getElementById(`save-slot-meta-${s}`),
         loadBtn:   document.getElementById(`save-to-${s}`),
-        deleteBtn: null,
+        deleteBtn: document.getElementById(`save-delete-${s}`),
         cardEl:    iCard,
         save,
       });
@@ -1157,7 +1181,20 @@ function refreshAllSlotCards() {
 // Splash screen
 // ---------------------------------------------------------------------------
 function showSplash() {
+  // Probe all slots so _staleSaveFound gets set before we show the banner.
+  ['auto', 1, 2, 3].forEach(loadSaveFromSlot);
   refreshAllSlotCards();
+
+  const notice = document.getElementById('splash-stale-notice');
+  if (notice) {
+    if (_staleSaveFound) {
+      notice.classList.remove('hidden');
+      _staleSaveFound = false; // only show once per boot
+    } else {
+      notice.classList.add('hidden');
+    }
+  }
+
   dom.splashOverlay.classList.remove('hidden');
   dom.splashSlots.classList.add('hidden');
   dom.splashOverlay.querySelector('.splash-btn-col')?.classList.remove('hidden');
@@ -1170,13 +1207,16 @@ function hideSplash() {
 // ---------------------------------------------------------------------------
 // In-game save menu
 // ---------------------------------------------------------------------------
+let _saveTrapRelease = null;
 function showSaveMenu() {
   refreshAllSlotCards();
   dom.saveOverlay.classList.remove('hidden');
+  _saveTrapRelease = trapFocus(dom.saveOverlay, dom.saveBtn);
 }
 
 function hideSaveMenu() {
   dom.saveOverlay.classList.add('hidden');
+  if (_saveTrapRelease) { _saveTrapRelease(); _saveTrapRelease = null; }
 }
 
 // ---------------------------------------------------------------------------
@@ -1219,6 +1259,10 @@ function wireCharCreation() {
     handleInput(dom.inputLastName,  dom.counterLast,  dom.errorLastName,  'Last name'));
   dom.inputLastName.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !dom.charBeginBtn.disabled) dom.charBeginBtn.click();
+  });
+  dom.charOverlay.addEventListener('keydown', e => {
+    // Escape on char-creation does nothing — player must make a choice.
+    // (Kept as a hook for future "back" functionality.)
   });
 
   const pronounCards = [...dom.charOverlay.querySelectorAll('.pronoun-card')];
@@ -1263,6 +1307,7 @@ function wireCharCreation() {
     const selected = dom.charOverlay.querySelector('.pronoun-card.selected');
     if (!selected) return;
     dom.charOverlay.classList.add('hidden');
+    if (typeof dom.charOverlay._trapRelease === 'function') { dom.charOverlay._trapRelease(); dom.charOverlay._trapRelease = null; }
     if (typeof dom.charOverlay._resolve === 'function') {
       dom.charOverlay._resolve({
         firstName: dom.inputFirstName.value.trim(),
@@ -1294,9 +1339,58 @@ function showCharacterCreation() {
   });
 
   dom.charOverlay.classList.remove('hidden');
+  // Focus trap is handled manually here: we delay focus to let the overlay
+  // animate in, then move focus to the first name field ourselves.
+  // The charBeginBtn click handler calls _resolve which hides the overlay;
+  // we release the trap there.
+  const _charTrapRelease = trapFocus(dom.charOverlay, null);
+  dom.charOverlay._trapRelease = _charTrapRelease;
   setTimeout(() => dom.inputFirstName.focus(), 80);
 
   return new Promise(resolve => { dom.charOverlay._resolve = resolve; });
+}
+
+// ---------------------------------------------------------------------------
+// Focus trapping — keeps Tab/Shift-Tab inside an overlay while it is open.
+// Call trapFocus(overlayEl, triggerEl) when opening; the returned release()
+// function removes the listener and restores focus to triggerEl on close.
+// ---------------------------------------------------------------------------
+function trapFocus(overlayEl, triggerEl = null) {
+  const FOCUSABLE = [
+    'a[href]', 'button:not([disabled])', 'input:not([disabled])',
+    'select:not([disabled])', 'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(',');
+
+  function getFocusable() {
+    return [...overlayEl.querySelectorAll(FOCUSABLE)].filter(
+      el => !el.closest('[hidden]') && getComputedStyle(el).display !== 'none'
+    );
+  }
+
+  function handleKeydown(e) {
+    if (e.key !== 'Tab') return;
+    const focusable = getFocusable();
+    if (!focusable.length) { e.preventDefault(); return; }
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
+    }
+  }
+
+  overlayEl.addEventListener('keydown', handleKeydown);
+
+  // Move focus into the overlay immediately.
+  const focusable = getFocusable();
+  if (focusable.length) focusable[0].focus();
+
+  return function release() {
+    overlayEl.removeEventListener('keydown', handleKeydown);
+    if (triggerEl && typeof triggerEl.focus === 'function') triggerEl.focus();
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1345,6 +1439,20 @@ function wireUI() {
 
   dom.saveMenuClose.addEventListener('click', hideSaveMenu);
   dom.saveOverlay.addEventListener('click', e => { if (e.target === dom.saveOverlay) hideSaveMenu(); });
+  // Escape key closes save menu
+  dom.saveOverlay.addEventListener('keydown', e => { if (e.key === 'Escape') hideSaveMenu(); });
+
+  // In-game save menu — delete buttons
+  [1, 2, 3].forEach(slot => {
+    const btn = document.getElementById(`save-delete-${slot}`);
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (confirm(`Delete Slot ${slot}? This cannot be undone.`)) {
+        deleteSaveSlot(slot);
+        refreshAllSlotCards();
+      }
+    });
+  });
 
   // Splash — New Game
   dom.splashNewBtn.addEventListener('click', async () => {
