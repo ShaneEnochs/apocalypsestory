@@ -1677,15 +1677,14 @@ const ctx = awaitingChoice;
 
 awaitingChoice = null;
 
-ip = ctx._savedIp !== undefined ? ctx._savedIp : ctx.end;
-
+const resumeAt = ctx._savedIp !== undefined ? ctx._savedIp : ctx.end;
 clearNarrative();
-
 applyTransition();
-
 await executeBlock(choice.start, choice.end);
-
-if (!awaitingChoice) await runInterpreter();
+if (!awaitingChoice) {
+  ip = resumeAt;
+  await runInterpreter();
+}
 
 });
 
