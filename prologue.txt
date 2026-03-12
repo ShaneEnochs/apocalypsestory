@@ -1,7 +1,34 @@
-
 *title The End of Everything
 
+*comment ============================================================
+*comment  PROLOGUE
+*comment  Flow map:
+*comment  opening → ramparts → kai_speaks
+*comment    choice → branch_dark | branch_quiet | branch_practical
+*comment    all three → sable_speaks
+*comment  sable_speaks → descend_choice
+*comment    choice → meet_janus (all three paths)
+*comment  meet_janus → janus_question
+*comment    choice → branch_who | branch_what | branch_wards
+*comment    all three → janus_portal
+*comment  janus_portal → janus_explains → janus_second_question
+*comment    choice → branch_why | branch_how | branch_others
+*comment    all three → pre_portal
+*comment  pre_portal → portal_choice
+*comment    choice → body text inline (no goto needed) → portal_crossing
+*comment  portal_crossing → ending
+*comment ============================================================
+
+*comment --- Persistent temp vars declared up front ---
+*temp player_tone ""
+*temp portal_reaction ""
+*temp asked_about_others false
+*temp grasped_stakes false
+*temp has_blade false
+
 *label opening
+
+*save_point opening
 
 The world ended on a Tuesday.
 
@@ -15,13 +42,9 @@ Nobody laughed. Some people cried. Most just stood very still, reading the words
 
 The monsters came three days later.
 
-*save_point opening
+*goto ramparts
 
-*choice
-  #Next
-    *goto eight_years_later
-
-*label eight_years_later
+*label ramparts
 
 *title Eight Years Later
 
@@ -37,15 +60,11 @@ The notification hangs in your vision like a red wound. You dismiss it. It reapp
 
 *add_item "Last Blade of Democles"
 
-Your hand finds the hilt at your hip without thinking. The Last Blade of Democles — pulled from the deepest dungeon floor on the worst night of your life, still faintly warm to the touch, as if something inside it is still alive.
-
-It is the finest weapon on Earth. There are no other candidates for the title.
+Your hand finds the hilt at your hip without thinking. The Last Blade of Democles — pulled from the deepest dungeon floor on the worst night of your life, still faintly warm to the touch, as if something inside it is still alive. It is the finest weapon on Earth. There are no other candidates for the title.
 
 *save_point ramparts
 
-*choice
-  #Next
-    *goto kai_speaks
+*goto kai_speaks
 
 *label kai_speaks
 
@@ -63,59 +82,48 @@ The three of you. The last three. The sky the color of an open wound.
   #"That's just how our luck runs." Try to match his tone.
     *set xp +15
     *set social +1
-    *goto responded_dark
+    *set player_tone "dark"
+    *goto branch_dark
   #"Forty-seven minutes. We should be doing something with them."
     *set xp +10
     *set mind +1
-    *goto responded_practical
+    *set player_tone "practical"
+    *goto branch_practical
   #Say nothing. Watch the fire spreading across the horizon.
     *set xp +5
     *set spirit +1
-    *goto responded_silent
+    *set player_tone "silent"
+    *goto branch_silent
 
+*label branch_dark
 
-
-*label responded_dark
-
-*temp player_tone "dark_humor"
+*system XP gained: +15
 
 Kai points at you. "See, *that's* what I'm talking about. Eight years of the apocalypse and you still—" He stops. Shakes his head, still smiling. "You still sound like yourself."
 
 You're not sure that's a compliment. You're not sure it isn't.
 
-*system XP gained: +15
+*goto sable_speaks
 
-*choice
-  #Next
-    *goto sable_speaks
+*label branch_practical
 
-*label responded_practical
-
-*temp player_tone "practical"
+*system XP gained: +10
 
 Kai glances at you sideways. "Doing something." He looks back at the burning sky. "Like what, exactly? We cleared the last dungeon. We hit the level cap. We've spent eight years doing *something* and this—" a gesture at the horizon "—this is what we have to show for it."
 
 He isn't wrong. That's the worst part about Kai. He is almost never wrong.
 
-*system XP gained: +10
+*goto sable_speaks
 
-*choice
-  #Next
-    *goto sable_speaks
+*label branch_silent
 
-*label responded_silent
-
-*temp player_tone "silent"
+*system XP gained: +5
 
 Kai watches you for a long moment. Then he nods slowly, as if you've said something wise.
 
 Maybe silence is the right language for this. Maybe there are no words big enough for a sky that looks like that.
 
-*system XP gained: +5
-
-*choice
-  #Next
-    *goto sable_speaks
+*goto sable_speaks
 
 *label sable_speaks
 
@@ -129,10 +137,14 @@ You look down. She's right — there is a figure standing in the center of the e
 
 "...Huh," says Kai.
 
+*goto descend_choice
+
+*label descend_choice
+
 *choice
   #Descend to the courtyard. If it wanted you dead, you'd already be dead.
     *set spirit +1
-    *goto descend
+    *goto meet_janus
   #Watch from the ramparts a moment longer. Assess before you move.
     *set mind +1
     *goto watch_first
@@ -140,10 +152,9 @@ You look down. She's right — there is a figure standing in the center of the e
     *set body +1
     *goto descend_armed
 
-
 *label watch_first
 
-*temp approached_with_caution true
+*title The Two-Faced God
 
 The figure doesn't move. Doesn't look up. It simply stands, hands folded into the sleeves of its robe, patient in the way that only very old things are patient — not waiting so much as simply existing, untouched by urgency, indifferent to time.
 
@@ -151,39 +162,21 @@ The smiling head tilts very slightly. As if it knows it is being observed. As if
 
 You take the stairs slowly, one hand trailing along the cold stone wall.
 
-*choice
-  #Next
-    *goto title_change
+*goto meet_janus
 
 *label descend_armed
 
-*temp approached_with_caution true
+*title The Two-Faced God
 
-Your fingers wrap around the hilt of the Last Blade and it hums faintly — that particular warmth it carries, slightly elevated now, the way it gets when something nearby is worth paying attention to.
+Your fingers wrap around the hilt of the Last Blade and it hums faintly — that particular warmth, slightly elevated now, the way it gets when something nearby deserves paying attention to.
 
 You take the stairs.
 
-*choice
-  #Next
-    *goto title_change
-
-*label descend
-
-*temp approached_with_caution false
-
-*choice
-  #Next
-    *goto title_change
-
-*label title_change
-
-*title The Two-Faced God
-
-*choice
-  #Next
-    *goto meet_janus
+*goto meet_janus
 
 *label meet_janus
+
+*title The Two-Faced God
 
 The courtyard is cold. Your footsteps sound very loud on the old stone.
 
@@ -193,36 +186,40 @@ Up close, the figure is stranger than it appeared from the ramparts — the two 
 
 "We have been watching you for a very long time."
 
+*goto janus_question
+
+*label janus_question
+
 *choice
   #"Who are you?"
-    *goto janus_who
+    *goto branch_who
   #"What do you want?"
-    *goto janus_what
+    *goto branch_what
   #"How did you get through the wards?"
     *set mind +1
-    *goto janus_wards
+    *goto branch_wards
 
-*label janus_wards
+*label branch_wards
 
 The frowning head answered. "Your wards were built to exclude monsters. We are not a monster."
 
 The smiling head added, pleasantly: "We are something considerably older than the concept."
 
-*choice
-  #Next
-    *goto janus_who
+*goto branch_who
 
-*label janus_who
+*label branch_who
 
 "We are called many things in many traditions," the smiling head said. "Gatekeeper. Arbiter. The Two-Faced One." A small, gracious pause. "Janus will do."
 
-*choice
-  #Next
-    *goto janus_what
+*goto branch_what
 
-*label janus_what
+*label branch_what
 
 "We are here," Janus said, both voices weaving into one, "because there is a door. And you are the only person left who can open it."
+
+*goto janus_portal
+
+*label janus_portal
 
 The air in the courtyard changed. A sound like a breath held too long finally released — and then the portal was simply *there*: a standing oval of white mist edged in light the color of winter mornings, hanging above the flagstones as though it had always existed and you had simply failed to notice.
 
@@ -234,21 +231,15 @@ Before the System. Before the dungeons. Before eight years of watching the world
 
 *system Unknown Spatial Anomaly Detected. Classification: TEMPORAL PORTAL. Destination: T-MINUS 8 YEARS, 3 DAYS.
 
-*temp grasped_the_stakes false
-
 *if mind >= 12
-  *set grasped_the_stakes true
-  The System's classification resolves in your mind immediately and cleanly. Eight years and three days. *Three days before initialization.* Before any of it. The math arrives without effort: if you could reach that moment, before the System was written into the fabric of the world—
-*else
-  Eight years. Three days before all of it began. The numbers settle in your chest like stones.
+  *set grasped_stakes true
+  The System's classification resolves in your mind immediately and cleanly. Eight years and three days. *Three days before initialization.* Before any of it. If you could reach that moment, before the System was written into the fabric of the world—
 
-*choice
-  #Next
-    *goto janus_explains
+*goto janus_explains
 
 *label janus_explains
 
-"The dark gods broke the rules." Both heads spoke together now, a cadence like a liturgy they had recited across centuries. "What was intended as a gift — the System as a tool for growth, for human flourishing — they corrupted. They introduced the monster framework. The summoning tiers. The World Bosses."
+"The dark gods broke the rules." Both heads spoke together now, a cadence like a liturgy recited across centuries. "What was intended as a gift — the System as a tool for growth, for human flourishing — they corrupted. They introduced the monster framework. The summoning tiers. The World Bosses."
 
 The frowning head: "They wanted entertainment."
 
@@ -258,27 +249,27 @@ The smiling head: "We want balance."
 
 Kai, behind you, let out a slow breath. "Time travel. Wild. Completely insane. But okay."
 
-*if grasped_the_stakes
-  "The corruption is a single point of failure," you hear yourself say. "One ritual, one moment — if it's upstream of initialization, then blocking it rewrites everything downstream." You don't know exactly how you know this. The System has always put things in your mind sometimes, in the space between thoughts. "Where? When exactly?"
-
+*if grasped_stakes
+  "The corruption is a single point of failure," you hear yourself say. "One ritual, one moment — if it's upstream of initialization, then blocking it rewrites everything downstream." You don't know exactly how you know this. The System has always put things in your mind sometimes, in the space between thoughts.
   Janus's smiling head turned toward you with something that looked genuinely like delight. "Precisely."
+
+*goto janus_second_question
+
+*label janus_second_question
 
 *choice
   #"Why me? There must have been someone stronger."
     *set social +1
-    *goto janus_why_you
+    *goto branch_why
   #"What exactly do I do when I get there?"
     *set mind +1
-    *goto janus_how
+    *goto branch_how
   #"What happens to Kai and Sable while I'm gone?"
     *set spirit +1
-    *goto janus_others
+    *set asked_about_others true
+    *goto branch_others
 
-
-
-*label janus_why_you
-
-*temp asked_why true
+*label branch_why
 
 "Stronger." The frowning head considered the word as though tasting it for hidden meaning. "There is no one stronger. You are the ceiling. The last. You have killed more of their creations than any other being in this age."
 
@@ -288,13 +279,9 @@ A pause in which both faces looked at you with an expression you couldn't quite 
 
 "You never stopped grieving what was lost. Eight years of survival and you never let yourself go numb to it. That grief—" the smiling head seemed to choose the next words with care "—is a compass. It will point you toward exactly what needs to be saved. We need someone who still remembers why."
 
-*choice
-  #Next
-    *goto janus_how
+*goto branch_how
 
-*label janus_others
-
-*temp asked_about_others true
+*label branch_others
 
 A silence. The two heads turned toward each other — the first time you'd seen them communicate with one another rather than with you. Some exchange passed between them that had no words you could hear.
 
@@ -306,29 +293,23 @@ You turned. Behind you, Kai had his hands in his pockets. Sable had unfolded her
 
 Sable said: "Go." First word in three days. "Go and make it so none of this happened."
 
-*choice
-  #Next
-    *goto janus_how
+*goto branch_how
 
-*label janus_how
+*label branch_how
 
 Janus spread four hands — hidden until now in the folds of the robe — in a gesture of open surrender.
 
 "The corruption was seeded through a single ritual. A monastery in the Swiss Alps — the Priory of the Ascending Dark. A cult. True believers in the gods who wanted entertainment." The frowning head: "Mortals. They can be stopped by mortal means."
 
-"You will arrive with everything you carry now. Your level. Your skills. Your blade. And—" the smiling head, with what seemed like genuine satisfaction "—the knowledge of everything that comes after."
+"You will arrive with everything you carry now. Your level. Your skills. Your blade. And—" the smiling head, with what seemed like genuine satisfaction "—the knowledge of everything that comes after. That is more than enough."
 
-"That is more than enough."
+*goto pre_portal
 
-*save_point pre_portal
-
-*choice
-  #Next
-    *goto the_last_moment
-
-*label the_last_moment
+*label pre_portal
 
 *title The Last Door
+
+*save_point pre_portal
 
 The portal hums. The horizon burns. Thirty minutes, now, perhaps less.
 
@@ -337,7 +318,10 @@ The portal hums. The horizon burns. Thirty minutes, now, perhaps less.
 *if has_blade
   You draw the Last Blade. It comes free with a sound like a bell struck in a quiet room, and the portal light catches the edge and throws cold blue fire across the flagstones at your feet. The blade is warm in your hand. It has always been warm. Whatever is alive inside it has been waiting for this, you think.
 
-Kai and Sable come to stand beside you — the three of you in a line, facing the door, the way you have faced every impossible thing for eight years.
+*if asked_about_others
+  Kai and Sable are already beside you — you didn't hear them move. They must have followed from the ramparts without a word. This is how they have always operated: no announcement, no ceremony, just suddenly there when it matters.
+*else
+  Kai and Sable come to stand beside you — the three of you in a line, facing the door, the way you have faced every impossible thing for eight years.
 
 Nobody says anything. There is nothing adequate left to say.
 
@@ -345,54 +329,28 @@ Kai bumps his shoulder against yours. Sable puts her hand briefly on your arm �
 
 You face the portal alone.
 
+*goto portal_choice
+
+*label portal_choice
+
 *choice
   #Walk through without looking back. Some doors you have to take at a run.
     *set spirit +2
-    *goto arrival_decisive
-  #Turn back one last time. Look at them. Remember this.
+    *set portal_reaction "decisive"
+    You arrive already moving. The habit of eight years.
+    *goto portal_crossing
+  #Turn back one last time. Look at them. Remember their faces.
     *set social +2
-    *goto last_look
-  #Square your shoulders. Step through like you own the other side.
+    *set portal_reaction "faithful"
+    Janus's smiling head looks away, with what might have been tact.
+    Kai is still smiling. Of course he is. He was smiling the first day you met, seven years ago in the wreckage of a city whose name you have tried very hard to forget. He will apparently be smiling at the end of the world too, which is either maddening or perfect.
+    Sable meets your eyes. She nods once — sharp, certain, the way she nods when a plan is good and the time for second thoughts is finished.
+    You hold that for one more second. Then you turn.
+    *goto portal_crossing
+  #Square your shoulders and step through like you own the other side.
     *set body +2
-    *goto arrival_warrior
-
-*comment Fallthrough guard — runInterpreter resumes here after the choice block.
-*comment Without this goto, linear execution walks straight into last_look.
-
-
-*label last_look
-
-Janus's smiling head looked away, with what might have been tact.
-
-Kai is still smiling. Of course he is. He was smiling the first day you met, seven years ago in the wreckage of a city whose name you have deliberately tried to forget. He will apparently be smiling at the end of the world too, which is either maddening or perfect.
-
-Sable meets your eyes. She nods once — sharp, certain, the way she nods when a plan is good and the time for second thoughts is finished.
-
-You hold that for one more second. Then you turn.
-
-*choice
-  #Next
-    *goto arrival_faithful
-
-*label arrival_faithful
-
-*temp arrival_style "faithful"
-*choice
-  #Next
-    *goto portal_crossing
-
-*label arrival_decisive
-
-*temp arrival_style "decisive"
-*choice
-  #Next
-    *goto portal_crossing
-
-*label arrival_warrior
-
-*temp arrival_style "warrior"
-*choice
-  #Next
+    *set portal_reaction "warrior"
+    The blade is already in your hand. Whatever is waiting on the other side, you'll meet it standing.
     *goto portal_crossing
 
 *label portal_crossing
@@ -402,19 +360,18 @@ You hold that for one more second. Then you turn.
 
 The mist takes you.
 
-Cold first — white and cold and featureless, the sensation of falling without moving. Then: sound. Wind. Birdsong. The distant sound of a car. The specific smell of September in the mountains, pine and cold stone and something baking somewhere.
+Cold first — white and cold and featureless, the sensation of falling without moving. Then: sound. Wind. Birdsong. The distant noise of a car on a road somewhere below. The specific smell of September in the mountains — pine and cold stone and something baking, somewhere, in a world that still has kitchens and mornings and ordinary Tuesdays.
 
 A world that has not yet learned to scream.
 
-*if arrival_style = "decisive"
-  You arrive already moving. The habit of eight years.
-*elseif arrival_style = "faithful"
-  You arrive with their faces still clear behind your eyes. Good. You'll need the reminder of exactly what you came back to save.
-*elseif arrival_style = "warrior"
-  You arrive with the Last Blade already in your hand, which is going to require some explanation if anyone sees you in the next thirty seconds.
+*if portal_reaction = "faithful"
+  You arrive with their faces still clear behind your eyes. Good. You will need the reminder of exactly what you came back to save.
 
-*if grasped_the_stakes
-  No System interface. No notifications. No floating text. Just the world, unaugmented, *loud* with a silence you had forgotten was even possible. Three days. The Priory of the Ascending Dark is northeast of here — you can feel the shape of the route like a memory.
+*if portal_reaction = "warrior"
+  You arrive with the Last Blade in your hand, which is going to require some explanation if anyone sees you in the next thirty seconds.
+
+*if grasped_stakes
+  No System interface. No notifications. No floating text in the corners of your vision. Just the world, raw and unaugmented, *loud* with a silence you had forgotten was even possible. Three days. The Priory of the Ascending Dark is northeast — you can feel the shape of the route like a memory pressing forward from somewhere you haven't been yet.
 
 You have three days.
 
