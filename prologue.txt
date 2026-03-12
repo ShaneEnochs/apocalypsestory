@@ -28,8 +28,6 @@
 
 *label opening
 
-*save_point opening
-
 The world ended on a Tuesday.
 
 Not with a bang — or rather, not *only* with a bang. It ended in layers, the way a person dies: first the small things, then the large ones, then the thing that held all the other things together.
@@ -53,6 +51,8 @@ The monsters came three days later.
 
 *title Eight Years Later
 
+*save_point ramparts
+
 Eight years of that. Eight years of dungeons and raids and watching people you loved turn into numbers on a screen — their health bars dropping, their names greying out, their entries in the party list blinking once and then going dark forever.
 
 You survived. Somehow, improbably, infuriatingly, you survived.
@@ -70,7 +70,6 @@ The notification hangs in your vision like a red wound. You dismiss it. It reapp
 
 Your hand finds the hilt at your hip without thinking. The Last Blade of Democles — pulled from the deepest dungeon floor on the worst night of your life, still faintly warm to the touch, as if something inside it is still alive. It is the finest weapon on Earth. There are no other candidates for the title.
 
-*save_point ramparts
 
 *goto kai_speaks
 
