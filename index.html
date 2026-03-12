@@ -1,51 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-  <meta name="description" content="System Awakening — a LitRPG interactive fiction game. Choose your class, survive the apocalypse, and rewrite fate."/>
-  <meta name="theme-color" content="#0d0f1a"/>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◈</text></svg>"/>
-  <title>System Awakening</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="description" content="System Awakening — a LitRPG interactive fiction game. Choose your class, survive the apocalypse, and rewrite fate."/>
+<meta name="theme-color" content="#0d0f1a"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◈</text></svg>"/>
+<title>System Awakening</title>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
 
-  <link rel="stylesheet" href="style.css"/>
-  <script src="engine.js" defer></script>
+<link rel="stylesheet" href="style.css"/>
+<script src="engine.js" defer></script>
 </head>
 <body>
 
 <div id="app">
-  <header id="game-header">
-    <div id="game-title">System Awakening</div>
-    <div id="chapter-title">—</div>
-    <div style="display:flex;align-items:center;gap:12px;">
-      <button id="restart-btn" title="Restart game">↺ Restart</button>
-      <button id="status-toggle" aria-label="Toggle status panel">◈ Status</button>
-    </div>
-  </header>
+<header id="game-header">
+<div id="game-title">System Awakening</div>
+<div id="chapter-title">—</div>
+<div style="display:flex;align-items:center;gap:12px;">
+<button id="restart-btn" title="Restart game">↺ Restart</button>
+<button id="status-toggle" aria-label="Toggle status panel">◈ Status</button>
+</div>
+</header>
 
-  <main id="game-main">
-    <section id="narrative-panel">
-      <div id="narrative-content">
-        <div id="choice-area"></div>
-      </div>
-    </section>
+<main id="game-main">
+<section id="narrative-panel">
+<div id="narrative-content">
+<div id="choice-area"></div>
+</div>
+</section>
 
-    <aside id="status-panel" class="status-hidden"></aside>
-  </main>
+<aside id="status-panel" class="status-hidden"></aside>
+</main>
+</div>
+
+<!-- Boot overlay — shown on page load when a save exists. -->
+<!-- Uses the same .overlay / .overlay-box CSS as the ending screen. -->
+<div id="boot-overlay" class="overlay hidden">
+<div class="overlay-box" id="boot-box">
+<div id="boot-icon">◈</div>
+<div id="boot-title" class="overlay-title">System Awakening</div>
+<div id="boot-save-info" class="boot-save-info"></div>
+<div class="boot-btn-row">
+<button id="boot-continue-btn" class="overlay-btn">Continue</button>
+<button id="boot-new-game-btn" class="overlay-btn overlay-btn--secondary">New Game</button>
+</div>
+</div>
 </div>
 
 <div id="ending-overlay" class="overlay hidden">
-  <div class="overlay-box" id="ending-box">
-    <div id="ending-icon"></div>
-    <div id="ending-title" class="overlay-title"></div>
-    <div id="ending-content"></div>
-    <div id="ending-stats"></div>
-    <button id="ending-action-btn" class="overlay-btn"></button>
-  </div>
+<div class="overlay-box" id="ending-box">
+<div id="ending-icon"></div>
+<div id="ending-title" class="overlay-title"></div>
+<div id="ending-content"></div>
+<div id="ending-stats"></div>
+<button id="ending-action-btn" class="overlay-btn"></button>
+</div>
 </div>
 
 </body>
