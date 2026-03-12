@@ -19,48 +19,203 @@
 
 <div id="app">
 <header id="game-header">
-<div id="game-title">System Awakening</div>
-<div id="chapter-title">—</div>
-<div style="display:flex;align-items:center;gap:12px;">
-<button id="restart-btn" title="Restart game">↺ Restart</button>
-<button id="status-toggle" aria-label="Toggle status panel">◈ Status</button>
-</div>
+  <div id="game-title">System Awakening</div>
+  <div id="chapter-title">—</div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <button id="save-btn" class="header-btn hidden" title="Save game">⬡ Save</button>
+    <button id="restart-btn" title="Restart game">↺ Restart</button>
+    <button id="status-toggle" aria-label="Toggle status panel">◈ Status</button>
+  </div>
 </header>
 
 <main id="game-main">
-<section id="narrative-panel">
-<div id="narrative-content">
-<div id="choice-area"></div>
-</div>
-</section>
-
-<aside id="status-panel" class="status-hidden"></aside>
+  <section id="narrative-panel">
+    <div id="narrative-content">
+      <div id="choice-area"></div>
+    </div>
+  </section>
+  <aside id="status-panel" class="status-hidden"></aside>
 </main>
 </div>
 
-<!-- Boot overlay — shown on page load when a save exists. -->
-<!-- Uses the same .overlay / .overlay-box CSS as the ending screen. -->
-<div id="boot-overlay" class="overlay hidden">
-<div class="overlay-box" id="boot-box">
-<div id="boot-icon">◈</div>
-<div id="boot-title" class="overlay-title">System Awakening</div>
-<div id="boot-save-info" class="boot-save-info"></div>
-<div class="boot-btn-row">
-<button id="boot-continue-btn" class="overlay-btn">Continue</button>
-<button id="boot-new-game-btn" class="overlay-btn overlay-btn--secondary">New Game</button>
-</div>
-</div>
+<!-- ═══════════════════════════════════════════════════
+     SPLASH / TITLE SCREEN
+     ═══════════════════════════════════════════════════ -->
+<div id="splash-overlay" class="overlay">
+  <div class="overlay-box splash-box">
+    <div class="splash-icon">◈</div>
+    <div class="overlay-title splash-title">System Awakening</div>
+    <p class="splash-tagline">Eight years of the apocalypse.<br>One door back.</p>
+
+    <div class="splash-btn-col">
+      <button id="splash-new-btn" class="overlay-btn">New Game</button>
+      <button id="splash-load-btn" class="overlay-btn overlay-btn--secondary">Load Game</button>
+    </div>
+
+    <!-- Load-game slot panel (hidden until "Load Game" clicked) -->
+    <div id="splash-slots" class="splash-slots hidden">
+      <div class="splash-slots-header">
+        <span class="splash-slots-label">[ SELECT SAVE ]</span>
+        <button id="splash-slots-back" class="slot-back-btn">← Back</button>
+      </div>
+      <div class="slot-list">
+        <!-- Auto-save -->
+        <div class="slot-card" id="slot-card-auto" data-slot="auto">
+          <div class="slot-badge">Auto</div>
+          <div class="slot-info">
+            <span class="slot-name" id="slot-name-auto">— Empty —</span>
+            <span class="slot-meta" id="slot-meta-auto"></span>
+          </div>
+          <div class="slot-actions">
+            <button class="slot-load-btn" id="slot-load-auto" disabled>Load</button>
+            <button class="slot-delete-btn hidden" id="slot-delete-auto" aria-label="Delete auto-save">✕</button>
+          </div>
+        </div>
+        <!-- Manual slot 1 -->
+        <div class="slot-card" id="slot-card-1" data-slot="1">
+          <div class="slot-badge">Slot 1</div>
+          <div class="slot-info">
+            <span class="slot-name" id="slot-name-1">— Empty —</span>
+            <span class="slot-meta" id="slot-meta-1"></span>
+          </div>
+          <div class="slot-actions">
+            <button class="slot-load-btn" id="slot-load-1" disabled>Load</button>
+            <button class="slot-delete-btn hidden" id="slot-delete-1" aria-label="Delete slot 1">✕</button>
+          </div>
+        </div>
+        <!-- Manual slot 2 -->
+        <div class="slot-card" id="slot-card-2" data-slot="2">
+          <div class="slot-badge">Slot 2</div>
+          <div class="slot-info">
+            <span class="slot-name" id="slot-name-2">— Empty —</span>
+            <span class="slot-meta" id="slot-meta-2"></span>
+          </div>
+          <div class="slot-actions">
+            <button class="slot-load-btn" id="slot-load-2" disabled>Load</button>
+            <button class="slot-delete-btn hidden" id="slot-delete-2" aria-label="Delete slot 2">✕</button>
+          </div>
+        </div>
+        <!-- Manual slot 3 -->
+        <div class="slot-card" id="slot-card-3" data-slot="3">
+          <div class="slot-badge">Slot 3</div>
+          <div class="slot-info">
+            <span class="slot-name" id="slot-name-3">— Empty —</span>
+            <span class="slot-meta" id="slot-meta-3"></span>
+          </div>
+          <div class="slot-actions">
+            <button class="slot-load-btn" id="slot-load-3" disabled>Load</button>
+            <button class="slot-delete-btn hidden" id="slot-delete-3" aria-label="Delete slot 3">✕</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════
+     IN-GAME SAVE MENU
+     ═══════════════════════════════════════════════════ -->
+<div id="save-overlay" class="overlay hidden">
+  <div class="overlay-box save-menu-box">
+    <div class="overlay-title save-menu-title">[ Save Game ]</div>
+    <p class="save-menu-hint">Choose a slot. Auto-save is managed automatically.</p>
+    <div class="slot-list">
+      <div class="slot-card" id="save-card-1" data-slot="1">
+        <div class="slot-badge">Slot 1</div>
+        <div class="slot-info">
+          <span class="slot-name" id="save-slot-name-1">— Empty —</span>
+          <span class="slot-meta" id="save-slot-meta-1"></span>
+        </div>
+        <button class="slot-load-btn" id="save-to-1">Save</button>
+      </div>
+      <div class="slot-card" id="save-card-2" data-slot="2">
+        <div class="slot-badge">Slot 2</div>
+        <div class="slot-info">
+          <span class="slot-name" id="save-slot-name-2">— Empty —</span>
+          <span class="slot-meta" id="save-slot-meta-2"></span>
+        </div>
+        <button class="slot-load-btn" id="save-to-2">Save</button>
+      </div>
+      <div class="slot-card" id="save-card-3" data-slot="3">
+        <div class="slot-badge">Slot 3</div>
+        <div class="slot-info">
+          <span class="slot-name" id="save-slot-name-3">— Empty —</span>
+          <span class="slot-meta" id="save-slot-meta-3"></span>
+        </div>
+        <button class="slot-load-btn" id="save-to-3">Save</button>
+      </div>
+    </div>
+    <button id="save-menu-close" class="overlay-btn overlay-btn--secondary" style="margin-top:16px;">Cancel</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     CHARACTER CREATION
+     ═══════════════════════════════════════════════════ -->
+<div id="char-creation-overlay" class="overlay hidden">
+  <div class="overlay-box char-box">
+    <div class="char-header">
+      <span class="system-block-label">[ WHO ARE YOU ]</span>
+    </div>
+
+    <div class="char-field-group">
+      <label class="char-label" for="input-first-name">First Name</label>
+      <div class="char-input-wrap">
+        <input id="input-first-name" class="char-input" type="text"
+               autocomplete="off" spellcheck="false"
+               maxlength="14" placeholder="Enter first name"/>
+        <span class="char-counter" id="counter-first">14</span>
+      </div>
+      <span class="char-error hidden" id="error-first-name"></span>
+    </div>
+
+    <div class="char-field-group">
+      <label class="char-label" for="input-last-name">Last Name</label>
+      <div class="char-input-wrap">
+        <input id="input-last-name" class="char-input" type="text"
+               autocomplete="off" spellcheck="false"
+               maxlength="14" placeholder="Enter last name"/>
+        <span class="char-counter" id="counter-last">14</span>
+      </div>
+      <span class="char-error hidden" id="error-last-name"></span>
+    </div>
+
+    <div class="char-field-group">
+      <span class="char-label">Pronouns</span>
+      <div class="pronoun-cards" role="radiogroup" aria-label="Pronouns">
+        <button class="pronoun-card" data-pronouns="he/him" data-subject="he" data-object="him" data-possessive="his" data-reflexive="himself" role="radio" aria-checked="false" tabindex="0">
+          he / him
+        </button>
+        <button class="pronoun-card" data-pronouns="she/her" data-subject="she" data-object="her" data-possessive="her" data-reflexive="herself" role="radio" aria-checked="false" tabindex="-1">
+          she / her
+        </button>
+        <button class="pronoun-card selected" data-pronouns="they/them" data-subject="they" data-object="them" data-possessive="their" data-reflexive="themself" role="radio" aria-checked="true" tabindex="-1">
+          they / them
+        </button>
+      </div>
+    </div>
+
+    <button id="char-begin-btn" class="overlay-btn char-begin-btn" disabled>Begin</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     ENDING SCREEN
+     ═══════════════════════════════════════════════════ -->
 <div id="ending-overlay" class="overlay hidden">
-<div class="overlay-box" id="ending-box">
-<div id="ending-icon"></div>
-<div id="ending-title" class="overlay-title"></div>
-<div id="ending-content"></div>
-<div id="ending-stats"></div>
-<button id="ending-action-btn" class="overlay-btn"></button>
+  <div class="overlay-box" id="ending-box">
+    <div id="ending-icon"></div>
+    <div id="ending-title" class="overlay-title"></div>
+    <div id="ending-content"></div>
+    <div id="ending-stats"></div>
+    <button id="ending-action-btn" class="overlay-btn"></button>
+  </div>
 </div>
-</div>
+
+<!-- ═══════════════════════════════════════════════════
+     TOAST NOTIFICATION
+     ═══════════════════════════════════════════════════ -->
+<div id="toast" class="toast hidden" aria-live="polite"></div>
 
 </body>
 </html>
