@@ -888,4 +888,417 @@ body {
 .sys-highlight {
   color: var(--amber);
   font-weight: 600;
+} 
+
+/* ============================================================
+   SPLASH SCREEN
+   ============================================================ */
+
+.splash-box {
+  max-width: 480px;
+  padding: 48px 40px 40px;
+}
+
+.splash-icon {
+  font-size: 2.2rem;
+  color: var(--cyan);
+  text-shadow: 0 0 30px var(--cyan-glow-md);
+  margin-bottom: 16px;
+}
+
+.splash-title {
+  font-size: 1.6rem;
+  letter-spacing: 0.25em;
+  margin-bottom: 10px;
+}
+
+.splash-tagline {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  line-height: 1.7;
+  margin-bottom: 32px;
+  font-style: italic;
+}
+
+.splash-btn-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.overlay-btn--secondary {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border-dim);
+}
+
+.overlay-btn--secondary:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--cyan-dim);
+  box-shadow: none;
+}
+
+/* ============================================================
+   SAVE SLOT CARDS  (shared: splash load panel + in-game menu)
+   ============================================================ */
+
+.splash-slots {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.splash-slots-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.splash-slots-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+}
+
+.slot-back-btn {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  transition: color var(--transition-fast);
+}
+.slot-back-btn:hover { color: var(--cyan); }
+
+.slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slot-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  padding: 12px 14px;
+  transition: border-color var(--transition-fast);
+}
+
+.slot-card:not(.slot-card--empty):hover {
+  border-color: var(--border-glow);
+}
+
+.slot-card--empty {
+  opacity: 0.45;
+  border-style: dashed;
+}
+
+.slot-badge {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cyan-dim);
+  min-width: 48px;
+}
+
+.slot-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.slot-name {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slot-meta {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.slot-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slot-load-btn {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bg-deep);
+  background: var(--cyan);
+  border: none;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.slot-load-btn:hover:not(:disabled) {
+  background: #fff;
+}
+
+.slot-load-btn:disabled {
+  background: var(--border-dim);
+  color: var(--text-faint);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.slot-delete-btn {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  padding: 4px 6px;
+  transition: all var(--transition-fast);
+  line-height: 1;
+}
+
+.slot-delete-btn:hover {
+  color: var(--red);
+  border-color: var(--red);
+  background: var(--red-glow);
+}
+
+/* ============================================================
+   IN-GAME SAVE MENU
+   ============================================================ */
+
+.save-menu-box {
+  max-width: 440px;
+}
+
+.save-menu-title {
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  margin-bottom: 8px;
+}
+
+.save-menu-hint {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-faint);
+  letter-spacing: 0.08em;
+  margin-bottom: 18px;
+}
+
+/* ============================================================
+   HEADER SAVE BUTTON
+   ============================================================ */
+
+#save-btn {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border-dim);
+  cursor: pointer;
+  padding: 5px 10px;
+  transition: all var(--transition-fast);
+  text-transform: uppercase;
+}
+
+#save-btn:hover {
+  color: var(--cyan);
+  border-color: var(--cyan-dim);
+}
+
+/* ============================================================
+   CHARACTER CREATION
+   ============================================================ */
+
+.char-box {
+  max-width: 460px;
+  padding: 40px 36px 36px;
+  text-align: left;
+}
+
+.char-header {
+  margin-bottom: 28px;
+  text-align: center;
+}
+
+.char-header .system-block-label {
+  display: inline-block;
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  color: var(--cyan-dim);
+  opacity: 1;
+  margin-bottom: 0;
+}
+
+.char-field-group {
+  margin-bottom: 20px;
+}
+
+.char-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 7px;
+}
+
+.char-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.char-input {
+  flex: 1;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-dim);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  padding: 10px 44px 10px 14px;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  /* Prevent browser styling on autofill */
+  caret-color: var(--cyan);
+}
+
+.char-input:focus {
+  border-color: var(--cyan-dim);
+  box-shadow: 0 0 0 2px var(--cyan-glow);
+}
+
+.char-input--error {
+  border-color: var(--red) !important;
+  box-shadow: 0 0 0 2px var(--red-glow) !important;
+}
+
+.char-counter {
+  position: absolute;
+  right: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-faint);
+  pointer-events: none;
+  user-select: none;
+}
+
+.char-error {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  color: var(--red);
+  margin-top: 5px;
+}
+
+/* Pronoun selection cards */
+.pronoun-cards {
+  display: flex;
+  gap: 10px;
+}
+
+.pronoun-card {
+  flex: 1;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-dim);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  padding: 12px 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+.pronoun-card:hover {
+  border-color: var(--cyan-dim);
+  color: var(--text-primary);
+}
+
+.pronoun-card.selected {
+  border-color: var(--cyan);
+  background: var(--cyan-glow);
+  color: var(--cyan);
+}
+
+.pronoun-card:focus-visible {
+  box-shadow: 0 0 0 2px var(--cyan-glow-md);
+}
+
+/* Begin button */
+.char-begin-btn {
+  width: 100%;
+  margin-top: 8px;
+  letter-spacing: 0.2em;
+}
+
+.char-begin-btn:disabled {
+  background: var(--border-dim);
+  color: var(--text-faint);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ============================================================
+   TOAST NOTIFICATION
+   ============================================================ */
+
+.toast {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  padding: 10px 22px;
+  z-index: 200;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.toast-show {
+  opacity: 0;
+  animation: toastIn 0.25s ease forwards;
+}
+
+.toast-hide {
+  animation: toastOut 0.3s ease forwards;
+}
+
+@keyframes toastIn {
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes toastOut {
+  to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 }
