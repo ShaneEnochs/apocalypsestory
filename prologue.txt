@@ -1,3 +1,4 @@
+
 *title The End of Everything
 
 *label opening
@@ -16,7 +17,9 @@ The monsters came three days later.
 
 *save_point opening
 
-*goto eight_years_later
+*choice
+  #Next
+    *goto eight_years_later
 
 *label eight_years_later
 
@@ -40,7 +43,9 @@ It is the finest weapon on Earth. There are no other candidates for the title.
 
 *save_point ramparts
 
-*goto kai_speaks
+*choice
+  #Next
+    *goto kai_speaks
 
 *label kai_speaks
 
@@ -68,7 +73,7 @@ The three of you. The last three. The sky the color of an open wound.
     *set spirit +1
     *goto responded_silent
 
-*goto sable_speaks
+
 
 *label responded_dark
 
@@ -80,7 +85,9 @@ You're not sure that's a compliment. You're not sure it isn't.
 
 *system XP gained: +15
 
-*goto sable_speaks
+*choice
+  #Next
+    *goto sable_speaks
 
 *label responded_practical
 
@@ -92,7 +99,9 @@ He isn't wrong. That's the worst part about Kai. He is almost never wrong.
 
 *system XP gained: +10
 
-*goto sable_speaks
+*choice
+  #Next
+    *goto sable_speaks
 
 *label responded_silent
 
@@ -104,7 +113,9 @@ Maybe silence is the right language for this. Maybe there are no words big enoug
 
 *system XP gained: +5
 
-*goto sable_speaks
+*choice
+  #Next
+    *goto sable_speaks
 
 *label sable_speaks
 
@@ -129,7 +140,6 @@ You look down. She's right — there is a figure standing in the center of the e
     *set body +1
     *goto descend_armed
 
-*goto title_change
 
 *label watch_first
 
@@ -141,7 +151,9 @@ The smiling head tilts very slightly. As if it knows it is being observed. As if
 
 You take the stairs slowly, one hand trailing along the cold stone wall.
 
-*goto title_change
+*choice
+  #Next
+    *goto title_change
 
 *label descend_armed
 
@@ -151,19 +163,25 @@ Your fingers wrap around the hilt of the Last Blade and it hums faintly — that
 
 You take the stairs.
 
-*goto title_change
+*choice
+  #Next
+    *goto title_change
 
 *label descend
 
 *temp approached_with_caution false
 
-*goto title_change
+*choice
+  #Next
+    *goto title_change
 
 *label title_change
 
 *title The Two-Faced God
 
-*goto meet_janus
+*choice
+  #Next
+    *goto meet_janus
 
 *label meet_janus
 
