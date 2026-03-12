@@ -1,7 +1,11 @@
 *comment global variable initialization
 
 *comment --- Core identity (plain *create, not stats) ---
-*create name "Alex"
+*comment first_name, last_name, and pronouns are set by the character creation screen.
+*comment They are declared here so the engine has them in playerState from the start.
+*create first_name "Alex"
+*create last_name  ""
+*create pronouns   "they/them"
 *create class_name "Infinite Sword"
 
 *comment --- Level / XP progress ---
@@ -32,4 +36,4 @@
 *create loop_counter 0
 
 *scene_list
-  prologue
+  prologue 
