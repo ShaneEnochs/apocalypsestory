@@ -36,13 +36,18 @@ Not with a bang — or rather, not *only* with a bang. It ended in layers, the w
 
 The System arrived eight years ago. A notification that appeared in every human mind simultaneously, in every language, in the precise dialect each person would understand best.
 
-*system SYSTEM INITIALIZATION COMPLETE. WELCOME, PLAYERS. THE TUTORIAL BEGINS NOW.
+*system 
+SYSTEM INITIALIZATION COMPLETE. 
+Congratulations! Your world has been inducted to the Multiverse.
+*end_system
 
 Nobody laughed. Some people cried. Most just stood very still, reading the words that floated in the air before them, and tried to remember how to breathe.
 
 The monsters came three days later.
 
-*goto ramparts
+*choice
+  #Eight years later... 
+    *goto ramparts
 
 *label ramparts
 
@@ -54,7 +59,10 @@ You survived. Somehow, improbably, infuriatingly, you survived.
 
 And now you stand on the ramparts of Castle Voss — the last fortress of the last three humans on Earth — watching the horizon burn.
 
-*system Warning: The World Boss [Demon Lord: Azazel] has been summoned. Distance: 8.3 km. ETA: 47 minutes.
+*system 
+Warning: The World Boss [Infernal Demon Lord: Azazel] has been summoned. 
+Distance: 8.3 km. ETA: 47 minutes.
+*end_system
 
 The notification hangs in your vision like a red wound. You dismiss it. It reappears. You dismiss it again. It comes back a third time, blinking, insistent, as though the System itself is nervous.
 
@@ -133,7 +141,8 @@ Sable spoke without turning her head.
 
 You look down. She's right — there is a figure standing in the center of the empty flagstones below, where there was absolutely no figure a moment ago. Robes the color of old bone. Two heads, where one should be. One face wearing a smile. One face wearing something that might be grief.
 
-*system Unknown Entity Detected. 
+*system 
+Unknown Entity Detected. 
 Classification: DIVINE. 
 Threat Level: UNASSESSABLE.
 *end_system
