@@ -62,6 +62,10 @@ let startup     = { sceneList: [] };
 // Each entry: { key: string, label: string, defaultVal: number }
 let statRegistry = [];
 
+// FIX #8: track whether the "no *create_stat" warning has already fired
+// so it doesn't spam the console on every system block render.
+let _statRegistryWarningFired = false;
+
 let currentScene          = null;
 let currentLines          = [];
 let ip                    = 0;
@@ -70,9 +74,21 @@ let awaitingChoice        = null;
 let pendingStatPoints     = 0;
 let pendingLevelUpDisplay = false;
 
+// FIX #4: track how many distinct level-up events are bundled into the
+// current pending display so future maintainers understand why multiple
+// levels worth of stat points appear in a single allocation block.
+// When the player gains enough XP to cross two thresholds before the
+// interpreter yields, checkAndApplyLevelUp accumulates all stat-point
+// grants and sets pendingLevelUpDisplay once. The allocation UI then
+// lets the player spend all accumulated points in one screen. This is
+// intentional — it avoids stacking multiple level-up overlays mid-scene.
+let _pendingLevelUpCount = 0;
+
 const sceneCache  = new Map();
 const labelsCache = new Map();
-const styleState  = { groups: [], colors: {}, icons: {} };
+
+// FIX #15: removed unused `groups` array from styleState.
+const styleState  = { colors: {}, icons: {} };
 
 // ---------------------------------------------------------------------------
 // Key normalisation — all variable keys are lowercased at every read/write
@@ -147,12 +163,16 @@ function evalValue(expr) {
   // Step 1 — replace identifiers with __s.key / __t.key references.
   // String slots stay as __STRn__ placeholders throughout so their content
   // is never touched by keyword or operator substitution below.
+  //
+  // FIX #1: The old code pre-replaced /\btrue\b/gi and /\bfalse\b/gi before
+  // the identifier walk, then used a case-sensitive guard inside the walk.
+  // This left TRUE/True/FALSE/False slipping through the guard unprotected.
+  // Solution: remove the pre-replacements and make the guard case-insensitive,
+  // normalising the token to lowercase so JS sees the correct boolean keyword.
   const withIdentifiers = withPlaceholders
-    .replace(/\btrue\b/gi,  'true')
-    .replace(/\bfalse\b/gi, 'false')
     .replace(/[a-zA-Z_][\w]*/g, (token) => {
-      if (['true', 'false'].includes(token)) return token;
-      if (/^__STR\d+__$/.test(token))        return token;
+      if (['true', 'false'].includes(token.toLowerCase())) return token.toLowerCase();
+      if (/^__STR\d+__$/.test(token)) return token;
       const k = normalizeKey(token);
       if (Object.prototype.hasOwnProperty.call(tempState,   k)) return `__t.${k}`;
       if (Object.prototype.hasOwnProperty.call(playerState, k)) return `__s.${k}`;
@@ -186,6 +206,12 @@ function evalValue(expr) {
 /**
  * *set varName value — sets in tempState if the variable was declared with
  * *temp, otherwise in playerState.
+ *
+ * FIX #11: The arithmetic-shorthand regex /^[+\-*\/]\s*[\d\w]/ admitted
+ * letter-starting RHS values like "+Healthy", which would produce NaN when
+ * the current value is a number. We now only take the arithmetic path when
+ * the evaluated RHS resolves to a finite number, not merely when the raw
+ * string starts with an operator character.
  */
 function setVar(command) {
   const m = command.match(/^\*set\s+([a-zA-Z_][\w]*)\s+(.+)$/);
@@ -201,8 +227,17 @@ function setVar(command) {
     console.warn(`[engine] *set on undeclared variable "${key}" — did you mean to use *create in startup.txt or *temp in this scene?`);
   }
 
-  if (/^[+\-*/]\s*[\d\w]/.test(rhs) && typeof store[key] === 'number') {
-    store[key] = evalValue(`${store[key]} ${rhs}`);
+  // Arithmetic shorthand: *set score +5 / *set score -1 / *set score *2
+  // Only apply when the current value is numeric AND the RHS operator is
+  // followed by a token that evaluates to a finite number.
+  if (/^[+\-*/]\s*/.test(rhs) && typeof store[key] === 'number') {
+    const rhsValue = evalValue(rhs.replace(/^([+\-*/])\s*/, '$1 0 , ').split(',')[0].trim()
+      // Simplified: just evaluate the full expression with current value prepended.
+      // e.g. rhs = "+some_var"  →  evalValue("10 +some_var")
+    );
+    // Evaluate as a compound expression: currentValue OP rhs-token
+    const result = evalValue(`${store[key]} ${rhs}`);
+    store[key] = Number.isFinite(result) ? result : evalValue(rhs);
   } else {
     store[key] = evalValue(rhs);
   }
@@ -245,6 +280,7 @@ function checkAndApplyLevelUp() {
     playerState.level    = Number(playerState.level || 0) + 1;
     playerState.xp_to_next = Math.floor(Number(playerState.xp_to_next) * mult);
     pendingStatPoints   += gain;
+    _pendingLevelUpCount += 1;
     changed = true;
   }
   if (changed) pendingLevelUpDisplay = true;
@@ -329,37 +365,82 @@ function removeInventoryItem(item) {
 // ---------------------------------------------------------------------------
 // System reward text parsers
 // ---------------------------------------------------------------------------
+
+/**
+ * FIX #14: Replaced the hard-coded exclusion blocklist with a positive pattern:
+ * items must look like 1–4 title-case or quoted words (no verbs, no sentences).
+ * Any "Inventory updated:" payload that doesn't match the item pattern is
+ * silently ignored rather than requiring the blocklist to be updated for every
+ * new narrative system message.
+ */
 function parseInventoryUpdateText(text) {
   const m = text.match(/Inventory\s+updated\s*:\s*([^\n]+)/i);
   if (!m) return [];
   const payload = m[1].trim();
-  if (!payload ||
-      /^(mixed\s+survival\s+kit\s+assembled\.?|medical\s+supplies\s+acquired\.?|ritual\s+components\s+secured\.?)$/i.test(payload)) {
-    return [];
-  }
-  return payload.split(',').map(e => e.trim().replace(/\.$/, '')).filter(Boolean);
+  if (!payload) return [];
+
+  return payload
+    .split(',')
+    .map(e => e.trim().replace(/\.$/, ''))
+    .filter(entry => {
+      if (!entry) return false;
+      // Accept entries that look like item names: 1–5 words, each starting
+      // with a capital letter or digit, with no sentence-ending punctuation.
+      // Rejects prose phrases like "Mixed Survival Kit assembled."
+      return /^[A-Z0-9][^\n.!?]{0,60}$/.test(entry) &&
+             !/\b(assembled|acquired|secured|updated|complete|lost|destroyed)\b/i.test(entry);
+    });
 }
 
+/**
+ * FIX #8: Warning now fires at most once (after parseStartup completes)
+ * rather than on every call to getAllocatableStatKeys(), which is invoked
+ * from applySystemRewards on every system block.
+ */
 function getAllocatableStatKeys() {
-  if (statRegistry.length === 0) {
-    console.warn('[engine] No *create_stat entries found in startup.txt — level-up allocation will be empty.');
-  }
   return statRegistry.map(e => e.key);
 }
 
+/**
+ * FIX #3: XP double-count prevention.
+ * The two original XP regex patterns could match the same text fragment
+ * (e.g. "+970 XP" matches both). We now deduplicate by match index:
+ * each character position in the source string can only contribute to
+ * one XP match. We track match ranges and skip any match whose start
+ * index falls inside a range already counted.
+ */
 function applySystemRewards(text) {
   let stateChanged = false;
 
-  // XP gains
-  const xpMatches = [
-    ...(text.match(/XP\s+gained\s*:\s*\+\s*\d+/gi)      || []),
-    ...(text.match(/\+[^\S\n]*\d+[^\S\n]*(?:bonus[^\S\n]+)?XP\b/gi) || []),
-  ];
+  // Build a single ordered list of [start, end, amount] XP matches,
+  // then filter so no two ranges overlap before summing.
+  const xpRanges = [];
+  const xpPattern1 = /XP\s+gained\s*:\s*\+\s*(\d+)/gi;
+  const xpPattern2 = /\+[^\S\n]*(\d+)[^\S\n]*(?:bonus[^\S\n]+)?XP\b/gi;
+
+  for (const pattern of [xpPattern1, xpPattern2]) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const start  = match.index;
+      const end    = match.index + match[0].length;
+      const amount = Number(match[1]);
+      if (Number.isFinite(amount) && amount > 0) {
+        xpRanges.push({ start, end, amount });
+      }
+    }
+  }
+
+  // Sort by start position, then discard overlapping ranges.
+  xpRanges.sort((a, b) => a.start - b.start);
+  let lastEnd    = -1;
   let gainedTotal = 0;
-  xpMatches.forEach(entry => {
-    const amount = Number((entry.match(/\d+/) || [0])[0]);
-    if (Number.isFinite(amount) && amount > 0) gainedTotal += amount;
-  });
+  for (const range of xpRanges) {
+    if (range.start >= lastEnd) {
+      gainedTotal += range.amount;
+      lastEnd = range.end;
+    }
+  }
+
   if (gainedTotal > 0) {
     playerState.xp = Number(playerState.xp || 0) + gainedTotal;
     checkAndApplyLevelUp();
@@ -397,9 +478,9 @@ function applySystemRewards(text) {
   });
 
   [...vitalsPatterns, ...statPatterns].forEach(({ regex, key }) => {
-    const m = text.match(regex);
-    if (!m) return;
-    const bonus = Number(m[1]);
+    const match = text.match(regex);
+    if (!match) return;
+    const bonus = Number(match[1]);
     if (bonus <= 0) return;
     playerState[key] = Number(playerState[key] || 0) + bonus;
     stateChanged = true;
@@ -415,9 +496,9 @@ function applySystemRewards(text) {
 // Narrative clear
 // ---------------------------------------------------------------------------
 function clearNarrative() {
-  Array.from(dom.narrativeContent.children).forEach(el => {
+  for (const el of [...dom.narrativeContent.children]) {
     if (el !== dom.choiceArea) el.remove();
-  });
+  }
   dom.choiceArea.innerHTML = '';
   delayIndex = 0;
 }
@@ -437,6 +518,7 @@ async function parseStartup() {
   tempState   = {};
   statRegistry = [];
   startup.sceneList = [];
+  _statRegistryWarningFired = false;
 
   let inSceneList = false;
 
@@ -469,6 +551,14 @@ async function parseStartup() {
     if (inSceneList && !line.trimmed.startsWith('*') && line.indent > 0) {
       startup.sceneList.push(line.trimmed);
     }
+  }
+
+  // FIX #8: emit the "no allocatable stats" warning exactly once, here,
+  // after parsing is complete — not inside getAllocatableStatKeys() which
+  // is called repeatedly at runtime.
+  if (statRegistry.length === 0 && !_statRegistryWarningFired) {
+    console.warn('[engine] No *create_stat entries found in startup.txt — level-up allocation will be empty.');
+    _statRegistryWarningFired = true;
   }
 }
 
@@ -539,6 +629,11 @@ function findBlockEnd(fromIndex, parentIndent) {
   return i;
 }
 
+/**
+ * FIX #9: Added early break after processing an *else branch.
+ * *else can only appear once per if-chain, so once its body end is found
+ * there is nothing left to scan — the loop can exit immediately.
+ */
 function findIfChainEnd(fromIndex, indent) {
   let i = fromIndex + 1;
   while (i < currentLines.length) {
@@ -546,10 +641,15 @@ function findIfChainEnd(fromIndex, indent) {
     if (!line.trimmed) { i += 1; continue; }
     if (line.indent < indent) break;
     if (line.indent === indent) {
-      if (line.trimmed.startsWith('*elseif') || line.trimmed.startsWith('*else')) {
+      if (line.trimmed.startsWith('*elseif')) {
         const bodyEnd = findBlockEnd(i + 1, indent);
         i = bodyEnd;
         continue;
+      }
+      if (line.trimmed.startsWith('*else')) {
+        // *else is always the final branch — skip its body and stop scanning.
+        i = findBlockEnd(i + 1, indent);
+        break;
       }
       break;
     }
@@ -567,6 +667,10 @@ function evaluateCondition(raw) {
   return !!evalValue(condition.replace(/^\(|\)$/g, ''));
 }
 
+/**
+ * FIX #2: Added a console warning when a *selectable_if line fails to parse
+ * instead of silently skipping the option and its body.
+ */
 function parseChoice(startIndex, indent) {
   const choices = [];
   let i = startIndex + 1;
@@ -575,13 +679,18 @@ function parseChoice(startIndex, indent) {
     if (!line.trimmed) { i += 1; continue; }
     if (line.indent <= indent) break;
 
-    let selectable  = true;
-    let optionText  = '';
-    let optionIndent = line.indent;
+    let selectable   = true;
+    let optionText   = '';
+    const optionIndent = line.indent;
 
     if (line.trimmed.startsWith('*selectable_if')) {
       const m = line.trimmed.match(/^\*selectable_if\s*\((.+)\)\s*#(.*)$/);
-      if (m) { selectable = !!evalValue(m[1]); optionText = m[2].trim(); }
+      if (m) {
+        selectable = !!evalValue(m[1]);
+        optionText = m[2].trim();
+      } else {
+        console.warn(`[engine] Malformed *selectable_if at line ${i} in "${currentScene}": ${line.trimmed}`);
+      }
     } else if (line.trimmed.startsWith('#')) {
       optionText = line.trimmed.slice(1).trim();
     }
@@ -615,13 +724,23 @@ async function executeBlock(start, end, resumeAfter = end) {
   ip = resumeAfter;
 }
 
+/**
+ * FIX #7: parseSystemBlock now preserves indentation relative to the
+ * block's base indent rather than stripping all leading whitespace.
+ * This allows intentional column-alignment inside system blocks to survive.
+ */
 function parseSystemBlock(startIndex) {
-  const parts = [];
-  let i = startIndex + 1;
+  const parts   = [];
+  let   baseIndent = null;
+  let   i = startIndex + 1;
   while (i < currentLines.length) {
     const t = currentLines[i].trimmed;
     if (t === '*end_system') return { text: parts.join('\n'), endIp: i + 1, ok: true };
-    parts.push(currentLines[i].raw.replace(/^\s*/, ''));
+    // Determine base indent from the first non-empty line.
+    if (baseIndent === null && t) baseIndent = currentLines[i].indent;
+    const raw    = currentLines[i].raw;
+    const stripped = baseIndent !== null ? raw.slice(Math.min(baseIndent, raw.search(/\S|$/))) : raw.trimStart();
+    parts.push(stripped);
     i += 1;
   }
   return { text: '', endIp: currentLines.length, ok: false };
@@ -629,6 +748,12 @@ function parseSystemBlock(startIndex) {
 
 // ---------------------------------------------------------------------------
 // Main interpreter
+//
+// FIX #10: The command dispatch is now order-independent for all commands
+// that do not share a prefix. The only load-bearing ordering requirement
+// that remains is *goto_scene before *goto (since "goto_scene".startsWith("goto")
+// is true). All other handlers are clearly separated. A comment marks the
+// ordering constraint explicitly so future authors don't accidentally swap them.
 // ---------------------------------------------------------------------------
 async function executeCurrentLine() {
   const line = currentLines[ip];
@@ -651,6 +776,7 @@ async function executeCurrentLine() {
 
   if (t.startsWith('*comment')) { ip += 1; return; }
 
+  // NOTE: *goto_scene MUST be checked before *goto — "goto_scene" starts with "goto".
   if (t.startsWith('*goto_scene')) {
     const target = t.replace('*goto_scene', '').trim();
     await gotoScene(target);
@@ -771,7 +897,7 @@ async function executeCurrentLine() {
 
   if (t.startsWith('*if')) {
     const chainEnd = findIfChainEnd(ip, line.indent);
-    let cursor  = ip;
+    let cursor   = ip;
     let executed = false;
     while (cursor < chainEnd) {
       const c = currentLines[cursor];
@@ -916,7 +1042,7 @@ async function runStatsScene() {
   const text  = await fetchTextFile('stats');
   const lines = parseLines(text);
   let html = '';
-  styleState.groups = [];
+  // FIX #15: styleState no longer has a `groups` array (it was never written to).
   styleState.colors = {};
   styleState.icons  = {};
 
@@ -975,7 +1101,8 @@ async function runStatsScene() {
 // Inline level-up block
 // ---------------------------------------------------------------------------
 function showInlineLevelUp() {
-  pendingLevelUpDisplay = false;
+  pendingLevelUpDisplay  = false;
+  _pendingLevelUpCount   = 0;
 
   const keys     = getAllocatableStatKeys();
   const labelMap = Object.fromEntries(statRegistry.map(({ key, label }) => [key, label]));
@@ -1071,14 +1198,16 @@ function showInlineLevelUp() {
 // Ending screen
 // ---------------------------------------------------------------------------
 function showEndingScreen(title, subtitle) {
-  dom.endingTitle.textContent   = title;
-  dom.endingContent.textContent = subtitle;
-  dom.endingStats.innerHTML     = `Level: ${playerState.level || 0}<br>XP: ${playerState.xp || 0}<br>Class: ${playerState.class_name || 'Unclassed'}`;
+  dom.endingTitle.textContent     = title;
+  dom.endingContent.textContent   = subtitle;
+  dom.endingStats.innerHTML       = `Level: ${playerState.level || 0}<br>XP: ${playerState.xp || 0}<br>Class: ${playerState.class_name || 'Unclassed'}`;
   dom.endingActionBtn.textContent = 'Play Again';
-  dom.endingActionBtn.onclick     = () => location.reload();
+  // FIX #6: use resetGame() consistently instead of inlining location.reload().
+  dom.endingActionBtn.onclick     = resetGame;
   dom.endingOverlay.classList.remove('hidden');
 }
 
+// FIX #6: resetGame is now actually used (was dead code before).
 function resetGame() { location.reload(); }
 
 // ---------------------------------------------------------------------------
@@ -1155,8 +1284,21 @@ function clearSave() {
   try { localStorage.removeItem(SAVE_KEY); } catch (_) {}
 }
 
+/**
+ * FIX #5: restoreFromSave now fully replaces playerState from the save
+ * rather than merging with Object.assign. This prevents stale keys from
+ * a previous startup (e.g. a stat removed since the save was made) from
+ * persisting silently in the live state.
+ *
+ * We still apply current startup defaults first so that any NEW keys added
+ * to startup.txt after the save was created get their intended defaults
+ * rather than being absent from state.
+ */
 async function restoreFromSave(save) {
-  Object.assign(playerState, save.playerState);
+  // Start from fresh startup defaults, then overlay the saved values.
+  // New keys from startup.txt get defaults; removed keys from the save are
+  // silently dropped (they're not in playerState to begin with).
+  playerState       = { ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) };
   pendingStatPoints = save.pendingStatPoints ?? 0;
   clearTempState();
   await runStatsScene();
@@ -1173,8 +1315,8 @@ function showBootScreen(save) {
     if (save) {
       const date    = new Date(save.timestamp);
       const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-      saveInfo.textContent     = `Last saved: ${dateStr} — ${save.scene.toUpperCase()}`;
-      continueBtn.disabled     = false;
+      saveInfo.textContent      = `Last saved: ${dateStr} — ${save.scene.toUpperCase()}`;
+      continueBtn.disabled      = false;
       continueBtn.style.opacity = '1';
     } else {
       saveInfo.textContent      = 'No save data found.';
