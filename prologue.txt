@@ -10,6 +10,7 @@ Your story begins at the end. You stand on the ramparts of what had once been an
 
 *choice
   #"That's just how our luck runs."
+    *set xp +10
     *goto test1
   #"It'll be fine."
     *goto test2
