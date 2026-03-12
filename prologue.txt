@@ -190,13 +190,17 @@ The frowning head answered. "Your wards were built to exclude monsters. We are n
 
 The smiling head added, pleasantly: "We are something considerably older than the concept."
 
-*goto janus_who
+*choice
+  #Next
+    *goto janus_who
 
 *label janus_who
 
 "We are called many things in many traditions," the smiling head said. "Gatekeeper. Arbiter. The Two-Faced One." A small, gracious pause. "Janus will do."
 
-*goto janus_what
+*choice
+  #Next
+    *goto janus_what
 
 *label janus_what
 
@@ -220,7 +224,9 @@ Before the System. Before the dungeons. Before eight years of watching the world
 *else
   Eight years. Three days before all of it began. The numbers settle in your chest like stones.
 
-*goto janus_explains
+*choice
+  #Next
+    *goto janus_explains
 
 *label janus_explains
 
@@ -250,7 +256,7 @@ Kai, behind you, let out a slow breath. "Time travel. Wild. Completely insane. B
     *set spirit +1
     *goto janus_others
 
-*goto janus_how
+
 
 *label janus_why_you
 
@@ -264,7 +270,9 @@ A pause in which both faces looked at you with an expression you couldn't quite 
 
 "You never stopped grieving what was lost. Eight years of survival and you never let yourself go numb to it. That grief—" the smiling head seemed to choose the next words with care "—is a compass. It will point you toward exactly what needs to be saved. We need someone who still remembers why."
 
-*goto janus_how
+*choice
+  #Next
+    *goto janus_how
 
 *label janus_others
 
@@ -280,7 +288,9 @@ You turned. Behind you, Kai had his hands in his pockets. Sable had unfolded her
 
 Sable said: "Go." First word in three days. "Go and make it so none of this happened."
 
-*goto janus_how
+*choice
+  #Next
+    *goto janus_how
 
 *label janus_how
 
@@ -294,7 +304,9 @@ Janus spread four hands — hidden until now in the folds of the robe — in a g
 
 *save_point pre_portal
 
-*goto the_last_moment
+*choice
+  #Next
+    *goto the_last_moment
 
 *label the_last_moment
 
@@ -328,7 +340,7 @@ You face the portal alone.
 
 *comment Fallthrough guard — runInterpreter resumes here after the choice block.
 *comment Without this goto, linear execution walks straight into last_look.
-*goto portal_crossing
+
 
 *label last_look
 
@@ -340,22 +352,30 @@ Sable meets your eyes. She nods once — sharp, certain, the way she nods when a
 
 You hold that for one more second. Then you turn.
 
-*goto arrival_faithful
+*choice
+  #Next
+    *goto arrival_faithful
 
 *label arrival_faithful
 
 *temp arrival_style "faithful"
-*goto portal_crossing
+*choice
+  #Next
+    *goto portal_crossing
 
 *label arrival_decisive
 
 *temp arrival_style "decisive"
-*goto portal_crossing
+*choice
+  #Next
+    *goto portal_crossing
 
 *label arrival_warrior
 
 *temp arrival_style "warrior"
-*goto portal_crossing
+*choice
+  #Next
+    *goto portal_crossing
 
 *label portal_crossing
 
