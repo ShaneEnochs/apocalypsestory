@@ -2,11 +2,15 @@
 
 *label intro
 *comment TITLE: The End of Everything
-Your story begins at the end. You stand on the ramparts of what had once been an ancient European castle, repurposed into humanity's last fortress. You are shoulder to shoulder with the only other two other humans on the planet.
+Your story begins at the end. 
+
+You stand on the ramparts of what had once been an ancient European castle, repurposed into humanity's last fortress. You are shoulder to shoulder with the only other two other humans on the planet.
 
 *system Warning: The World Boss [Demon Lord: Azazel] has been summoned within 10 kilometers of you.
 
 "Man," Kai says with a chuckle, running his fingers through his hair, "just when you think things can't get any worse."
+
+This has been updated. 
 
 *choice
   #"That's just how our luck runs."
