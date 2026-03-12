@@ -314,7 +314,9 @@ Janus spread four hands — hidden until now in the folds of the robe — in a g
 
 "You will arrive with everything you carry now. Your level. Your skills. Your blade. And—" the smiling head, with what seemed like genuine satisfaction "—the knowledge of everything that comes after. That is more than enough."
 
-*goto pre_portal
+*choice
+  #Time to go... 
+    *goto pre_portal
 
 *label pre_portal
 
