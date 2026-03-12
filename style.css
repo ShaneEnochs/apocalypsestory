@@ -509,8 +509,16 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 100;
+  /* Start transparent; overlayIn animates to opacity:1.
+     animation-fill-mode:forwards keeps it visible after the animation ends.
+     The explicit opacity:1 fallback ensures visibility if the animation is
+     skipped (e.g. prefers-reduced-motion, background tab, mobile deferral). */
   opacity: 0;
   animation: overlayIn 0.4s ease forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay { opacity: 1; animation: none; }
 }
 
 .overlay.hidden {
@@ -651,7 +659,8 @@ body {
 }
 
 @keyframes overlayIn {
-  to { opacity: 1; }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @keyframes statPulse {
