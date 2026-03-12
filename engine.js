@@ -1042,6 +1042,7 @@ function showEndingScreen(title, subtitle) {
   dom.endingActionBtn.textContent = 'Play Again';
   dom.endingActionBtn.onclick     = resetGame;
   dom.endingOverlay.classList.remove('hidden');
+  dom.endingOverlay.style.opacity = '1';
   trapFocus(dom.endingOverlay, null); // released by resetGame (page reload)
 }
 
@@ -1196,6 +1197,7 @@ function showSplash() {
   }
 
   dom.splashOverlay.classList.remove('hidden');
+  dom.splashOverlay.style.opacity = '1';
   dom.splashSlots.classList.add('hidden');
   dom.splashOverlay.querySelector('.splash-btn-col')?.classList.remove('hidden');
 }
@@ -1211,6 +1213,7 @@ let _saveTrapRelease = null;
 function showSaveMenu() {
   refreshAllSlotCards();
   dom.saveOverlay.classList.remove('hidden');
+  dom.saveOverlay.style.opacity = '1';
   _saveTrapRelease = trapFocus(dom.saveOverlay, dom.saveBtn);
 }
 
@@ -1339,13 +1342,17 @@ function showCharacterCreation() {
   });
 
   dom.charOverlay.classList.remove('hidden');
-  // Focus trap is handled manually here: we delay focus to let the overlay
-  // animate in, then move focus to the first name field ourselves.
-  // The charBeginBtn click handler calls _resolve which hides the overlay;
-  // we release the trap there.
-  const _charTrapRelease = trapFocus(dom.charOverlay, null);
-  dom.charOverlay._trapRelease = _charTrapRelease;
-  setTimeout(() => dom.inputFirstName.focus(), 80);
+  // Force visibility — don't rely solely on the CSS animation completing.
+  dom.charOverlay.style.opacity = '1';
+  // Defer trapFocus to next frame so the overlay is fully painted first.
+  // trapFocus's own requestAnimationFrame handles the initial focus move,
+  // so we don't also need the setTimeout here — but we keep a short delay
+  // for the first-name field specifically to let the animation settle on mobile.
+  requestAnimationFrame(() => {
+    const _charTrapRelease = trapFocus(dom.charOverlay, null);
+    dom.charOverlay._trapRelease = _charTrapRelease;
+  });
+  setTimeout(() => { try { dom.inputFirstName.focus(); } catch (_) {} }, 80);
 
   return new Promise(resolve => { dom.charOverlay._resolve = resolve; });
 }
@@ -1363,9 +1370,11 @@ function trapFocus(overlayEl, triggerEl = null) {
   ].join(',');
 
   function getFocusable() {
-    return [...overlayEl.querySelectorAll(FOCUSABLE)].filter(
-      el => !el.closest('[hidden]') && getComputedStyle(el).display !== 'none'
-    );
+    try {
+      return [...overlayEl.querySelectorAll(FOCUSABLE)].filter(
+        el => !el.closest('[hidden]') && getComputedStyle(el).display !== 'none'
+      );
+    } catch (_) { return []; }
   }
 
   function handleKeydown(e) {
@@ -1383,13 +1392,18 @@ function trapFocus(overlayEl, triggerEl = null) {
 
   overlayEl.addEventListener('keydown', handleKeydown);
 
-  // Move focus into the overlay immediately.
-  const focusable = getFocusable();
-  if (focusable.length) focusable[0].focus();
+  // Defer initial focus to next frame so the overlay is fully rendered.
+  // This is important on mobile where layout may not be synchronous.
+  requestAnimationFrame(() => {
+    try {
+      const focusable = getFocusable();
+      if (focusable.length) focusable[0].focus();
+    } catch (_) {}
+  });
 
   return function release() {
-    overlayEl.removeEventListener('keydown', handleKeydown);
-    if (triggerEl && typeof triggerEl.focus === 'function') triggerEl.focus();
+    try { overlayEl.removeEventListener('keydown', handleKeydown); } catch (_) {}
+    try { if (triggerEl && typeof triggerEl.focus === 'function') triggerEl.focus(); } catch (_) {}
   };
 }
 
