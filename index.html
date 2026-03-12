@@ -41,12 +41,15 @@
 <!-- ═══════════════════════════════════════════════════
      SPLASH / TITLE SCREEN
      ═══════════════════════════════════════════════════ -->
-<div id="splash-overlay" class="overlay">
+<div id="splash-overlay" class="overlay" role="dialog" aria-modal="true" aria-label="System Awakening — Title Screen">
   <div class="overlay-box splash-box">
     <div class="splash-icon">◈</div>
     <div class="overlay-title splash-title">System Awakening</div>
     <p class="splash-tagline">Eight years of the apocalypse.<br>One door back.</p>
 
+    <div id="splash-stale-notice" class="splash-stale-notice hidden" role="alert">
+      ⚠ An older save was found but is not compatible with this version.
+    </div>
     <div class="splash-btn-col">
       <button id="splash-new-btn" class="overlay-btn">New Game</button>
       <button id="splash-load-btn" class="overlay-btn overlay-btn--secondary">Load Game</button>
@@ -115,9 +118,9 @@
 <!-- ═══════════════════════════════════════════════════
      IN-GAME SAVE MENU
      ═══════════════════════════════════════════════════ -->
-<div id="save-overlay" class="overlay hidden">
+<div id="save-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="save-menu-heading">
   <div class="overlay-box save-menu-box">
-    <div class="overlay-title save-menu-title">[ Save Game ]</div>
+    <div class="overlay-title save-menu-title" id="save-menu-heading">[ Save Game ]</div>
     <p class="save-menu-hint">Choose a slot. Auto-save is managed automatically.</p>
     <div class="slot-list">
       <div class="slot-card" id="save-card-1" data-slot="1">
@@ -126,24 +129,30 @@
           <span class="slot-name" id="save-slot-name-1">— Empty —</span>
           <span class="slot-meta" id="save-slot-meta-1"></span>
         </div>
-        <button class="slot-load-btn" id="save-to-1">Save</button>
-      </div>
+        <div class="slot-actions">
+          <button class="slot-load-btn" id="save-to-1">Save</button>
+          <button class="slot-delete-btn hidden" id="save-delete-1" aria-label="Delete slot 1">✕</button>
+        </div>
       <div class="slot-card" id="save-card-2" data-slot="2">
         <div class="slot-badge">Slot 2</div>
         <div class="slot-info">
           <span class="slot-name" id="save-slot-name-2">— Empty —</span>
           <span class="slot-meta" id="save-slot-meta-2"></span>
         </div>
-        <button class="slot-load-btn" id="save-to-2">Save</button>
-      </div>
+        <div class="slot-actions">
+          <button class="slot-load-btn" id="save-to-2">Save</button>
+          <button class="slot-delete-btn hidden" id="save-delete-2" aria-label="Delete slot 2">✕</button>
+        </div>
       <div class="slot-card" id="save-card-3" data-slot="3">
         <div class="slot-badge">Slot 3</div>
         <div class="slot-info">
           <span class="slot-name" id="save-slot-name-3">— Empty —</span>
           <span class="slot-meta" id="save-slot-meta-3"></span>
         </div>
-        <button class="slot-load-btn" id="save-to-3">Save</button>
-      </div>
+        <div class="slot-actions">
+          <button class="slot-load-btn" id="save-to-3">Save</button>
+          <button class="slot-delete-btn hidden" id="save-delete-3" aria-label="Delete slot 3">✕</button>
+        </div>
     </div>
     <button id="save-menu-close" class="overlay-btn overlay-btn--secondary" style="margin-top:16px;">Cancel</button>
   </div>
@@ -152,10 +161,10 @@
 <!-- ═══════════════════════════════════════════════════
      CHARACTER CREATION
      ═══════════════════════════════════════════════════ -->
-<div id="char-creation-overlay" class="overlay hidden">
+<div id="char-creation-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="char-creation-heading">
   <div class="overlay-box char-box">
     <div class="char-header">
-      <span class="system-block-label">[ WHO ARE YOU ]</span>
+      <span class="system-block-label" id="char-creation-heading">[ WHO ARE YOU ]</span>
     </div>
 
     <div class="char-field-group">
@@ -166,7 +175,7 @@
                maxlength="14" placeholder="Enter first name"/>
         <span class="char-counter" id="counter-first">14</span>
       </div>
-      <span class="char-error hidden" id="error-first-name"></span>
+      <span class="char-error hidden" id="error-first-name" role="alert" aria-live="polite"></span>
     </div>
 
     <div class="char-field-group">
@@ -177,7 +186,7 @@
                maxlength="14" placeholder="Enter last name"/>
         <span class="char-counter" id="counter-last">14</span>
       </div>
-      <span class="char-error hidden" id="error-last-name"></span>
+      <span class="char-error hidden" id="error-last-name" role="alert" aria-live="polite"></span>
     </div>
 
     <div class="char-field-group">
@@ -202,7 +211,7 @@
 <!-- ═══════════════════════════════════════════════════
      ENDING SCREEN
      ═══════════════════════════════════════════════════ -->
-<div id="ending-overlay" class="overlay hidden">
+<div id="ending-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="ending-title">
   <div class="overlay-box" id="ending-box">
     <div id="ending-icon"></div>
     <div id="ending-title" class="overlay-title"></div>
