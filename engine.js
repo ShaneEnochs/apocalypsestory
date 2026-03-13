@@ -671,6 +671,9 @@ async function gotoScene(name, label = null) {
     return;
   }
   clearTempState();
+  // Reset all mid-scene state so a freshly loaded scene always runs cleanly.
+  awaitingChoice       = null;
+  pendingLevelUpDisplay = false;
   currentScene = name;
   currentLines = parseLines(text);
   indexLabels(name, currentLines);
@@ -1748,7 +1751,9 @@ function wireUI() {
     btn.addEventListener('click', () => {
       const existing = loadSaveFromSlot(slot);
       if (existing && !confirm(`Overwrite Slot ${slot}?`)) return;
-      saveGameToSlot(slot);
+      // Inherit the label from the auto-save so we resume at the right checkpoint.
+      const autoSave = loadSaveFromSlot('auto');
+      saveGameToSlot(slot, autoSave?.label ?? null);
       hideSaveMenu();
       showToast(`Saved to Slot ${slot}`);
       refreshAllSlotCards();
