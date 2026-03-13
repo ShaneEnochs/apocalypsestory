@@ -1053,7 +1053,13 @@ async function runInterpreter() {
 // Stats panel renderer
 // ---------------------------------------------------------------------------
 async function runStatsScene() {
-  const text  = await fetchTextFile('stats');
+  let text;
+  try {
+    text = await fetchTextFile('stats');
+  } catch (err) {
+    console.warn('[engine] Could not load stats.txt:', err.message);
+    return;
+  }
   const lines = parseLines(text);
   let html = '';
   styleState.colors = {};
@@ -1766,14 +1772,44 @@ function wireUI() {
 // Boot
 // ---------------------------------------------------------------------------
 async function boot() {
-  wireUI();
+  // wireUI must succeed for any buttons to work — catch and surface errors.
+  try {
+    wireUI();
+  } catch (err) {
+    // If wireUI throws, we can't use the normal error display (it needs DOM).
+    // Write directly to the body so the developer can see what failed.
+    document.body.insertAdjacentHTML('beforeend',
+      `<div style="position:fixed;inset:0;background:#0d0f1a;color:#e05555;font-family:monospace;
+        padding:40px;z-index:9999;white-space:pre-wrap;font-size:14px;">
+        [ENGINE] wireUI() failed — buttons will not work.\n\n${err.stack || err.message}</div>`
+    );
+    console.error('[engine] wireUI() failed:', err);
+    return;
+  }
+
   try {
     await parseStartup();
-    await parseSkills();   // load skill registry before splash so it's ready for any restored save
-    showSplash();
   } catch (err) {
-    showEngineError(`Boot failed: ${err.message}`);
+    showEngineError(`Boot failed (parseStartup): ${err.message}`);
+    return;
   }
+
+  // parseSkills is non-critical — a failure here must never block the splash.
+  try {
+    // Race against a 5-second timeout so a hanging fetch never freezes boot.
+    await Promise.race([
+      parseSkills(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('skills.txt fetch timed out after 5s')), 5000)
+      ),
+    ]);
+  } catch (err) {
+    console.warn('[engine] parseSkills() failed or timed out:', err.message);
+    // Ensure skills array always exists even on failure.
+    if (!Array.isArray(playerState.skills)) playerState.skills = [];
+  }
+
+  showSplash();
 }
 
 document.addEventListener('DOMContentLoaded', boot);
