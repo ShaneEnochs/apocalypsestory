@@ -857,7 +857,7 @@ async function executeCurrentLine() {
     return;
   }
 
-  if (t.startsWith('*ending')) { showEndingScreen('The End', 'Your path is complete.'); return; }
+  if (t.startsWith('*ending')) { showEndingScreen('The End', 'Your path is complete.'); ip = currentLines.length; return; }
 
   ip += 1;
 }
