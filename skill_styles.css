@@ -1,0 +1,204 @@
+/* ============================================================
+   SKILL SYSTEM STYLES
+   ============================================================ */
+
+/* --- Stats panel: skill tag list --- */
+/* Skills differ from inventory: each item has a name + description block */
+
+.skill-tag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skill-tag {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-dim);
+  background: var(--bg-deep);
+  animation: tagAppear 0.3s ease forwards;
+}
+
+.skill-tag-name {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--amber);
+  letter-spacing: 0.08em;
+}
+
+.skill-tag-desc {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.45;
+  font-style: italic;
+}
+
+/* --- Level-up block: Browse Skills button --- */
+
+.skill-browse-btn {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber);
+  background: transparent;
+  border: 1px solid var(--amber-dim);
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-right: auto; /* push confirm button to the right */
+}
+
+.skill-browse-btn:hover {
+  background: var(--amber-glow);
+  border-color: var(--amber);
+  color: #fff;
+}
+
+/* --- Skill browser panel (inside level-up block) --- */
+
+.skill-browser {
+  margin-top: 14px;
+  border-top: 1px solid var(--border-dim);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skill-browser-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.skill-browser-title {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  color: var(--amber-dim);
+}
+
+.skill-browser-xp {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-faint);
+  letter-spacing: 0.06em;
+}
+
+.skill-browser-xp strong {
+  color: var(--amber);
+}
+
+.skill-browser-empty {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* Each skill row in the browser */
+.skill-browser-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 10px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-dim);
+  margin-bottom: 6px;
+  transition: border-color var(--transition-fast);
+}
+
+.skill-browser-row:hover:not(.skill-browser-row--owned):not(.skill-browser-row--unaffordable) {
+  border-color: var(--amber-dim);
+}
+
+.skill-browser-row--unaffordable {
+  opacity: 0.5;
+}
+
+.skill-browser-row--owned {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.skill-browser-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.skill-browser-name {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--amber);
+  letter-spacing: 0.08em;
+}
+
+.skill-browser-desc {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.45;
+  font-style: italic;
+}
+
+.skill-browser-cost-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.skill-browser-cost {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-faint);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.skill-browser-owned-badge {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  color: var(--green);
+  border: 1px solid rgba(76, 220, 138, 0.3);
+  padding: 3px 8px;
+  text-transform: uppercase;
+}
+
+/* Purchase button */
+.skill-purchase-btn {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bg-deep);
+  background: var(--amber);
+  border: none;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.skill-purchase-btn:hover:not(:disabled) {
+  background: #fff;
+  box-shadow: 0 0 12px var(--amber-glow);
+}
+
+.skill-purchase-btn:disabled {
+  background: var(--border-dim);
+  color: var(--text-faint);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
