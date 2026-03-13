@@ -28,7 +28,8 @@
 
 *label opening
 
-Testing, testing! 
+New testing
+
 The world ended on a Tuesday.
 
 Not with a bang — or rather, not *only* with a bang. It ended in layers, the way a person dies: first the small things, then the large ones, then the thing that held all the other things together.
@@ -88,17 +89,14 @@ The three of you. The last three. The sky the color of an open wound.
 
 *choice
   #"That's just how our luck runs." Try to match his tone.
-    *set xp +15
     *set social +1
     *set player_tone "dark"
     *goto branch_dark
   #"Forty-seven minutes. We should be doing something with them."
-    *set xp +10
     *set mind +1
     *set player_tone "practical"
     *goto branch_practical
   #Say nothing. Watch the fire spreading across the horizon.
-    *set xp +5
     *set spirit +1
     *set player_tone "silent"
     *goto branch_silent
