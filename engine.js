@@ -175,13 +175,28 @@ function parseLines(text) {
 }
 
 // ---------------------------------------------------------------------------
+// HTML escaping — used whenever player-controlled or author-controlled strings
+// are interpolated directly into innerHTML rather than set via textContent.
+// ---------------------------------------------------------------------------
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ---------------------------------------------------------------------------
 // Text formatting
 // ---------------------------------------------------------------------------
 function formatText(text) {
-  // 1. Variable interpolation
+  // 1. Variable interpolation — escape values so player-entered strings
+  //    (e.g. character names) cannot inject HTML into the narrative.
   let result = text.replace(/\$\{([a-zA-Z_][\w]*)\}/g, (_, v) => {
     const k = normalizeKey(v);
-    return tempState[k] !== undefined ? tempState[k] : (playerState[k] ?? '');
+    const val = tempState[k] !== undefined ? tempState[k] : (playerState[k] ?? '');
+    return escapeHtml(val);
   });
 
   // 2. Pronoun tokens
@@ -651,7 +666,7 @@ function showEngineError(message) {
   div.className = 'system-block';
   div.style.borderLeftColor = 'var(--red)';
   div.style.color = 'var(--red)';
-  div.innerHTML = `<span class="system-block-label">[ ENGINE ERROR ]</span><span class="system-block-text">${message}\n\nUse the Restart button to reload.</span>`;
+  div.innerHTML = `<span class="system-block-label">[ ENGINE ERROR ]</span><span class="system-block-text">${escapeHtml(message)}\n\nUse the Restart button to reload.</span>`;
   dom.narrativeContent.insertBefore(div, dom.choiceArea);
   dom.chapterTitle.textContent = 'ERROR';
 }
@@ -682,6 +697,18 @@ async function gotoScene(name, label = null, savedIp = null, isRestore = false) 
   dom.chapterTitle.textContent = name.toUpperCase();
   if (savedIp !== null) {
     ip = savedIp;
+    // Recover the chapter title that was in effect at the restore point by
+    // scanning backward from savedIp for the most recent *title directive.
+    // Without this, the title always shows the raw scene filename on load.
+    let restoredTitle = null;
+    for (let i = savedIp - 1; i >= 0; i--) {
+      const l = currentLines[i];
+      if (l && l.trimmed.startsWith('*title')) {
+        restoredTitle = l.trimmed.replace('*title', '').trim();
+        break;
+      }
+    }
+    if (restoredTitle) dom.chapterTitle.textContent = restoredTitle;
   } else if (label) {
     const labels = labelsCache.get(name) || {};
     ip = labels[label] ?? 0;
@@ -868,8 +895,8 @@ async function executeCurrentLine() {
     // directive. If we saved ip here (before the increment) then every restore
     // would re-execute *save_point, triggering another write and banner.
     ip += 1;
-    saveGameToSlot('auto', saveLabel);
-    addSystem('[ PROGRESS SAVED ]');
+    const saved = saveGameToSlot('auto', saveLabel);
+    addSystem(saved ? '[ PROGRESS SAVED ]' : '[ SAVE FAILED — storage unavailable ]');
     return;
   }
 
@@ -1161,18 +1188,18 @@ async function _runStatsSceneImpl() {
   entries.forEach(e => {
     if (e.type === 'group') {
       if (inGroup) html += `</div>`;
-      html += `<div class="status-section"><div class="status-label status-section-header">${e.name}</div>`;
+      html += `<div class="status-section"><div class="status-label status-section-header">${escapeHtml(e.name)}</div>`;
       inGroup = true;
     }
     if (e.type === 'stat') {
       const cc = styleState.colors[e.key] || '';
       const ic = styleState.icons[e.key]  ?? '';
-      html += `<div class="status-row"><span class="status-label">${ic ? ic + ' ' : ''}${e.label}</span><span class="status-value ${cc}">${playerState[e.key] ?? '—'}</span></div>`;
+      html += `<div class="status-row"><span class="status-label">${ic ? escapeHtml(ic) + ' ' : ''}${escapeHtml(e.label)}</span><span class="status-value ${escapeHtml(cc)}">${escapeHtml(playerState[e.key] ?? '—')}</span></div>`;
     }
     if (e.type === 'inventory') {
       if (inGroup) { html += `</div>`; inGroup = false; }
       const items = Array.isArray(playerState.inventory) && playerState.inventory.length
-        ? playerState.inventory.map(i => `<li>${i}</li>`).join('')
+        ? playerState.inventory.map(i => `<li>${escapeHtml(i)}</li>`).join('')
         : '<li class="tag-empty">Empty</li>';
       html += `<div class="status-section"><div class="status-label status-section-header">Inventory</div><ul class="tag-list">${items}</ul></div>`;
     }
@@ -1184,13 +1211,13 @@ async function _runStatsSceneImpl() {
       } else {
         const skillItems = owned.map(key => {
           const entry = getSkillEntry(key);
-          if (!entry) return `<li class="skill-accordion"><button class="skill-accordion-btn" aria-expanded="false"><span class="skill-accordion-name">${key}</span><span class="skill-accordion-chevron">▾</span></button></li>`;
+          if (!entry) return `<li class="skill-accordion"><button class="skill-accordion-btn" aria-expanded="false"><span class="skill-accordion-name">${escapeHtml(key)}</span><span class="skill-accordion-chevron">▾</span></button></li>`;
           return `<li class="skill-accordion">
             <button class="skill-accordion-btn" aria-expanded="false">
-              <span class="skill-accordion-name">${entry.label}</span>
+              <span class="skill-accordion-name">${escapeHtml(entry.label)}</span>
               <span class="skill-accordion-chevron">▾</span>
             </button>
-            ${entry.description ? `<div class="skill-accordion-desc" hidden>${entry.description}</div>` : ''}
+            ${entry.description ? `<div class="skill-accordion-desc" hidden>${escapeHtml(entry.description)}</div>` : ''}
           </li>`;
         }).join('');
         html += `<div class="status-section"><div class="status-label status-section-header">Skills</div><ul class="skill-accordion-list">${skillItems}</ul></div>`;
@@ -1263,13 +1290,13 @@ function showInlineLevelUp() {
         return `
           <div class="skill-browser-card ${canAfford ? '' : 'skill-browser-card--unaffordable'}">
             <div class="skill-browser-card-top">
-              <div class="skill-browser-card-name">${s.label}</div>
+              <div class="skill-browser-card-name">${escapeHtml(s.label)}</div>
               <div class="skill-browser-card-actions">
                 <span class="skill-browser-sp-badge ${canAfford ? 'skill-browser-sp-badge--can-afford' : ''}">${spCost} SP</span>
-                <button class="skill-purchase-btn" data-sk="${s.key}" ${canAfford ? '' : 'disabled'}>Unlock</button>
+                <button class="skill-purchase-btn" data-sk="${escapeHtml(s.key)}" ${canAfford ? '' : 'disabled'}>Unlock</button>
               </div>
             </div>
-            <div class="skill-browser-card-desc">${s.description || ''}</div>
+            <div class="skill-browser-card-desc">${escapeHtml(s.description || '')}</div>
           </div>`;
       }).join('');
 
@@ -1278,12 +1305,12 @@ function showInlineLevelUp() {
         return `
           <div class="skill-browser-card skill-browser-card--owned">
             <div class="skill-browser-card-top">
-              <div class="skill-browser-card-name">${s.label}</div>
+              <div class="skill-browser-card-name">${escapeHtml(s.label)}</div>
               <div class="skill-browser-card-actions">
                 <span class="skill-browser-owned-badge">✓ Learned</span>
               </div>
             </div>
-            <div class="skill-browser-card-desc">${s.description || ''}</div>
+            <div class="skill-browser-card-desc">${escapeHtml(s.description || '')}</div>
           </div>`;
       }).join('');
 
@@ -1311,11 +1338,11 @@ function showInlineLevelUp() {
       <div class="stat-alloc-grid">
         ${keys.map(k => `
           <div class="stat-alloc-item ${alloc[k] ? 'selected' : ''}">
-            <span class="stat-alloc-name">${labelMap[k] || k}</span>
+            <span class="stat-alloc-name">${escapeHtml(labelMap[k] || k)}</span>
             <div style="display:flex;justify-content:center;gap:8px;align-items:center;">
-              <button class="alloc-btn" data-op="minus" data-k="${k}" ${alloc[k] <= 0 ? 'disabled' : ''}>−</button>
+              <button class="alloc-btn" data-op="minus" data-k="${escapeHtml(k)}" ${alloc[k] <= 0 ? 'disabled' : ''}>−</button>
               <span class="stat-alloc-val ${alloc[k] ? 'buffed' : ''}">${Number(playerState[k] || 0) + alloc[k]}</span>
-              <button class="alloc-btn" data-op="plus"  data-k="${k}" ${remain <= 0 ? 'disabled' : ''}>+</button>
+              <button class="alloc-btn" data-op="plus"  data-k="${escapeHtml(k)}" ${remain <= 0 ? 'disabled' : ''}>+</button>
             </div>
           </div>
         `).join('')}
@@ -1394,7 +1421,7 @@ function showEndingScreen(title, subtitle) {
 
   dom.endingTitle.textContent     = title;
   dom.endingContent.textContent   = subtitle;
-  dom.endingStats.innerHTML       = `Level: ${playerState.level || 0}<br>XP: ${playerState.xp || 0}<br>Class: ${playerState.class_name || 'Unclassed'}`;
+  dom.endingStats.innerHTML = `Level: ${escapeHtml(playerState.level || 0)}<br>XP: ${escapeHtml(playerState.xp || 0)}<br>Class: ${escapeHtml(playerState.class_name || 'Unclassed')}`;
   dom.endingActionBtn.textContent = 'Play Again';
   dom.endingOverlay.classList.remove('hidden');
   dom.endingOverlay.style.opacity = '1';
@@ -1445,11 +1472,13 @@ function buildSavePayload(slot, label) {
 
 function saveGameToSlot(slot, label = null) {
   const key = saveKeyForSlot(slot);
-  if (!key) { console.warn(`[engine] Unknown save slot: "${slot}"`); return; }
+  if (!key) { console.warn(`[engine] Unknown save slot: "${slot}"`); return false; }
   try {
     localStorage.setItem(key, JSON.stringify(buildSavePayload(slot, label)));
+    return true;
   } catch (err) {
     console.warn(`[engine] Save to slot "${slot}" failed:`, err);
+    return false;
   }
 }
 
@@ -1497,6 +1526,14 @@ function deleteSaveSlot(slot) {
 }
 
 async function restoreFromSave(save) {
+  // Validate the save payload has a usable scene name before touching any
+  // engine state. gotoScene will fetch the file and show a proper error if
+  // it doesn't exist, but we want to catch a missing/malformed name here so
+  // playerState is never clobbered when the restore has no chance of working.
+  if (!save.scene || typeof save.scene !== 'string' || !save.scene.trim()) {
+    showEngineError('Save data is corrupt: missing scene name. Cannot restore.');
+    return;
+  }
   playerState       = { ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) };
   pendingStatPoints = save.pendingStatPoints ?? 0;
   // If there are unspent stat points, re-arm the level-up display so the
