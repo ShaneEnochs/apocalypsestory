@@ -17,8 +17,13 @@
 *comment --- Level-up configuration ---
 *comment xp_up_mult:       multiplier applied to xp_to_next on each level-up
 *comment lvl_up_stat_gain: stat points awarded per level-up
+*comment lvl_up_skill_gain: skill points awarded per level-up (accumulate; spent in skill browser)
 *create xp_up_mult 1.2
 *create lvl_up_stat_gain 2
+*create lvl_up_skill_gain 1
+
+*comment --- Skill points (accumulated; spent in level-up skill browser) ---
+*create skill_points 0
 
 *comment --- Vitals (plain *create; shown in stats panel but not allocatable) ---
 *create health "Healthy"
