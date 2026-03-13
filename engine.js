@@ -118,7 +118,6 @@ let statRegistry  = [];
 let skillRegistry = [];   // [{ key, label, cost, description }]
 
 let _statRegistryWarningFired = false;
-let _gameInProgress           = false;
 
 let currentScene          = null;
 let currentLines          = [];
@@ -127,7 +126,6 @@ let delayIndex            = 0;
 let awaitingChoice        = null;
 let pendingStatPoints     = 0;
 let pendingLevelUpDisplay = false;
-let _pendingLevelUpCount  = 0;
 
 let _gotoJumped = false;
 
@@ -295,7 +293,6 @@ function checkAndApplyLevelUp() {
     playerState.xp_to_next  = Math.floor(threshold * mult);
     playerState.skill_points = Number(playerState.skill_points || 0) + spGain;
     pendingStatPoints        += gain;
-    _pendingLevelUpCount     += 1;
     changed = true;
   }
   if (changed) pendingLevelUpDisplay = true;
@@ -834,6 +831,9 @@ async function executeCurrentLine() {
     }
     ip = labels[label];
     _gotoJumped = true;
+    // Reset animation delay counter so content after this jump starts fresh.
+    // Without this, paragraphs accumulate ever-longer delays across the scene.
+    delayIndex = 0;
     return;
   }
 
@@ -1220,7 +1220,6 @@ async function _runStatsSceneImpl() {
 // ---------------------------------------------------------------------------
 function showInlineLevelUp() {
   pendingLevelUpDisplay = false;
-  _pendingLevelUpCount  = 0;
 
   const keys     = getAllocatableStatKeys();
   const labelMap = Object.fromEntries(statRegistry.map(({ key, label }) => [key, label]));
@@ -1235,12 +1234,9 @@ function showInlineLevelUp() {
   dom.choiceArea.querySelectorAll('button').forEach(b => {
     if (!b.dataset.unselectable) b.disabled = true;
   });
-  if (dom.choiceArea.querySelector('button')) {
-    const ov = document.createElement('div');
-    ov.className = 'levelup-choice-overlay';
-    ov.innerHTML = `<span>↑ Allocate your stat points before continuing</span>`;
-    dom.choiceArea.appendChild(ov);
-  }
+  // Note: the levelup-choice-overlay is renderChoices' responsibility.
+  // showInlineLevelUp only disables existing buttons; it never appends the
+  // overlay itself, so there is no risk of double-adding it.
 
   // Track whether the skill browser panel is open.
   let skillBrowserOpen = false;
@@ -1400,10 +1396,10 @@ function showEndingScreen(title, subtitle) {
   dom.endingContent.textContent   = subtitle;
   dom.endingStats.innerHTML       = `Level: ${playerState.level || 0}<br>XP: ${playerState.xp || 0}<br>Class: ${playerState.class_name || 'Unclassed'}`;
   dom.endingActionBtn.textContent = 'Play Again';
-  dom.endingActionBtn.onclick     = resetGame;
   dom.endingOverlay.classList.remove('hidden');
   dom.endingOverlay.style.opacity = '1';
-  trapFocus(dom.endingOverlay, null);
+  const releaseTrap = trapFocus(dom.endingOverlay, null);
+  dom.endingActionBtn.onclick = () => { releaseTrap(); resetGame(); };
 }
 
 function resetGame() { location.reload(); }
@@ -1859,7 +1855,6 @@ function wireUI() {
     playerState.first_name = charData.firstName;
     playerState.last_name  = charData.lastName;
     playerState.pronouns   = charData.pronouns;
-    _gameInProgress = true;
     dom.saveBtn.classList.remove('hidden');
     await runStatsScene();
     await gotoScene(startup.sceneList[0] || 'prologue');
@@ -1883,7 +1878,6 @@ function wireUI() {
       const save = loadSaveFromSlot(slot);
       if (!save) return;
       hideSplash();
-      _gameInProgress = true;
       dom.saveBtn.classList.remove('hidden');
       await parseStartup();
       await parseSkills();
