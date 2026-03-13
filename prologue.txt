@@ -322,8 +322,6 @@ Janus spread four hands — hidden until now in the folds of the robe — in a g
 
 *title The Last Door
 
-*save_point pre_portal
-
 The portal hums. The horizon burns. Thirty minutes, now, perhaps less.
 
 *check_item "Last Blade of Democles" has_blade
