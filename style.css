@@ -328,7 +328,7 @@ body {
   font-size: 0.65rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: var(--text-dim);
   margin-bottom: 4px;
 }
 
@@ -362,7 +362,7 @@ body {
 .stat-val.increased { color: var(--green); text-shadow: 0 0 8px rgba(76, 220, 138, 0.5); }
 
 .tag-list { list-style: none; display: flex; flex-direction: column; gap: 5px; }
-.tag-list li { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); padding: 4px 8px; border: 1px solid var(--border-dim); background: var(--bg-deep); letter-spacing: 0.06em; animation: tagAppear 0.3s ease forwards; }
+.tag-list li { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-primary); padding: 4px 8px; border: 1px solid var(--border-dim); background: var(--bg-deep); letter-spacing: 0.06em; animation: tagAppear 0.3s ease forwards; }
 .tag-empty { color: var(--text-faint) !important; border-color: transparent !important; background: transparent !important; font-style: italic; }
 
 /* --- Overlays --- */
@@ -925,4 +925,4 @@ body {
 .toast-hide { animation: toastOut 0.3s ease forwards; }
 
 @keyframes toastIn { to { opacity: 1; transform: translateX(-50%) translateY(0); } }
-@keyframes toastOut { to { opacity: 0; transform: translateX(-50%) translateY(8px); } }
+@keyframes toastOut { to { opacity: 0; transform: translateX(-50%) translateY(8px); } } 
