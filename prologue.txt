@@ -376,7 +376,6 @@ The blade is already in your hand. Whatever is waiting on the other side, you'll
 
 *label portal_crossing
 
-*system XP gained: +970
 *system [ ACHIEVEMENT UNLOCKED ] The Last Door — You carried the weight backward through time. That has to count for something.
 
 The mist takes you.
