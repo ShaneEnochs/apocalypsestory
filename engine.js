@@ -130,6 +130,12 @@ let _pendingLevelUpCount  = 0;
 // must NOT reset it to resumeAfter — the jump destination must be honoured.
 let _gotoJumped = false;
 
+// _gotoFiredInBlock: set true by executeBlock when it detects _gotoJumped and
+// returns early. Survives back to the renderChoices click handler so it knows
+// NOT to overwrite ip with resumeAt — the *goto destination is already in ip.
+// Cleared by the click handler immediately after reading it.
+let _gotoFiredInBlock = false;
+
 const sceneCache  = new Map();
 const labelsCache = new Map();
 const styleState  = { colors: {}, icons: {} };
@@ -650,6 +656,7 @@ async function executeBlock(start, end, resumeAfter = end) {
     // runInterpreter continues from wherever the *goto landed.
     if (_gotoJumped) {
       _gotoJumped = false;
+      _gotoFiredInBlock = true;
       return;
     }
   }
@@ -880,7 +887,12 @@ function renderChoices(choices) {
       clearNarrative();
       applyTransition();
       await executeBlock(choice.start, choice.end);
-      if (!awaitingChoice) { ip = resumeAt; await runInterpreter(); }
+      // If a *goto fired inside the choice body, ip is already pointing at the
+      // correct destination. Do NOT overwrite it with resumeAt.
+      const gotoFired = _gotoFiredInBlock;
+      _gotoFiredInBlock = false;
+      if (!awaitingChoice && !gotoFired) { ip = resumeAt; }
+      if (!awaitingChoice) await runInterpreter();
     });
 
     dom.choiceArea.appendChild(btn);
