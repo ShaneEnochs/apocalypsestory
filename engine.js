@@ -455,6 +455,7 @@ function clearNarrative() {
   }
   dom.choiceArea.innerHTML = '';
   delayIndex = 0;
+  dom.narrativeContent.scrollTop = 0;  // ← reset scroll to top
 }
 
 function applyTransition() {
