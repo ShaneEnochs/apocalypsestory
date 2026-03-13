@@ -1843,4 +1843,4 @@ async function boot() {
   showSplash();
 }
 
-document.addEventListener('DOMContentLoaded', boot);
+document.addEventListener('DOMContentLoaded', boot); 
