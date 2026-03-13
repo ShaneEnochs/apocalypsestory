@@ -52,7 +52,7 @@ The monsters came three days later.
 
 *title Eight Years Later
 
-*save_point ramparts
+*system XP gained: +1270
 
 Eight years of that. Eight years of dungeons and raids and watching people you loved turn into numbers on a screen — their health bars dropping, their names greying out, their entries in the party list blinking once and then going dark forever.
 
