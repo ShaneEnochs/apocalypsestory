@@ -1,17 +1,31 @@
 /* ============================================================
    SKILL SYSTEM STYLES
-   Phase redesign: accordion sidebar, SP browser cards
    ============================================================ */
 
 /* ─────────────────────────────────────────────
    SIDEBAR: skill accordion list
+   Resets any tag-list bullet/padding bleed.
    ───────────────────────────────────────────── */
 
 .skill-accordion-list {
   list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* Explicit reset so .tag-list li rules never bleed in */
+.skill-accordion-list li {
+  font-family: unset;
+  font-size: unset;
+  color: unset;
+  padding: 0;
+  border: none;
+  background: transparent;
+  letter-spacing: unset;
+  animation: none;
 }
 
 .skill-accordion {
@@ -58,6 +72,8 @@
   color: var(--text-faint);
   transition: transform var(--transition-fast);
   flex-shrink: 0;
+  /* Prevent the chevron being swallowed by the inherited color */
+  display: inline-block;
 }
 
 .skill-accordion-btn--open .skill-accordion-chevron {
@@ -76,8 +92,11 @@
 }
 
 /* ─────────────────────────────────────────────
-   LEVEL-UP BLOCK: Browse Skills toggle button
+   LEVEL-UP FOOTER: Browse Skills + Confirm row
    ───────────────────────────────────────────── */
+
+/* The footer already has display:flex in the inline style;
+   these rules make the two buttons look properly distinct. */
 
 .skill-browse-btn {
   font-family: var(--font-mono);
@@ -87,10 +106,11 @@
   color: var(--text-dim);
   background: transparent;
   border: 1px solid var(--border-dim);
-  padding: 6px 14px;
+  padding: 8px 16px;
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .skill-browse-btn:hover {
@@ -174,9 +194,12 @@
   padding: 12px;
 }
 
-/* Individual skill card */
+/* ─────────────────────────────────────────────
+   Individual skill card
+   ───────────────────────────────────────────── */
+
 .skill-browser-card {
-  padding: 10px 12px 12px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border-dim);
   transition: background var(--transition-fast);
 }
@@ -197,17 +220,18 @@
   opacity: 0.55;
 }
 
+/* Name row: skill name left, SP badge + button right */
 .skill-browser-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 6px;
+  gap: 12px;
+  margin-bottom: 7px;
 }
 
 .skill-browser-card-name {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   color: var(--amber);
   letter-spacing: 0.08em;
   flex: 1;
@@ -221,50 +245,57 @@
   flex-shrink: 0;
 }
 
+/* SP cost badge — shown next to Unlock button */
 .skill-browser-sp-badge {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   letter-spacing: 0.08em;
   color: var(--text-faint);
   border: 1px solid var(--border-dim);
-  padding: 2px 7px;
+  border-radius: 2px;
+  padding: 3px 8px;
   white-space: nowrap;
+  background: var(--bg-deep);
 }
 
 .skill-browser-sp-badge--can-afford {
-  color: var(--amber-dim);
+  color: var(--amber);
   border-color: var(--amber-dim);
   background: var(--amber-glow);
 }
 
 .skill-browser-card-desc {
   font-family: var(--font-body);
-  font-size: 0.84rem;
+  font-size: 0.88rem;
   color: var(--text-dim);
-  line-height: 1.5;
+  line-height: 1.55;
   font-style: italic;
 }
 
+/* "✓ Learned" green pill */
 .skill-browser-owned-badge {
   font-family: var(--font-mono);
   font-size: 0.62rem;
   letter-spacing: 0.1em;
   color: var(--green);
   border: 1px solid rgba(76, 220, 138, 0.3);
-  padding: 3px 8px;
+  border-radius: 2px;
+  padding: 3px 9px;
   text-transform: uppercase;
   white-space: nowrap;
+  background: rgba(76, 220, 138, 0.06);
 }
 
+/* Unlock button */
 .skill-purchase-btn {
   font-family: var(--font-mono);
   font-size: 0.65rem;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--bg-deep);
   background: var(--amber);
   border: none;
-  padding: 5px 14px;
+  padding: 5px 16px;
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
@@ -272,12 +303,13 @@
 
 .skill-purchase-btn:hover:not(:disabled) {
   background: #fff;
-  box-shadow: 0 0 12px var(--amber-glow);
+  box-shadow: 0 0 14px var(--amber-glow);
 }
 
 .skill-purchase-btn:disabled {
-  background: var(--border-dim);
+  background: transparent;
   color: var(--text-faint);
+  border: 1px solid var(--border-dim);
   cursor: not-allowed;
   opacity: 0.5;
 }
