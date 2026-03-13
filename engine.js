@@ -136,6 +136,10 @@ let _gotoJumped = false;
 // Cleared by the click handler immediately after reading it.
 let _gotoFiredInBlock = false;
 
+// Tracks the most recently executed *save_point label so manual saves can
+// restore to the correct position rather than always restarting from line 0.
+let _lastSavePointLabel = null;
+
 const sceneCache  = new Map();
 const labelsCache = new Map();
 const styleState  = { colors: {}, icons: {} };
@@ -553,6 +557,7 @@ async function gotoScene(name, label = null) {
     return;
   }
   clearTempState();
+  _lastSavePointLabel = label ?? null;  // seed with the jump-in label so saves mid-scene restore correctly
   currentScene = name;
   currentLines = parseLines(text);
   indexLabels(name, currentLines);
@@ -752,6 +757,7 @@ async function executeCurrentLine() {
 
   if (t.startsWith('*save_point')) {
     const saveLabel = t.replace('*save_point', '').trim() || null;
+    _lastSavePointLabel = saveLabel;
     saveGameToSlot('auto', saveLabel);
     addSystem('[ PROGRESS SAVED ]');
     ip += 1; return;
@@ -1489,7 +1495,7 @@ function wireUI() {
     btn.addEventListener('click', () => {
       const existing = loadSaveFromSlot(slot);
       if (existing && !confirm(`Overwrite Slot ${slot}?`)) return;
-      saveGameToSlot(slot);
+      saveGameToSlot(slot, _lastSavePointLabel);
       hideSaveMenu();
       showToast(`Saved to Slot ${slot}`);
       refreshAllSlotCards();
