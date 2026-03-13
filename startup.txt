@@ -9,8 +9,7 @@
 *create class_name "Infinite Sword"
 
 *comment --- Level / XP progress ---
-*comment Starting at level 1 with 0 XP so the level-up system can be tested in-game.
-*create level 100
+*create level 1
 *create xp 0
 *create xp_to_next 1000
 
@@ -41,4 +40,4 @@
 *create loop_counter 0
 
 *scene_list
-  prologue 
+  prologue
