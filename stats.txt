@@ -9,6 +9,8 @@
 *stat level "Level"
 *stat xp "XP"
 *stat xp_to_next "XP To Next"
+*stat_color skill_points accent-amber
+*stat skill_points "Skill Points"
 
 *stat_group "Vitals"
 *stat_color health accent-green
@@ -21,4 +23,4 @@
 
 *inventory
 
-*skills_registered
+*skills_registered 
