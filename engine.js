@@ -22,7 +22,11 @@
 // • *temp varName value — scene-scoped variable, cleared on *goto_scene only
 // • *check_item "Item Name" dest_var — writes bool to named variable
 // • *remove_item "Item Name" — decrements stack or removes from inventory
+// • *stat_combined key1 key2 "Label" — displays two playerState values joined
+//   by a space as a single status-panel row (e.g. first_name + last_name).
 // • Save system — auto-save slot + 3 manual slots, all in localStorage
+// • Chapter title persistence — *title stores the title in playerState so it
+//   survives save/load and is restored immediately when a save is loaded.
 
 // ---------------------------------------------------------------------------
 // Save system version — bump this when the save payload shape changes so that
@@ -47,6 +51,8 @@ const PRONOUN_SETS = {
   'he/him':    { they: 'he',   them: 'him',  their: 'his',   themself: 'himself'  },
   'she/her':   { they: 'she',  them: 'her',  their: 'her',   themself: 'herself'  },
   'they/them': { they: 'they', them: 'them', their: 'their', themself: 'themself' },
+  'xe/xem':    { they: 'xe',   them: 'xem',  their: 'xyr',   themself: 'xemself'  },
+  'ze/zir':    { they: 'ze',   them: 'zir',  their: 'zir',   themself: 'zirself'  },
 };
 
 function resolvePronoun(tokenLower, capitalise) {
@@ -679,7 +685,13 @@ async function executeCurrentLine() {
 
   if (!t.startsWith('*')) { addParagraph(t); ip += 1; return; }
 
-  if (t.startsWith('*title'))   { dom.chapterTitle.textContent = t.replace('*title', '').trim(); ip += 1; return; }
+  if (t.startsWith('*title')) {
+    const titleText = t.replace('*title', '').trim();
+    dom.chapterTitle.textContent = titleText;
+    // Persist so the header survives save/load.
+    playerState._chapter_title = titleText;
+    ip += 1; return;
+  }
   if (t.startsWith('*label'))   { ip += 1; return; }
   if (t.startsWith('*comment')) { ip += 1; return; }
 
@@ -896,6 +908,14 @@ async function runInterpreter() {
 
 // ---------------------------------------------------------------------------
 // Stats panel renderer
+// Supports directives:
+//   *stat_group "Label"
+//   *stat key "Label"
+//   *stat_combined key1 key2 "Label"   — joins two values with a space
+//   *stat_registered                   — expands all *create_stat entries
+//   *stat_color key css-class
+//   *stat_icon key "glyph"
+//   *inventory
 // ---------------------------------------------------------------------------
 async function runStatsScene() {
   const text  = await fetchTextFile('stats');
@@ -920,6 +940,11 @@ async function runStatsScene() {
       entries.push({ type: 'inventory' });
     } else if (t === '*stat_registered') {
       statRegistry.forEach(({ key, label }) => entries.push({ type: 'stat', key, label }));
+    } else if (t.startsWith('*stat_combined')) {
+      // *stat_combined key1 key2 "Label"
+      const m = t.match(/^\*stat_combined\s+([\w_]+)\s+([\w_]+)\s+"([^"]+)"$/);
+      if (m) entries.push({ type: 'stat_combined', key1: normalizeKey(m[1]), key2: normalizeKey(m[2]), label: m[3] });
+      else   console.warn(`[engine] Malformed *stat_combined: ${t}`);
     } else if (t.startsWith('*stat')) {
       const m = t.match(/^\*stat\s+([\w_]+)\s+"(.+)"$/);
       if (m) entries.push({ type: 'stat', key: normalizeKey(m[1]), label: m[2] });
@@ -936,7 +961,17 @@ async function runStatsScene() {
     if (e.type === 'stat') {
       const cc = styleState.colors[e.key] || '';
       const ic = styleState.icons[e.key]  ?? '';
-      html += `<div class="status-row"><span class="status-label">${ic ? ic + ' ' : ''}${e.label}</span><span class="status-value ${cc}">${playerState[e.key] ?? '—'}</span></div>`;
+      const val = playerState[e.key] ?? '—';
+      // Suppress the row entirely if label is empty string and value is empty/dash
+      if (e.label === '' && (val === '—' || val === '')) return;
+      html += `<div class="status-row"><span class="status-label">${ic ? ic + ' ' : ''}${e.label}</span><span class="status-value ${cc}">${val}</span></div>`;
+    }
+    if (e.type === 'stat_combined') {
+      const ic  = styleState.icons[e.key1] ?? '';
+      const v1  = playerState[e.key1] ?? '';
+      const v2  = playerState[e.key2] ?? '';
+      const val = [v1, v2].filter(Boolean).join(' ') || '—';
+      html += `<div class="status-row"><span class="status-label">${ic ? ic + ' ' : ''}${e.label}</span><span class="status-value">${val}</span></div>`;
     }
     if (e.type === 'inventory') {
       if (inGroup) { html += `</div>`; inGroup = false; }
@@ -1127,6 +1162,11 @@ async function restoreFromSave(save) {
   playerState       = { ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) };
   pendingStatPoints = save.pendingStatPoints ?? 0;
   clearTempState();
+  // Restore chapter title immediately so the header shows the correct scene name
+  // while the scene is loading, rather than showing "—".
+  if (playerState._chapter_title) {
+    dom.chapterTitle.textContent = playerState._chapter_title;
+  }
   await runStatsScene();
   await gotoScene(save.scene, save.label);
 }
@@ -1265,7 +1305,6 @@ function wireCharCreation() {
   });
   dom.charOverlay.addEventListener('keydown', e => {
     // Escape on char-creation does nothing — player must make a choice.
-    // (Kept as a hook for future "back" functionality.)
   });
 
   const pronounCards = [...dom.charOverlay.querySelectorAll('.pronoun-card')];
@@ -1345,9 +1384,6 @@ function showCharacterCreation() {
   // Force visibility — don't rely solely on the CSS animation completing.
   dom.charOverlay.style.opacity = '1';
   // Defer trapFocus to next frame so the overlay is fully painted first.
-  // trapFocus's own requestAnimationFrame handles the initial focus move,
-  // so we don't also need the setTimeout here — but we keep a short delay
-  // for the first-name field specifically to let the animation settle on mobile.
   requestAnimationFrame(() => {
     const _charTrapRelease = trapFocus(dom.charOverlay, null);
     dom.charOverlay._trapRelease = _charTrapRelease;
@@ -1358,9 +1394,7 @@ function showCharacterCreation() {
 }
 
 // ---------------------------------------------------------------------------
-// Focus trapping — keeps Tab/Shift-Tab inside an overlay while it is open.
-// Call trapFocus(overlayEl, triggerEl) when opening; the returned release()
-// function removes the listener and restores focus to triggerEl on close.
+// Focus trapping
 // ---------------------------------------------------------------------------
 function trapFocus(overlayEl, triggerEl = null) {
   const FOCUSABLE = [
@@ -1393,7 +1427,6 @@ function trapFocus(overlayEl, triggerEl = null) {
   overlayEl.addEventListener('keydown', handleKeydown);
 
   // Defer initial focus to next frame so the overlay is fully rendered.
-  // This is important on mobile where layout may not be synchronous.
   requestAnimationFrame(() => {
     try {
       const focusable = getFocusable();
@@ -1453,7 +1486,6 @@ function wireUI() {
 
   dom.saveMenuClose.addEventListener('click', hideSaveMenu);
   dom.saveOverlay.addEventListener('click', e => { if (e.target === dom.saveOverlay) hideSaveMenu(); });
-  // Escape key closes save menu
   dom.saveOverlay.addEventListener('keydown', e => { if (e.key === 'Escape') hideSaveMenu(); });
 
   // In-game save menu — delete buttons
