@@ -15,7 +15,7 @@
 //     *skill key "Label" cost
 //       Description text (can span multiple lines).
 //       Blank line or next *skill terminates the description.
-// • Skills are purchased from the level-up block using XP.
+// • Skills are purchased from the level-up block using Skill Points (SP).
 // • *check_skill "key" dest_var  — writes bool to named variable (mirrors *check_item)
 // • *grant_skill "key"           — gives a skill without XP cost (mirrors *add_item)
 // • *revoke_skill "key"          — removes a skill
@@ -146,8 +146,9 @@ function normalizeKey(k) {
 // Deferred stats render
 // ---------------------------------------------------------------------------
 let _statsRenderPending = false;
+let _statsRenderRunning = false;
 function scheduleStatsRender() {
-  if (_statsRenderPending) return;
+  if (_statsRenderPending || _statsRenderRunning) return;
   _statsRenderPending = true;
   Promise.resolve().then(() => { _statsRenderPending = false; runStatsScene(); });
 }
@@ -499,9 +500,14 @@ function clearNarrative() {
   dom.narrativeContent.scrollTop = 0;
 }
 
+let _transitionTimer = null;
 function applyTransition() {
   dom.narrativePanel.classList.add('transitioning');
-  setTimeout(() => dom.narrativePanel.classList.remove('transitioning'), 220);
+  if (_transitionTimer) clearTimeout(_transitionTimer);
+  _transitionTimer = setTimeout(() => {
+    _transitionTimer = null;
+    dom.narrativePanel.classList.remove('transitioning');
+  }, 220);
 }
 
 // ---------------------------------------------------------------------------
@@ -1022,6 +1028,8 @@ function renderChoices(choices) {
     }
 
     btn.addEventListener('click', async () => {
+      // Guard: if another click already cleared awaitingChoice, ignore this one.
+      if (!awaitingChoice) return;
       dom.choiceArea.querySelectorAll('button').forEach(b => b.disabled = true);
       const ctx = awaitingChoice;
       awaitingChoice = null;
@@ -1058,13 +1066,23 @@ async function runInterpreter() {
     if (awaitingChoice) break;
   }
   if (pendingLevelUpDisplay) showInlineLevelUp();
-  runStatsScene();
+  await runStatsScene();
 }
 
 // ---------------------------------------------------------------------------
 // Stats panel renderer
 // ---------------------------------------------------------------------------
 async function runStatsScene() {
+  if (_statsRenderRunning) return;
+  _statsRenderRunning = true;
+  try {
+    await _runStatsSceneImpl();
+  } finally {
+    _statsRenderRunning = false;
+  }
+}
+
+async function _runStatsSceneImpl() {
   let text;
   try {
     text = await fetchTextFile('stats');
@@ -1647,7 +1665,10 @@ function showCharacterCreation() {
     const _charTrapRelease = trapFocus(dom.charOverlay, null);
     dom.charOverlay._trapRelease = _charTrapRelease;
   });
-  setTimeout(() => { try { dom.inputFirstName.focus(); } catch (_) {} }, 80);
+  // Use rAF so the overlay is painted before we attempt focus (no arbitrary delay).
+  requestAnimationFrame(() => {
+    Promise.resolve().then(() => { try { dom.inputFirstName.focus(); } catch (_) {} });
+  });
 
   return new Promise(resolve => { dom.charOverlay._resolve = resolve; });
 }
@@ -1866,4 +1887,4 @@ async function boot() {
   showSplash();
 }
 
-document.addEventListener('DOMContentLoaded', boot);
+document.addEventListener('DOMContentLoaded', boot); 
