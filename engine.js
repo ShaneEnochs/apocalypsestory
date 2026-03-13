@@ -72,7 +72,7 @@ const dom = {
   narrativePanel:     document.getElementById('narrative-panel'),
   statusPanel:        document.getElementById('status-panel'),
   statusToggle:       document.getElementById('status-toggle'),
-  restartBtn:         document.getElementById('restart-btn'),
+  restartBtn:         document.getElementById('ingame-restart-btn'),
   saveBtn:            document.getElementById('save-btn'),
   // Splash
   splashOverlay:      document.getElementById('splash-overlay'),
@@ -1812,4 +1812,4 @@ async function boot() {
   showSplash();
 }
 
-document.addEventListener('DOMContentLoaded', boot);
+document.addEventListener('DOMContentLoaded', boot); 
