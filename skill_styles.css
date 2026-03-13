@@ -36,26 +36,63 @@
   font-style: italic;
 }
 
-/* --- Level-up block: Browse Skills button --- */
+/* --- Level-up block: skill points info row --- */
+/* Sits between the stat grid and the skill browser, always visible */
 
+.levelup-sp-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 8px 10px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-dim);
+  border-left: 2px solid var(--amber-dim);
+}
+
+.levelup-sp-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.levelup-sp-value {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--amber);
+  flex: 1;
+  min-width: 0;
+}
+
+.levelup-sp-value em {
+  color: var(--green);
+  font-style: normal;
+  font-size: 0.68rem;
+}
+
+/* Browse Skills button — lives inside .levelup-sp-info, right-aligned */
 .skill-browse-btn {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.12em;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--amber);
+  color: var(--text-dim);
   background: transparent;
-  border: 1px solid var(--amber-dim);
-  padding: 6px 14px;
+  border: 1px solid var(--border-dim);
+  padding: 5px 12px;
   cursor: pointer;
   transition: all var(--transition-fast);
-  margin-right: auto; /* push confirm button to the right */
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .skill-browse-btn:hover {
+  border-color: var(--amber-dim);
+  color: var(--amber);
   background: var(--amber-glow);
-  border-color: var(--amber);
-  color: #fff;
 }
 
 /* --- Skill browser panel (inside level-up block) --- */
@@ -201,4 +238,4 @@
   color: var(--text-faint);
   cursor: not-allowed;
   opacity: 0.5;
-}
+} 
