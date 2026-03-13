@@ -401,4 +401,9 @@ You have three days.
 
 You start walking.
 
+*choice
+  #The End
+    *goto theend
+
+*label theend
 *ending
