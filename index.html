@@ -12,19 +12,22 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
 
-<link rel="stylesheet" href="style.css?v=5"/>
-<script src="engine.js?v=5" defer></script>
+<link rel="stylesheet" href="style.css?v=6"/>
+<script src="engine.js?v=6" defer></script>
 </head>
 <body>
 
 <div id="app">
 <header id="game-header">
-  <div id="game-title">System Awakening</div>
-  <div id="chapter-title">—</div>
-  <div style="display:flex;align-items:center;gap:12px;">
-    <button id="save-btn" class="header-btn hidden" title="Save game">⬡ Save</button>
-    <button id="restart-btn" title="Restart game">↺ Restart</button>
-    <button id="status-toggle" aria-label="Toggle status panel">◈ Status</button>
+  <div id="header-top">
+    <div id="game-title">System Awakening</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button id="save-btn" class="header-btn hidden" title="Save / Load game">⬡ Save · Load</button>
+      <button id="status-toggle" aria-label="Toggle status panel">◈ Status</button>
+    </div>
+  </div>
+  <div id="chapter-bar">
+    <div id="chapter-title">—</div>
   </div>
 </header>
 
@@ -116,13 +119,25 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     IN-GAME SAVE MENU
+     IN-GAME SAVE / LOAD MENU
      ═══════════════════════════════════════════════════ -->
 <div id="save-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="save-menu-heading">
   <div class="overlay-box save-menu-box">
-    <div class="overlay-title save-menu-title" id="save-menu-heading">[ Save Game ]</div>
-    <p class="save-menu-hint">Choose a slot. Auto-save is managed automatically.</p>
+    <div class="overlay-title save-menu-title" id="save-menu-heading">[ Save · Load ]</div>
+    <p class="save-menu-hint">Save to a slot or load a previous save. Auto-save is managed automatically.</p>
     <div class="slot-list">
+      <!-- Auto-save (load only) -->
+      <div class="slot-card" id="save-card-auto" data-slot="auto">
+        <div class="slot-badge">Auto</div>
+        <div class="slot-info">
+          <span class="slot-name" id="save-slot-name-auto">— Empty —</span>
+          <span class="slot-meta" id="save-slot-meta-auto"></span>
+        </div>
+        <div class="slot-actions">
+          <button class="slot-load-btn slot-load-btn--load" id="ingame-load-auto" disabled>Load</button>
+          <button class="slot-delete-btn hidden" id="save-delete-auto" aria-label="Delete auto-save">✕</button>
+        </div>
+      </div>
       <!-- Slot 1 -->
       <div class="slot-card" id="save-card-1" data-slot="1">
         <div class="slot-badge">Slot 1</div>
@@ -131,7 +146,8 @@
           <span class="slot-meta" id="save-slot-meta-1"></span>
         </div>
         <div class="slot-actions">
-          <button class="slot-load-btn" id="save-to-1">Save</button>
+          <button class="slot-load-btn slot-load-btn--save" id="save-to-1">Save</button>
+          <button class="slot-load-btn slot-load-btn--load" id="ingame-load-1" disabled>Load</button>
           <button class="slot-delete-btn hidden" id="save-delete-1" aria-label="Delete slot 1">✕</button>
         </div>
       </div>
@@ -143,7 +159,8 @@
           <span class="slot-meta" id="save-slot-meta-2"></span>
         </div>
         <div class="slot-actions">
-          <button class="slot-load-btn" id="save-to-2">Save</button>
+          <button class="slot-load-btn slot-load-btn--save" id="save-to-2">Save</button>
+          <button class="slot-load-btn slot-load-btn--load" id="ingame-load-2" disabled>Load</button>
           <button class="slot-delete-btn hidden" id="save-delete-2" aria-label="Delete slot 2">✕</button>
         </div>
       </div>
@@ -155,12 +172,16 @@
           <span class="slot-meta" id="save-slot-meta-3"></span>
         </div>
         <div class="slot-actions">
-          <button class="slot-load-btn" id="save-to-3">Save</button>
+          <button class="slot-load-btn slot-load-btn--save" id="save-to-3">Save</button>
+          <button class="slot-load-btn slot-load-btn--load" id="ingame-load-3" disabled>Load</button>
           <button class="slot-delete-btn hidden" id="save-delete-3" aria-label="Delete slot 3">✕</button>
         </div>
       </div>
     </div>
-    <button id="save-menu-close" class="overlay-btn overlay-btn--secondary" style="margin-top:16px;">Cancel</button>
+    <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end;">
+      <button id="ingame-restart-btn" class="overlay-btn overlay-btn--danger">↺ Restart</button>
+      <button id="save-menu-close" class="overlay-btn overlay-btn--secondary">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -217,19 +238,6 @@
     </div>
 
     <button id="char-begin-btn" class="overlay-btn char-begin-btn" disabled>Begin</button>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════
-     ENDING SCREEN
-     ═══════════════════════════════════════════════════ -->
-<div id="ending-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="ending-title">
-  <div class="overlay-box" id="ending-box">
-    <div id="ending-icon"></div>
-    <div id="ending-title" class="overlay-title"></div>
-    <div id="ending-content"></div>
-    <div id="ending-stats"></div>
-    <button id="ending-action-btn" class="overlay-btn"></button>
   </div>
 </div>
 
