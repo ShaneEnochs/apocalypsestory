@@ -4,7 +4,7 @@
 *comment  PROLOGUE
 *comment  Flow map:
 *comment  opening → ramparts → kai_speaks
-*comment    choice → branch_dark | branch_quiet | branch_practical
+*comment    choice → branch_dark | branch_silent | branch_practical
 *comment    all three → sable_speaks
 *comment  sable_speaks → descend_choice
 *comment    choice → meet_janus (all three paths)
@@ -28,8 +28,7 @@
 
 *label opening
 
-New testing
-
+Testing, testing! 
 The world ended on a Tuesday.
 
 Not with a bang — or rather, not *only* with a bang. It ended in layers, the way a person dies: first the small things, then the large ones, then the thing that held all the other things together.
