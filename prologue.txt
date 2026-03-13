@@ -359,14 +359,21 @@ You face the portal alone.
     *set body +2
     *set portal_reaction "warrior"
     *goto shoulders
+
 *label faces
-    Kai is still smiling. Of course he is. He was smiling the first day you met, seven years ago in the wreckage of a city whose name you have tried very hard to forget. He will apparently be smiling at the end of the world too, which is either maddening or perfect.
-    Sable meets your eyes. She nods once — sharp, certain, the way she nods when a plan is good and the time for second thoughts is finished.
-    You hold that for one more second. Then you turn.
+
+Kai is still smiling. Of course he is. He was smiling the first day you met, seven years ago in the wreckage of a city whose name you have tried very hard to forget. He will apparently be smiling at the end of the world too, which is either maddening or perfect.
+
+Sable meets your eyes. She nods once — sharp, certain, the way she nods when a plan is good and the time for second thoughts is finished.
+
+You hold that for one more second. Then you turn.
+
 *goto portal_crossing
 
-*label shoulders 
-    The blade is already in your hand. Whatever is waiting on the other side, you'll meet it standing.
+*label shoulders
+
+The blade is already in your hand. Whatever is waiting on the other side, you'll meet it standing.
+
 *goto portal_crossing
 
 *label portal_crossing
