@@ -79,10 +79,7 @@ body {
 /* --- Header --- */
 #game-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 28px;
-  padding-top: calc(12px + env(safe-area-inset-top));
+  flex-direction: column;
   border-bottom: 1px solid var(--border-dim);
   background: rgba(13, 15, 26, 0.9);
   backdrop-filter: blur(10px);
@@ -100,6 +97,22 @@ body {
   opacity: 0.4;
 }
 
+/* Top row: title + buttons */
+#header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 28px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+}
+
+/* Chapter title bar */
+#chapter-bar {
+  border-top: 1px solid var(--border-dim);
+  padding: 5px 28px;
+  background: rgba(10, 12, 22, 0.5);
+}
+
 #game-title {
   font-family: var(--font-display);
   font-size: 0.95rem;
@@ -112,13 +125,11 @@ body {
 
 #chapter-title {
   font-family: var(--font-display);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 400;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.15em;
   color: var(--text-dim);
   text-align: center;
-  flex: 1;
-  padding: 0 20px;
   transition: opacity var(--transition);
 }
 
@@ -550,9 +561,6 @@ body {
   100% { opacity: 1; transform: translateY(0); }
 }
 
-#restart-btn { font-family:var(--font-mono); font-size:0.62rem; letter-spacing:0.12em; color:var(--text-faint); background:transparent; border:none; cursor:pointer; padding:4px 8px; transition:color var(--transition-fast); text-transform:uppercase; }
-#restart-btn:hover { color:var(--red); }
-
 #narrative-panel.transitioning #narrative-content,
 #narrative-panel.transitioning #choice-area {
   opacity: 0;
@@ -580,9 +588,10 @@ body {
 
   #status-panel.status-visible { transform: translateX(0); }
   #narrative-content { padding: 24px 20px calc(32px + env(safe-area-inset-bottom)); }
-  #game-header { padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top)); }
-  #game-title { font-size: 0.8rem; }
-  #chapter-title { font-size: 0.72rem; }
+  #header-top { padding: 8px 16px; padding-top: calc(8px + env(safe-area-inset-top)); }
+  #chapter-bar { padding: 4px 16px; }
+  #game-title { font-size: 0.78rem; }
+  #chapter-title { font-size: 0.65rem; }
 }
 
 @media (min-width: 769px) {
@@ -691,11 +700,115 @@ body {
 
 .slot-delete-btn:hover { color: var(--red); border-color: var(--red); background: var(--red-glow); }
 
+/* Load variant — dimmer teal outline style */
+.slot-load-btn--load {
+  background: transparent;
+  color: var(--cyan-dim);
+  border: 1px solid var(--cyan-dim);
+}
+.slot-load-btn--load:hover:not(:disabled) {
+  background: var(--cyan-glow);
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+.slot-load-btn--load:disabled {
+  background: transparent;
+  color: var(--text-faint);
+  border-color: var(--border-dim);
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* Danger button (restart) */
+.overlay-btn--danger {
+  background: transparent;
+  color: var(--red);
+  border: 1px solid rgba(224, 85, 85, 0.4);
+}
+.overlay-btn--danger:hover {
+  background: var(--red-glow);
+  color: #ff8080;
+  border-color: var(--red);
+  box-shadow: none;
+}
+
+/* ============================================================
+   INLINE ENDING BLOCK
+   Rendered at the bottom of the narrative instead of a popup.
+   ============================================================ */
+
+.ending-inline-block {
+  margin-top: 2em;
+  padding: 28px 28px 32px;
+  border: 1px solid rgba(240, 165, 0, 0.3);
+  border-left: 3px solid var(--amber);
+  background: linear-gradient(135deg, rgba(240, 165, 0, 0.05) 0%, transparent 60%);
+  opacity: 0;
+  animation: fadeSlideIn 0.6s ease 0.2s forwards;
+}
+
+.ending-inline-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  color: var(--amber-dim);
+  margin-bottom: 10px;
+  display: block;
+}
+
+.ending-inline-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--amber);
+  text-shadow: 0 0 24px var(--amber-glow);
+  margin-bottom: 8px;
+}
+
+.ending-inline-subtitle {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.ending-inline-stats {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  line-height: 2;
+  border-top: 1px solid var(--border-dim);
+  padding-top: 14px;
+  margin-bottom: 22px;
+}
+
+.ending-inline-btn {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--bg-deep);
+  background: var(--amber);
+  border: none;
+  padding: 12px 36px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.ending-inline-btn:hover {
+  background: #fff;
+  box-shadow: 0 0 24px var(--amber-glow);
+}
+
 /* ============================================================
    IN-GAME SAVE MENU
    ============================================================ */
 
-.save-menu-box { max-width: 440px; }
+.save-menu-box { max-width: 480px; }
 .save-menu-title { font-size: 1rem; letter-spacing: 0.2em; margin-bottom: 8px; }
 .save-menu-hint { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-faint); letter-spacing: 0.08em; margin-bottom: 18px; }
 
