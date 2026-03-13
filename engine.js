@@ -10,23 +10,28 @@
 // • xp_up_mult / lvl_up_stat_gain (plain *create in startup.txt)
 //   Control XP threshold multiplier and stat points per level-up.
 //
+// SKILL SYSTEM:
+// • Define skills in skills.txt using *skill blocks:
+//     *skill key "Label" cost
+//       Description text (can span multiple lines).
+//       Blank line or next *skill terminates the description.
+// • Skills are purchased from the level-up block using XP.
+// • *check_skill "key" dest_var  — writes bool to named variable (mirrors *check_item)
+// • *grant_skill "key"           — gives a skill without XP cost (mirrors *add_item)
+// • *revoke_skill "key"          — removes a skill
+// • *skills_registered (in stats.txt) — renders owned skills with descriptions
+//
 // PRONOUN INTERPOLATION:
 // • Use {they}, {them}, {their}, {themself} in scene text.
 //   The engine replaces these with the player's chosen pronouns at render time.
-//   Capitalised forms {They}, {Them}, {Their}, {Themself} are also supported
-//   and will produce a capital first letter automatically.
-//   Example: "{They} had survived eight years. Nobody knew {them}."
+//   Capitalised forms {They}, {Them}, {Their}, {Themself} are also supported.
 //
 // OTHER FEATURES:
 // • Stacking inventory — duplicate items become "Item (2)", "Item (3)", etc.
 // • *temp varName value — scene-scoped variable, cleared on *goto_scene only
 // • *check_item "Item Name" dest_var — writes bool to named variable
 // • *remove_item "Item Name" — decrements stack or removes from inventory
-// • *stat_combined key1 key2 "Label" — displays two playerState values joined
-//   by a space as a single status-panel row (e.g. first_name + last_name).
 // • Save system — auto-save slot + 3 manual slots, all in localStorage
-// • Chapter title persistence — *title stores the title in playerState so it
-//   survives save/load and is restored immediately when a save is loaded.
 
 // ---------------------------------------------------------------------------
 // Save system version — bump this when the save payload shape changes so that
@@ -44,15 +49,11 @@ function saveKeyForSlot(slot) {
 
 // ---------------------------------------------------------------------------
 // Pronoun resolution
-// Maps {they}/{them}/{their}/{themself} (and Title-Case variants) to the
-// correct word based on playerState.pronouns.
 // ---------------------------------------------------------------------------
 const PRONOUN_SETS = {
   'he/him':    { they: 'he',   them: 'him',  their: 'his',   themself: 'himself'  },
   'she/her':   { they: 'she',  them: 'her',  their: 'her',   themself: 'herself'  },
   'they/them': { they: 'they', them: 'them', their: 'their', themself: 'themself' },
-  'xe/xem':    { they: 'xe',   them: 'xem',  their: 'xyr',   themself: 'xemself'  },
-  'ze/zir':    { they: 'ze',   them: 'zir',  their: 'zir',   themself: 'zirself'  },
 };
 
 function resolvePronoun(tokenLower, capitalise) {
@@ -71,6 +72,7 @@ const dom = {
   narrativePanel:     document.getElementById('narrative-panel'),
   statusPanel:        document.getElementById('status-panel'),
   statusToggle:       document.getElementById('status-toggle'),
+  restartBtn:         document.getElementById('restart-btn'),
   saveBtn:            document.getElementById('save-btn'),
   // Splash
   splashOverlay:      document.getElementById('splash-overlay'),
@@ -90,7 +92,12 @@ const dom = {
   errorFirstName:     document.getElementById('error-first-name'),
   errorLastName:      document.getElementById('error-last-name'),
   charBeginBtn:       document.getElementById('char-begin-btn'),
-  // Ending — no overlay; ending renders inline in the narrative
+  // Ending
+  endingOverlay:      document.getElementById('ending-overlay'),
+  endingTitle:        document.getElementById('ending-title'),
+  endingContent:      document.getElementById('ending-content'),
+  endingStats:        document.getElementById('ending-stats'),
+  endingActionBtn:    document.getElementById('ending-action-btn'),
   // Toast
   toast:              document.getElementById('toast'),
 };
@@ -102,10 +109,11 @@ Object.entries(dom).forEach(([key, el]) => {
 // ---------------------------------------------------------------------------
 // Engine state
 // ---------------------------------------------------------------------------
-let playerState = {};
-let tempState   = {};
-let startup     = { sceneList: [] };
-let statRegistry = [];
+let playerState  = {};
+let tempState    = {};
+let startup      = { sceneList: [] };
+let statRegistry  = [];
+let skillRegistry = [];   // [{ key, label, cost, description }]
 
 let _statRegistryWarningFired = false;
 let _gameInProgress           = false;
@@ -119,20 +127,7 @@ let pendingStatPoints     = 0;
 let pendingLevelUpDisplay = false;
 let _pendingLevelUpCount  = 0;
 
-// _gotoJumped: set true by the *goto handler, cleared by executeBlock after
-// each line. When true, executeBlock knows ip was relocated by a *goto and
-// must NOT reset it to resumeAfter — the jump destination must be honoured.
 let _gotoJumped = false;
-
-// _gotoFiredInBlock: set true by executeBlock when it detects _gotoJumped and
-// returns early. Survives back to the renderChoices click handler so it knows
-// NOT to overwrite ip with resumeAt — the *goto destination is already in ip.
-// Cleared by the click handler immediately after reading it.
-let _gotoFiredInBlock = false;
-
-// Tracks the most recently executed *save_point label so manual saves can
-// restore to the correct position rather than always restarting from line 0.
-let _lastSavePointLabel = null;
 
 const sceneCache  = new Map();
 const labelsCache = new Map();
@@ -180,7 +175,6 @@ function parseLines(text) {
 
 // ---------------------------------------------------------------------------
 // Text formatting
-// Handles: ${varName} interpolation, {pronoun} tokens, **bold**, *italic*
 // ---------------------------------------------------------------------------
 function formatText(text) {
   // 1. Variable interpolation
@@ -189,7 +183,7 @@ function formatText(text) {
     return tempState[k] !== undefined ? tempState[k] : (playerState[k] ?? '');
   });
 
-  // 2. Pronoun tokens — {they}/{They}, {them}/{Them}, {their}/{Their}, {themself}/{Themself}
+  // 2. Pronoun tokens
   result = result.replace(
     /\{(They|Them|Their|Themself|they|them|their|themself)\}/g,
     (_, token) => {
@@ -220,7 +214,6 @@ function evalValue(expr) {
     return `__STR${stringSlots.length - 1}__`;
   });
 
-  // FIX #1: case-insensitive boolean handling; pre-replacements removed.
   const withIdentifiers = withPlaceholders.replace(/[a-zA-Z_][\w]*/g, (token) => {
     if (['true', 'false'].includes(token.toLowerCase())) return token.toLowerCase();
     if (/^__STR\d+__$/.test(token)) return token;
@@ -247,8 +240,6 @@ function evalValue(expr) {
 // ---------------------------------------------------------------------------
 // Variable setters
 // ---------------------------------------------------------------------------
-
-// FIX #11: arithmetic shorthand validates result is finite before committing.
 function setVar(command) {
   const m = command.match(/^\*set\s+([a-zA-Z_][\w]*)\s+(.+)$/);
   if (!m) return;
@@ -361,17 +352,62 @@ function removeInventoryItem(item) {
   }
   const c = (playerState.inventory[idx].match(/\((\d+)\)$/) || [, 1])[1];
   const qty = Number(c);
-  if (qty <= 1)    playerState.inventory.splice(idx, 1);
+  if (qty <= 1)       playerState.inventory.splice(idx, 1);
   else if (qty === 2) playerState.inventory[idx] = normalized;
-  else             playerState.inventory[idx] = `${normalized} (${qty - 1})`;
+  else                playerState.inventory[idx] = `${normalized} (${qty - 1})`;
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// Skill helpers
+// ---------------------------------------------------------------------------
+
+// Returns the skill registry entry for a given key, or null.
+function getSkillEntry(key) {
+  return skillRegistry.find(s => s.key === normalizeKey(key)) ?? null;
+}
+
+// Returns true if the player owns the skill.
+function playerHasSkill(key) {
+  if (!Array.isArray(playerState.skills)) return false;
+  return playerState.skills.includes(normalizeKey(key));
+}
+
+// Grants a skill unconditionally (no XP cost). Returns true if newly added.
+function grantSkill(key) {
+  const nk = normalizeKey(key);
+  if (!Array.isArray(playerState.skills)) playerState.skills = [];
+  if (playerState.skills.includes(nk)) return false;  // already owned
+  playerState.skills.push(nk);
+  return true;
+}
+
+// Removes a skill. Returns true if it was present.
+function revokeSkill(key) {
+  const nk = normalizeKey(key);
+  if (!Array.isArray(playerState.skills)) return false;
+  const idx = playerState.skills.indexOf(nk);
+  if (idx === -1) return false;
+  playerState.skills.splice(idx, 1);
+  return true;
+}
+
+// Purchases a skill from the level-up browser (deducts XP).
+// Returns { ok: true } or { ok: false, reason: string }.
+function purchaseSkill(key) {
+  const nk    = normalizeKey(key);
+  const entry = getSkillEntry(nk);
+  if (!entry)                     return { ok: false, reason: 'Skill not found in registry.' };
+  if (playerHasSkill(nk))         return { ok: false, reason: 'Already owned.' };
+  if (playerState.xp < entry.cost) return { ok: false, reason: 'Insufficient XP.' };
+  playerState.xp -= entry.cost;
+  grantSkill(nk);
+  return { ok: true };
 }
 
 // ---------------------------------------------------------------------------
 // System reward text parsers
 // ---------------------------------------------------------------------------
-
-// FIX #14: positive item-name pattern replaces hard-coded exclusion blocklist.
 function parseInventoryUpdateText(text) {
   const m = text.match(/Inventory\s+updated\s*:\s*([^\n]+)/i);
   if (!m) return [];
@@ -386,7 +422,6 @@ function getAllocatableStatKeys() {
   return statRegistry.map(e => e.key);
 }
 
-// FIX #3: XP double-count prevention via position-range deduplication.
 function applySystemRewards(text) {
   let stateChanged = false;
 
@@ -455,7 +490,7 @@ function clearNarrative() {
   }
   dom.choiceArea.innerHTML = '';
   delayIndex = 0;
-  dom.narrativeContent.scrollTop = 0;  // ← reset scroll to top
+  dom.narrativeContent.scrollTop = 0;
 }
 
 function applyTransition() {
@@ -469,9 +504,10 @@ function applyTransition() {
 async function parseStartup() {
   const text  = await fetchTextFile('startup');
   const lines = parseLines(text);
-  playerState  = {};
-  tempState    = {};
-  statRegistry = [];
+  playerState   = {};
+  tempState     = {};
+  statRegistry  = [];
+  skillRegistry = [];
   startup.sceneList = [];
   _statRegistryWarningFired = false;
 
@@ -507,11 +543,80 @@ async function parseStartup() {
     }
   }
 
-  // FIX #8: warning fires once, here, not inside the hot-path.
   if (statRegistry.length === 0 && !_statRegistryWarningFired) {
     console.warn('[engine] No *create_stat entries found — level-up allocation will be empty.');
     _statRegistryWarningFired = true;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Skills file parser
+// Parses skills.txt and populates skillRegistry.
+// Also ensures playerState.skills is initialised as an array.
+//
+// skills.txt format:
+//   *skill key "Label" cost
+//     Description line one.
+//     Description line two (same indent or deeper).
+//   (blank line or next *skill terminates description)
+// ---------------------------------------------------------------------------
+async function parseSkills() {
+  skillRegistry = [];
+
+  let text;
+  try {
+    text = await fetchTextFile('skills');
+  } catch {
+    console.warn('[engine] skills.txt not found — skill system disabled.');
+    if (!Array.isArray(playerState.skills)) playerState.skills = [];
+    return;
+  }
+
+  const lines = parseLines(text);
+  let current = null;   // the skill entry being built
+  let descLines = [];
+
+  function commitCurrent() {
+    if (!current) return;
+    current.description = descLines.join(' ').replace(/\s+/g, ' ').trim();
+    skillRegistry.push(current);
+    current   = null;
+    descLines = [];
+  }
+
+  for (const line of lines) {
+    if (line.trimmed.startsWith('//')) continue;   // comment
+
+    if (line.trimmed.startsWith('*skill')) {
+      commitCurrent();
+      // *skill key "Label" cost
+      const m = line.trimmed.match(/^\*skill\s+([a-zA-Z_][\w]*)\s+"([^"]+)"\s+(\d+)$/);
+      if (!m) {
+        console.warn(`[engine] Malformed *skill line: "${line.trimmed}" — expected: *skill key "Label" cost`);
+        continue;
+      }
+      const [, rawKey, label, costStr] = m;
+      current = { key: normalizeKey(rawKey), label, cost: Number(costStr), description: '' };
+      descLines = [];
+      continue;
+    }
+
+    // Non-command lines after a *skill header are description text.
+    if (current && line.trimmed) {
+      descLines.push(line.trimmed);
+      continue;
+    }
+
+    // Blank lines while building description are ignored (treated as paragraph breaks
+    // if you want them, but for stats panel we collapse to a single string).
+    // When there's no current skill, blank lines are also harmless.
+  }
+
+  commitCurrent();   // flush the last skill
+
+  if (!Array.isArray(playerState.skills)) playerState.skills = [];
+
+  console.log(`[engine] Loaded ${skillRegistry.length} skill(s) from skills.txt`);
 }
 
 // ---------------------------------------------------------------------------
@@ -552,7 +657,6 @@ async function gotoScene(name, label = null) {
     return;
   }
   clearTempState();
-  _lastSavePointLabel = label ?? null;  // seed with the jump-in label so saves mid-scene restore correctly
   currentScene = name;
   currentLines = parseLines(text);
   indexLabels(name, currentLines);
@@ -581,7 +685,6 @@ function findBlockEnd(fromIndex, parentIndent) {
   return i;
 }
 
-// FIX #9: early break after *else.
 function findIfChainEnd(fromIndex, indent) {
   let i = fromIndex + 1;
   while (i < currentLines.length) {
@@ -607,7 +710,6 @@ function evaluateCondition(raw) {
   return !!evalValue(condition.replace(/^\(|\)$/g, ''));
 }
 
-// FIX #2: warning on malformed *selectable_if.
 function parseChoice(startIndex, indent) {
   const choices = [];
   let i = startIndex + 1;
@@ -649,21 +751,14 @@ async function executeBlock(start, end, resumeAfter = end) {
       awaitingChoice._savedIp  = resumeAfter;
       return;
     }
-    // If *goto fired, ip was moved to the label's line — potentially outside
-    // [start, end). The while-condition would exit and the old code would then
-    // overwrite ip with resumeAfter, losing the jump destination entirely.
-    // Detect the escape: clear the flag and return WITHOUT touching ip so
-    // runInterpreter continues from wherever the *goto landed.
     if (_gotoJumped) {
       _gotoJumped = false;
-      _gotoFiredInBlock = true;
       return;
     }
   }
   ip = resumeAfter;
 }
 
-// FIX #7: preserve relative indentation inside *system blocks.
 function parseSystemBlock(startIndex) {
   const parts = [];
   let baseIndent = null;
@@ -681,7 +776,6 @@ function parseSystemBlock(startIndex) {
 
 // ---------------------------------------------------------------------------
 // Main interpreter
-// FIX #10: *goto_scene MUST be checked before *goto (prefix collision).
 // ---------------------------------------------------------------------------
 async function executeCurrentLine() {
   const line = currentLines[ip];
@@ -692,17 +786,11 @@ async function executeCurrentLine() {
 
   if (!t.startsWith('*')) { addParagraph(t); ip += 1; return; }
 
-  if (t.startsWith('*title')) {
-    const titleText = t.replace('*title', '').trim();
-    dom.chapterTitle.textContent = titleText;
-    // Persist so the header survives save/load.
-    playerState._chapter_title = titleText;
-    ip += 1; return;
-  }
+  if (t.startsWith('*title'))   { dom.chapterTitle.textContent = t.replace('*title', '').trim(); ip += 1; return; }
   if (t.startsWith('*label'))   { ip += 1; return; }
   if (t.startsWith('*comment')) { ip += 1; return; }
 
-  // NOTE: *goto_scene MUST precede *goto — "goto_scene".startsWith("goto") is true.
+  // NOTE: *goto_scene MUST precede *goto.
   if (t.startsWith('*goto_scene')) {
     await gotoScene(t.replace('*goto_scene', '').trim());
     return;
@@ -717,10 +805,6 @@ async function executeCurrentLine() {
       return;
     }
     ip = labels[label];
-    // Signal to executeBlock that ip was deliberately relocated so it does not
-    // overwrite ip with resumeAfter when the block loop exits.
-    // applyTransition() is intentionally NOT called here — *goto is an
-    // in-scene jump; only gotoScene() (cross-scene) should wipe the display.
     _gotoJumped = true;
     return;
   }
@@ -752,7 +836,6 @@ async function executeCurrentLine() {
 
   if (t.startsWith('*save_point')) {
     const saveLabel = t.replace('*save_point', '').trim() || null;
-    _lastSavePointLabel = saveLabel;
     saveGameToSlot('auto', saveLabel);
     addSystem('[ PROGRESS SAVED ]');
     ip += 1; return;
@@ -795,8 +878,8 @@ async function executeCurrentLine() {
       ip = currentLines.length;
       return;
     }
-    const itemName   = checkMatch[1];
-    const destKey    = normalizeKey(checkMatch[2]);
+    const itemName    = checkMatch[1];
+    const destKey     = normalizeKey(checkMatch[2]);
     const checkResult = Array.isArray(playerState.inventory) &&
       playerState.inventory.some(i => itemBaseName(i) === itemBaseName(itemName));
     if (Object.prototype.hasOwnProperty.call(tempState, destKey)) tempState[destKey] = checkResult;
@@ -807,6 +890,58 @@ async function executeCurrentLine() {
     }
     ip += 1; return;
   }
+
+  // ── Skill commands ──────────────────────────────────────────────────────
+
+  // *check_skill "key" dest_var
+  // Writes true/false to dest_var depending on whether the player owns the skill.
+  if (t.startsWith('*check_skill')) {
+    const args  = t.replace('*check_skill', '').trim();
+    const match = args.match(/^"([^"]+)"\s+([a-zA-Z_][\w]*)$/) ||
+                  args.match(/^(\S+)\s+([a-zA-Z_][\w]*)$/);
+    if (!match) {
+      showEngineError(`*check_skill requires two arguments: *check_skill "key" dest_var\nGot: ${t}`);
+      ip = currentLines.length;
+      return;
+    }
+    const skillKey  = normalizeKey(match[1]);
+    const destKey   = normalizeKey(match[2]);
+    const result    = playerHasSkill(skillKey);
+
+    // Warn if the key isn't in the registry — it might be a typo.
+    if (!getSkillEntry(skillKey)) {
+      console.warn(`[engine] *check_skill: "${skillKey}" is not in the skill registry. Check skills.txt.`);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(tempState, destKey)) tempState[destKey] = result;
+    else {
+      if (!Object.prototype.hasOwnProperty.call(playerState, destKey))
+        console.warn(`[engine] *check_skill dest_var "${destKey}" is undeclared.`);
+      playerState[destKey] = result;
+    }
+    ip += 1; return;
+  }
+
+  // *grant_skill "key"
+  // Gives the player a skill without any XP cost. Useful for story rewards.
+  if (t.startsWith('*grant_skill')) {
+    const key = normalizeKey(t.replace('*grant_skill', '').trim().replace(/^"|"$/g, ''));
+    if (!getSkillEntry(key)) {
+      console.warn(`[engine] *grant_skill: "${key}" is not in the skill registry. Check skills.txt.`);
+    }
+    if (grantSkill(key)) scheduleStatsRender();
+    ip += 1; return;
+  }
+
+  // *revoke_skill "key"
+  // Removes a skill from the player. Useful for story consequences.
+  if (t.startsWith('*revoke_skill')) {
+    const key = normalizeKey(t.replace('*revoke_skill', '').trim().replace(/^"|"$/g, ''));
+    if (revokeSkill(key)) scheduleStatsRender();
+    ip += 1; return;
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
 
   if (t.startsWith('*if')) {
     const chainEnd = findIfChainEnd(ip, line.indent);
@@ -852,7 +987,7 @@ async function executeCurrentLine() {
     return;
   }
 
-  if (t.startsWith('*ending')) { showEndingScreen('The End', 'Your path is complete.'); ip = currentLines.length; return; }
+  if (t.startsWith('*ending')) { showEndingScreen('The End', 'Your path is complete.'); return; }
 
   ip += 1;
 }
@@ -888,12 +1023,7 @@ function renderChoices(choices) {
       clearNarrative();
       applyTransition();
       await executeBlock(choice.start, choice.end);
-      // If a *goto fired inside the choice body, ip is already pointing at the
-      // correct destination. Do NOT overwrite it with resumeAt.
-      const gotoFired = _gotoFiredInBlock;
-      _gotoFiredInBlock = false;
-      if (!awaitingChoice && !gotoFired) { ip = resumeAt; }
-      if (!awaitingChoice) await runInterpreter();
+      if (!awaitingChoice) { ip = resumeAt; await runInterpreter(); }
     });
 
     dom.choiceArea.appendChild(btn);
@@ -921,14 +1051,6 @@ async function runInterpreter() {
 
 // ---------------------------------------------------------------------------
 // Stats panel renderer
-// Supports directives:
-//   *stat_group "Label"
-//   *stat key "Label"
-//   *stat_combined key1 key2 "Label"   — joins two values with a space
-//   *stat_registered                   — expands all *create_stat entries
-//   *stat_color key css-class
-//   *stat_icon key "glyph"
-//   *inventory
 // ---------------------------------------------------------------------------
 async function runStatsScene() {
   const text  = await fetchTextFile('stats');
@@ -951,13 +1073,10 @@ async function runStatsScene() {
       if (m) styleState.icons[normalizeKey(m[1])] = m[2];
     } else if (t.startsWith('*inventory')) {
       entries.push({ type: 'inventory' });
+    } else if (t.startsWith('*skills_registered')) {
+      entries.push({ type: 'skills' });
     } else if (t === '*stat_registered') {
       statRegistry.forEach(({ key, label }) => entries.push({ type: 'stat', key, label }));
-    } else if (t.startsWith('*stat_combined')) {
-      // *stat_combined key1 key2 "Label"
-      const m = t.match(/^\*stat_combined\s+([\w_]+)\s+([\w_]+)\s+"([^"]+)"$/);
-      if (m) entries.push({ type: 'stat_combined', key1: normalizeKey(m[1]), key2: normalizeKey(m[2]), label: m[3] });
-      else   console.warn(`[engine] Malformed *stat_combined: ${t}`);
     } else if (t.startsWith('*stat')) {
       const m = t.match(/^\*stat\s+([\w_]+)\s+"(.+)"$/);
       if (m) entries.push({ type: 'stat', key: normalizeKey(m[1]), label: m[2] });
@@ -974,17 +1093,7 @@ async function runStatsScene() {
     if (e.type === 'stat') {
       const cc = styleState.colors[e.key] || '';
       const ic = styleState.icons[e.key]  ?? '';
-      const val = playerState[e.key] ?? '—';
-      // Suppress the row entirely if label is empty string and value is empty/dash
-      if (e.label === '' && (val === '—' || val === '')) return;
-      html += `<div class="status-row"><span class="status-label">${ic ? ic + ' ' : ''}${e.label}</span><span class="status-value ${cc}">${val}</span></div>`;
-    }
-    if (e.type === 'stat_combined') {
-      const ic  = styleState.icons[e.key1] ?? '';
-      const v1  = playerState[e.key1] ?? '';
-      const v2  = playerState[e.key2] ?? '';
-      const val = [v1, v2].filter(Boolean).join(' ') || '—';
-      html += `<div class="status-row"><span class="status-label">${ic ? ic + ' ' : ''}${e.label}</span><span class="status-value">${val}</span></div>`;
+      html += `<div class="status-row"><span class="status-label">${ic ? ic + ' ' : ''}${e.label}</span><span class="status-value ${cc}">${playerState[e.key] ?? '—'}</span></div>`;
     }
     if (e.type === 'inventory') {
       if (inGroup) { html += `</div>`; inGroup = false; }
@@ -993,13 +1102,30 @@ async function runStatsScene() {
         : '<li class="tag-empty">Empty</li>';
       html += `<div class="status-section"><div class="status-label status-section-header">Inventory</div><ul class="tag-list">${items}</ul></div>`;
     }
+    if (e.type === 'skills') {
+      if (inGroup) { html += `</div>`; inGroup = false; }
+      const owned = Array.isArray(playerState.skills) ? playerState.skills : [];
+      if (owned.length === 0) {
+        html += `<div class="status-section"><div class="status-label status-section-header">Skills</div><ul class="tag-list"><li class="tag-empty">None learned</li></ul></div>`;
+      } else {
+        const skillItems = owned.map(key => {
+          const entry = getSkillEntry(key);
+          if (!entry) return `<li class="skill-tag"><span class="skill-tag-name">${key}</span></li>`;
+          return `<li class="skill-tag">
+            <span class="skill-tag-name">${entry.label}</span>
+            ${entry.description ? `<span class="skill-tag-desc">${entry.description}</span>` : ''}
+          </li>`;
+        }).join('');
+        html += `<div class="status-section"><div class="status-label status-section-header">Skills</div><ul class="tag-list skill-tag-list">${skillItems}</ul></div>`;
+      }
+    }
   });
   if (inGroup) html += `</div>`;
   dom.statusPanel.innerHTML = html;
 }
 
 // ---------------------------------------------------------------------------
-// Inline level-up block
+// Inline level-up block (with skill browser)
 // ---------------------------------------------------------------------------
 function showInlineLevelUp() {
   pendingLevelUpDisplay = false;
@@ -1025,10 +1151,65 @@ function showInlineLevelUp() {
     dom.choiceArea.appendChild(ov);
   }
 
+  // Track whether the skill browser panel is open.
+  let skillBrowserOpen = false;
+
   const render = () => {
     const spent    = Object.values(alloc).reduce((a, b) => a + b, 0);
     const remain   = pendingStatPoints - spent;
     const allSpent = remain === 0;
+
+    // ── Skill browser HTML ──────────────────────────────────────────────
+    let skillBrowserHTML = '';
+    if (skillBrowserOpen) {
+      const currentXP    = Number(playerState.xp || 0) - spent; // show XP as-is; purchases deduct live
+      const purchasableXP = Number(playerState.xp || 0);
+      const available    = skillRegistry.filter(s => !playerHasSkill(s.key));
+      const alreadyOwned = skillRegistry.filter(s =>  playerHasSkill(s.key));
+
+      const skillRows = available.length === 0 && alreadyOwned.length === 0
+        ? `<p class="skill-browser-empty">No skills defined in skills.txt yet.</p>`
+        : '';
+
+      const availableRows = available.map(s => {
+        const canAfford = purchasableXP >= s.cost;
+        return `
+          <div class="skill-browser-row ${canAfford ? '' : 'skill-browser-row--unaffordable'}">
+            <div class="skill-browser-info">
+              <span class="skill-browser-name">${s.label}</span>
+              <span class="skill-browser-desc">${s.description || ''}</span>
+            </div>
+            <div class="skill-browser-cost-col">
+              <span class="skill-browser-cost">${s.cost} XP</span>
+              <button class="skill-purchase-btn" data-sk="${s.key}" ${canAfford ? '' : 'disabled'}>
+                Buy
+              </button>
+            </div>
+          </div>`;
+      }).join('');
+
+      const ownedRows = alreadyOwned.map(s => `
+        <div class="skill-browser-row skill-browser-row--owned">
+          <div class="skill-browser-info">
+            <span class="skill-browser-name">${s.label}</span>
+            <span class="skill-browser-desc">${s.description || ''}</span>
+          </div>
+          <div class="skill-browser-cost-col">
+            <span class="skill-browser-owned-badge">Owned</span>
+          </div>
+        </div>`).join('');
+
+      skillBrowserHTML = `
+        <div class="skill-browser">
+          <div class="skill-browser-header">
+            <span class="skill-browser-title">[ SKILL BROWSER ]</span>
+            <span class="skill-browser-xp">Available XP: <strong>${purchasableXP}</strong></span>
+          </div>
+          ${skillRows}
+          ${availableRows}
+          ${ownedRows}
+        </div>`;
+    }
 
     block.innerHTML = `
       <span class="system-block-label">[ LEVEL UP ]</span>
@@ -1048,12 +1229,20 @@ function showInlineLevelUp() {
           </div>
         `).join('')}
       </div>
+
+      ${skillBrowserHTML}
+
       <div class="levelup-inline-footer">
+        <button class="skill-browse-btn" data-browse>
+          ${skillBrowserOpen ? '▲ Hide Skills' : '▼ Browse Skills'}
+        </button>
         <button class="levelup-confirm-btn ${allSpent ? '' : 'levelup-confirm-btn--locked'}"
           data-confirm ${allSpent ? '' : 'aria-disabled="true"'}>
           ${allSpent ? 'Confirm' : `Spend all points to confirm (${remain} remaining)`}
         </button>
       </div>`;
+
+    // ── Event listeners ──────────────────────────────────────────────────
 
     block.querySelectorAll('.alloc-btn').forEach(btn => {
       btn.onclick = () => {
@@ -1062,6 +1251,28 @@ function showInlineLevelUp() {
         if (btn.dataset.op === 'plus'  && s < pendingStatPoints) alloc[k] += 1;
         if (btn.dataset.op === 'minus' && alloc[k] > 0)          alloc[k] -= 1;
         render();
+      };
+    });
+
+    const browseBtn = block.querySelector('[data-browse]');
+    if (browseBtn) {
+      browseBtn.onclick = () => {
+        skillBrowserOpen = !skillBrowserOpen;
+        render();
+      };
+    }
+
+    // Skill purchase buttons
+    block.querySelectorAll('.skill-purchase-btn').forEach(btn => {
+      btn.onclick = () => {
+        const key    = btn.dataset.sk;
+        const result = purchaseSkill(key);
+        if (result.ok) {
+          scheduleStatsRender();
+          render();   // re-render to update XP display and move skill to "Owned"
+        } else {
+          console.warn(`[engine] Skill purchase failed: ${result.reason}`);
+        }
       };
     });
 
@@ -1077,30 +1288,27 @@ function showInlineLevelUp() {
       scheduleStatsRender();
     };
   };
+
   render();
 }
 
 // ---------------------------------------------------------------------------
-// Inline ending — renders at the bottom of the narrative instead of a popup.
+// Ending screen
+// FIX: scroll narrative back to top before the overlay appears, so the
+// underlying content doesn't peek out at the bottom on short viewports.
 // ---------------------------------------------------------------------------
 function showEndingScreen(title, subtitle) {
-  const block = document.createElement('div');
-  block.className = 'ending-inline-block';
-  block.innerHTML = `
-    <span class="ending-inline-label">[ END ]</span>
-    <div class="ending-inline-title">${title}</div>
-    <div class="ending-inline-subtitle">${subtitle}</div>
-    <div class="ending-inline-stats">
-      Level: ${playerState.level || 0} &nbsp;·&nbsp;
-      XP: ${playerState.xp || 0} &nbsp;·&nbsp;
-      Class: ${playerState.class_name || 'Unclassed'}
-    </div>
-    <button class="ending-inline-btn">↺ Play Again</button>
-  `;
-  block.querySelector('.ending-inline-btn').addEventListener('click', resetGame);
-  dom.narrativeContent.insertBefore(block, dom.choiceArea);
-  // Scroll to the ending block so the player sees it
-  setTimeout(() => block.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+  // Reset scroll before the overlay fades in.
+  dom.narrativeContent.scrollTop = 0;
+
+  dom.endingTitle.textContent     = title;
+  dom.endingContent.textContent   = subtitle;
+  dom.endingStats.innerHTML       = `Level: ${playerState.level || 0}<br>XP: ${playerState.xp || 0}<br>Class: ${playerState.class_name || 'Unclassed'}`;
+  dom.endingActionBtn.textContent = 'Play Again';
+  dom.endingActionBtn.onclick     = resetGame;
+  dom.endingOverlay.classList.remove('hidden');
+  dom.endingOverlay.style.opacity = '1';
+  trapFocus(dom.endingOverlay, null);
 }
 
 function resetGame() { location.reload(); }
@@ -1109,7 +1317,7 @@ function resetGame() { location.reload(); }
 // Test accessor
 // ---------------------------------------------------------------------------
 function getEngineState() {
-  return { playerState, tempState, statRegistry, startup, currentScene, pendingStatPoints };
+  return { playerState, tempState, statRegistry, skillRegistry, startup, currentScene, pendingStatPoints };
 }
 
 // ---------------------------------------------------------------------------
@@ -1153,8 +1361,6 @@ function saveGameToSlot(slot, label = null) {
   }
 }
 
-// Set to true by loadSaveFromSlot if any slot contained a stale version.
-// Cleared once the splash banner has been shown so it only appears once per boot.
 let _staleSaveFound = false;
 
 function loadSaveFromSlot(slot) {
@@ -1178,17 +1384,12 @@ function deleteSaveSlot(slot) {
   if (key) try { localStorage.removeItem(key); } catch (_) {}
 }
 
-// FIX #5: merge saved state over fresh startup defaults so new keys get
-// defaults and removed keys are dropped cleanly.
 async function restoreFromSave(save) {
   playerState       = { ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) };
   pendingStatPoints = save.pendingStatPoints ?? 0;
+  // Ensure skills array exists even on saves predating the skill system.
+  if (!Array.isArray(playerState.skills)) playerState.skills = [];
   clearTempState();
-  // Restore chapter title immediately so the header shows the correct scene name
-  // while the scene is loading, rather than showing "—".
-  if (playerState._chapter_title) {
-    dom.chapterTitle.textContent = playerState._chapter_title;
-  }
   await runStatsScene();
   await gotoScene(save.scene, save.label);
 }
@@ -1215,11 +1416,9 @@ function populateSlotCard({ nameEl, metaEl, loadBtn, deleteBtn, cardEl, save }) 
 
 function refreshAllSlotCards() {
   ['auto', 1, 2, 3].forEach(slot => {
-    const save = loadSaveFromSlot(slot);
-    const s    = String(slot);
-
-    // Splash screen cards (auto + 1-3)
-    const sCard = document.getElementById(`slot-card-${s}`);
+    const save    = loadSaveFromSlot(slot);
+    const s       = String(slot);
+    const sCard   = document.getElementById(`slot-card-${s}`);
     if (sCard) populateSlotCard({
       nameEl:    document.getElementById(`slot-name-${s}`),
       metaEl:    document.getElementById(`slot-meta-${s}`),
@@ -1228,17 +1427,13 @@ function refreshAllSlotCards() {
       cardEl:    sCard,
       save,
     });
-
-    // In-game save/load menu cards (auto + 1-3)
-    const iCard = document.getElementById(`save-card-${s}`);
-    if (iCard) {
-      // For in-game cards, "loadBtn" points at the load button
-      // and for slots 1-3 we also have a separate save button.
-      populateSlotCard({
-        nameEl:    document.getElementById(`save-slot-name-${s}`),
-        metaEl:    document.getElementById(`save-slot-meta-${s}`),
-        loadBtn:   document.getElementById(`ingame-load-${s}`),
-        deleteBtn: document.getElementById(`save-delete-${s}`),
+    if (slot !== 'auto') {
+      const iCard = document.getElementById(`save-card-${slot}`);
+      if (iCard) populateSlotCard({
+        nameEl:    document.getElementById(`save-slot-name-${slot}`),
+        metaEl:    document.getElementById(`save-slot-meta-${slot}`),
+        loadBtn:   document.getElementById(`save-to-${slot}`),
+        deleteBtn: document.getElementById(`save-delete-${slot}`),
         cardEl:    iCard,
         save,
       });
@@ -1250,7 +1445,6 @@ function refreshAllSlotCards() {
 // Splash screen
 // ---------------------------------------------------------------------------
 function showSplash() {
-  // Probe all slots so _staleSaveFound gets set before we show the banner.
   ['auto', 1, 2, 3].forEach(loadSaveFromSlot);
   refreshAllSlotCards();
 
@@ -1258,7 +1452,7 @@ function showSplash() {
   if (notice) {
     if (_staleSaveFound) {
       notice.classList.remove('hidden');
-      _staleSaveFound = false; // only show once per boot
+      _staleSaveFound = false;
     } else {
       notice.classList.add('hidden');
     }
@@ -1308,7 +1502,6 @@ function validateName(value, label) {
 
 function wireCharCreation() {
   function handleInput(inputEl, counterEl, errorEl, fieldLabel) {
-    // Strip disallowed characters in real time.
     const cleaned = inputEl.value.replace(/[^\p{L}\p{M}'\- ]/gu, '');
     if (cleaned !== inputEl.value) {
       const pos = inputEl.selectionStart - (inputEl.value.length - cleaned.length);
@@ -1330,9 +1523,6 @@ function wireCharCreation() {
     handleInput(dom.inputLastName,  dom.counterLast,  dom.errorLastName,  'Last name'));
   dom.inputLastName.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !dom.charBeginBtn.disabled) dom.charBeginBtn.click();
-  });
-  dom.charOverlay.addEventListener('keydown', e => {
-    // Escape on char-creation does nothing — player must make a choice.
   });
 
   const pronounCards = [...dom.charOverlay.querySelectorAll('.pronoun-card')];
@@ -1389,7 +1579,6 @@ function wireCharCreation() {
 }
 
 function showCharacterCreation() {
-  // Reset fields
   dom.inputFirstName.value = '';
   dom.inputLastName.value  = '';
   dom.counterFirst.textContent = String(NAME_MAX);
@@ -1400,7 +1589,6 @@ function showCharacterCreation() {
   dom.inputLastName.classList.remove('char-input--error');
   dom.charBeginBtn.disabled = true;
 
-  // Default pronoun selection: they/them
   dom.charOverlay.querySelectorAll('.pronoun-card').forEach(c => {
     const def = c.dataset.pronouns === 'they/them';
     c.classList.toggle('selected', def);
@@ -1409,9 +1597,7 @@ function showCharacterCreation() {
   });
 
   dom.charOverlay.classList.remove('hidden');
-  // Force visibility — don't rely solely on the CSS animation completing.
   dom.charOverlay.style.opacity = '1';
-  // Defer trapFocus to next frame so the overlay is fully painted first.
   requestAnimationFrame(() => {
     const _charTrapRelease = trapFocus(dom.charOverlay, null);
     dom.charOverlay._trapRelease = _charTrapRelease;
@@ -1454,7 +1640,6 @@ function trapFocus(overlayEl, triggerEl = null) {
 
   overlayEl.addEventListener('keydown', handleKeydown);
 
-  // Defer initial focus to next frame so the overlay is fully rendered.
   requestAnimationFrame(() => {
     try {
       const focusable = getFocusable();
@@ -1487,66 +1672,43 @@ function wireUI() {
     }
   });
 
-  // Header save/load button → open unified menu
+  dom.restartBtn.addEventListener('click', () => {
+    if (confirm('Return to the title screen? Manual saves will be kept.')) {
+      deleteSaveSlot('auto');
+      resetGame();
+    }
+  });
+
   dom.saveBtn.addEventListener('click', showSaveMenu);
 
-  // In-game menu — Save to manual slots
   [1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`save-to-${slot}`);
     if (!btn) return;
     btn.addEventListener('click', () => {
       const existing = loadSaveFromSlot(slot);
       if (existing && !confirm(`Overwrite Slot ${slot}?`)) return;
-      saveGameToSlot(slot, _lastSavePointLabel);
+      saveGameToSlot(slot);
       hideSaveMenu();
       showToast(`Saved to Slot ${slot}`);
       refreshAllSlotCards();
     });
   });
 
-  // In-game menu — Load buttons (auto + manual slots)
-  ['auto', 1, 2, 3].forEach(slot => {
-    const btn = document.getElementById(`ingame-load-${slot}`);
-    if (!btn) return;
-    btn.addEventListener('click', async () => {
-      const save = loadSaveFromSlot(slot);
-      if (!save) return;
-      hideSaveMenu();
-      await parseStartup();
-      await restoreFromSave(save);
-    });
-  });
-
-  // In-game menu — Restart button
-  const ingameRestartBtn = document.getElementById('ingame-restart-btn');
-  if (ingameRestartBtn) {
-    ingameRestartBtn.addEventListener('click', () => {
-      if (confirm('Return to the title screen? Manual saves will be kept.')) {
-        hideSaveMenu();
-        deleteSaveSlot('auto');
-        resetGame();
-      }
-    });
-  }
-
   dom.saveMenuClose.addEventListener('click', hideSaveMenu);
   dom.saveOverlay.addEventListener('click', e => { if (e.target === dom.saveOverlay) hideSaveMenu(); });
   dom.saveOverlay.addEventListener('keydown', e => { if (e.key === 'Escape') hideSaveMenu(); });
 
-  // In-game menu — delete buttons
-  ['auto', 1, 2, 3].forEach(slot => {
+  [1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`save-delete-${slot}`);
     if (!btn) return;
     btn.addEventListener('click', () => {
-      const label = slot === 'auto' ? 'the auto-save' : `Slot ${slot}`;
-      if (confirm(`Delete ${label}? This cannot be undone.`)) {
+      if (confirm(`Delete Slot ${slot}? This cannot be undone.`)) {
         deleteSaveSlot(slot);
         refreshAllSlotCards();
       }
     });
   });
 
-  // Splash — New Game
   dom.splashNewBtn.addEventListener('click', async () => {
     hideSplash();
     const charData = await showCharacterCreation();
@@ -1559,20 +1721,17 @@ function wireUI() {
     await gotoScene(startup.sceneList[0] || 'prologue');
   });
 
-  // Splash — Load Game (show slots)
   dom.splashLoadBtn.addEventListener('click', () => {
     dom.splashOverlay.querySelector('.splash-btn-col')?.classList.add('hidden');
     dom.splashSlots.classList.remove('hidden');
     refreshAllSlotCards();
   });
 
-  // Splash — Back button
   dom.splashSlotsBack.addEventListener('click', () => {
     dom.splashSlots.classList.add('hidden');
     dom.splashOverlay.querySelector('.splash-btn-col')?.classList.remove('hidden');
   });
 
-  // Splash — Load slot buttons
   ['auto', 1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`slot-load-${slot}`);
     if (!btn) return;
@@ -1583,11 +1742,11 @@ function wireUI() {
       _gameInProgress = true;
       dom.saveBtn.classList.remove('hidden');
       await parseStartup();
+      await parseSkills();
       await restoreFromSave(save);
     });
   });
 
-  // Splash — Delete slot buttons
   ['auto', 1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`slot-delete-${slot}`);
     if (!btn) return;
@@ -1610,6 +1769,7 @@ async function boot() {
   wireUI();
   try {
     await parseStartup();
+    await parseSkills();   // load skill registry before splash so it's ready for any restored save
     showSplash();
   } catch (err) {
     showEngineError(`Boot failed: ${err.message}`);
