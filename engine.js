@@ -54,6 +54,8 @@ const PRONOUN_SETS = {
   'he/him':    { they: 'he',   them: 'him',  their: 'his',   themself: 'himself'  },
   'she/her':   { they: 'she',  them: 'her',  their: 'her',   themself: 'herself'  },
   'they/them': { they: 'they', them: 'them', their: 'their', themself: 'themself' },
+  'xe/xem':    { they: 'xe',   them: 'xem',  their: 'xyr',   themself: 'xemself'  },
+  'ze/zir':    { they: 'ze',   them: 'zir',  their: 'zir',   themself: 'zirself'  },
 };
 
 function resolvePronoun(tokenLower, capitalise) {
@@ -458,7 +460,7 @@ function applySystemRewards(text) {
   const vitals = [
     { regex: /\+\s*(\d+)\s+max\s+mana\b/i, key: 'max_mana' },
     { regex: /\+\s*(\d+)\s+mana\b/i,       key: 'mana'     },
-    { regex: /\+\s*(\d+)\s+health\b/i,     key: 'health'   },
+    { regex: /\+\s*(\d+)\s+health\b/i,     key: 'health', numericOnly: true },
   ];
   const statP = [];
   statRegistry.forEach(({ key, label }) => {
@@ -470,10 +472,12 @@ function applySystemRewards(text) {
       statP.push({ regex: new RegExp(`\\+\\s*(\\d+)\\s+${ek}\\b`, 'i'), key });
     }
   });
-  [...vitals, ...statP].forEach(({ regex, key }) => {
+  [...vitals, ...statP].forEach(({ regex, key, numericOnly }) => {
     const m2 = text.match(regex);
     if (!m2) return;
     const b = Number(m2[1]);
+    // Skip if the current value is a non-numeric string (e.g. health = "Healthy")
+    if (numericOnly && typeof playerState[key] === 'string' && isNaN(Number(playerState[key]))) return;
     if (b > 0) { playerState[key] = Number(playerState[key] || 0) + b; stateChanged = true; }
   });
 
@@ -987,7 +991,7 @@ async function executeCurrentLine() {
     return;
   }
 
-  if (t.startsWith('*ending')) { showEndingScreen('The End', 'Your path is complete.'); return; }
+  if (t === '*ending') { ip = currentLines.length; showEndingScreen('The End', 'Your path is complete.'); return; }
 
   ip += 1;
 }
@@ -1023,7 +1027,13 @@ function renderChoices(choices) {
       clearNarrative();
       applyTransition();
       await executeBlock(choice.start, choice.end);
-      if (!awaitingChoice) { ip = resumeAt; await runInterpreter(); }
+      if (!awaitingChoice) {
+        // If ip is still inside (or at the end of) this option's block, the block
+        // ran to its natural end — use resumeAt to continue after the *choice.
+        // If ip is outside the block, a *goto redirected it; honour that instead.
+        if (ip >= choice.start && ip <= choice.end) ip = resumeAt;
+        await runInterpreter();
+      }
     });
 
     dom.choiceArea.appendChild(btn);
@@ -1435,14 +1445,20 @@ function refreshAllSlotCards() {
     });
     if (slot !== 'auto') {
       const iCard = document.getElementById(`save-card-${slot}`);
-      if (iCard) populateSlotCard({
-        nameEl:    document.getElementById(`save-slot-name-${slot}`),
-        metaEl:    document.getElementById(`save-slot-meta-${slot}`),
-        loadBtn:   document.getElementById(`save-to-${slot}`),
-        deleteBtn: document.getElementById(`save-delete-${slot}`),
-        cardEl:    iCard,
-        save,
-      });
+      if (iCard) {
+        const loadBtn = document.getElementById(`ingame-load-${slot}`);
+        populateSlotCard({
+          nameEl:    document.getElementById(`save-slot-name-${slot}`),
+          metaEl:    document.getElementById(`save-slot-meta-${slot}`),
+          loadBtn,
+          deleteBtn: document.getElementById(`save-delete-${slot}`),
+          cardEl:    iCard,
+          save,
+        });
+        // Save button is always enabled in-game; never disable it
+        const saveBtn = document.getElementById(`save-to-${slot}`);
+        if (saveBtn) saveBtn.disabled = false;
+      }
     }
   });
 }
@@ -1697,6 +1713,21 @@ function wireUI() {
       hideSaveMenu();
       showToast(`Saved to Slot ${slot}`);
       refreshAllSlotCards();
+    });
+  });
+
+  // In-game Load buttons (ingame-load-*)
+  ['auto', 1, 2, 3].forEach(slot => {
+    const btn = document.getElementById(`ingame-load-${slot}`);
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      const save = loadSaveFromSlot(slot);
+      if (!save) return;
+      if (!confirm(`Load save from ${slot === 'auto' ? 'auto-save' : 'Slot ' + slot}? Unsaved progress will be lost.`)) return;
+      hideSaveMenu();
+      await parseStartup();
+      await parseSkills();
+      await restoreFromSave(save);
     });
   });
 
