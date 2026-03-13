@@ -289,8 +289,10 @@ function checkAndApplyLevelUp() {
   const spGain    = Number(playerState.lvl_up_skill_gain ?? 1);
   let changed = false;
   while (Number(playerState.xp) >= Number(playerState.xp_to_next)) {
+    const threshold          = Number(playerState.xp_to_next);
+    playerState.xp           = Number(playerState.xp) - threshold;
     playerState.level        = Number(playerState.level || 0) + 1;
-    playerState.xp_to_next  = Math.floor(Number(playerState.xp_to_next) * mult);
+    playerState.xp_to_next  = Math.floor(threshold * mult);
     playerState.skill_points = Number(playerState.skill_points || 0) + spGain;
     pendingStatPoints        += gain;
     _pendingLevelUpCount     += 1;
@@ -1664,10 +1666,10 @@ function showCharacterCreation() {
   requestAnimationFrame(() => {
     const _charTrapRelease = trapFocus(dom.charOverlay, null);
     dom.charOverlay._trapRelease = _charTrapRelease;
-  });
-  // Use rAF so the overlay is painted before we attempt focus (no arbitrary delay).
-  requestAnimationFrame(() => {
-    Promise.resolve().then(() => { try { dom.inputFirstName.focus(); } catch (_) {} });
+    // Only focus the first field if the user hasn't already clicked somewhere else.
+    if (!dom.charOverlay.contains(document.activeElement)) {
+      try { dom.inputFirstName.focus(); } catch (_) {}
+    }
   });
 
   return new Promise(resolve => { dom.charOverlay._resolve = resolve; });
@@ -1705,13 +1707,6 @@ function trapFocus(overlayEl, triggerEl = null) {
   }
 
   overlayEl.addEventListener('keydown', handleKeydown);
-
-  requestAnimationFrame(() => {
-    try {
-      const focusable = getFocusable();
-      if (focusable.length) focusable[0].focus();
-    } catch (_) {}
-  });
 
   return function release() {
     try { overlayEl.removeEventListener('keydown', handleKeydown); } catch (_) {}
@@ -1887,4 +1882,4 @@ async function boot() {
   showSplash();
 }
 
-document.addEventListener('DOMContentLoaded', boot);
+document.addEventListener('DOMContentLoaded', boot); 
