@@ -662,7 +662,7 @@ function showEngineError(message) {
 // ---------------------------------------------------------------------------
 // Scene navigation
 // ---------------------------------------------------------------------------
-async function gotoScene(name, label = null, savedIp = null) {
+async function gotoScene(name, label = null, savedIp = null, isRestore = false) {
   let text;
   try {
     text = await fetchTextFile(name);
@@ -671,9 +671,11 @@ async function gotoScene(name, label = null, savedIp = null) {
     return;
   }
   clearTempState();
-  // Reset all mid-scene state so a freshly loaded scene always runs cleanly.
-  awaitingChoice       = null;
-  pendingLevelUpDisplay = false;
+  // Reset mid-scene state. During a restore we preserve pendingLevelUpDisplay
+  // because restoreFromSave already set it from the saved pendingStatPoints —
+  // clearing it here would leave choices locked with no level-up block shown.
+  awaitingChoice = null;
+  if (!isRestore) pendingLevelUpDisplay = false;
   currentScene = name;
   currentLines = parseLines(text);
   indexLabels(name, currentLines);
@@ -687,7 +689,11 @@ async function gotoScene(name, label = null, savedIp = null) {
     const labels = labelsCache.get(name) || {};
     ip = labels[label] ?? 0;
   }
-  saveGameToSlot('auto', label || null);
+  // During a restore, skip the auto-save write. The save we just loaded IS the
+  // auto-save (or was just promoted to it); overwriting it here would record the
+  // scene entry timestamp rather than the original checkpoint timestamp, and
+  // would also fire before runInterpreter has had a chance to re-render anything.
+  if (!isRestore) saveGameToSlot('auto', label || null);
   await runInterpreter();
 }
 
@@ -771,7 +777,10 @@ async function executeBlock(start, end, resumeAfter = end) {
       return;
     }
     if (_gotoJumped) {
-      _gotoJumped = false;
+      // Do NOT clear _gotoJumped here. Leave it set so that the calling
+      // handler (*if, *loop, or the choice click handler via runInterpreter)
+      // can detect the jump and avoid overwriting ip with its own resume point.
+      // runInterpreter clears _gotoJumped at the top of each iteration.
       return;
     }
   }
@@ -855,9 +864,13 @@ async function executeCurrentLine() {
 
   if (t.startsWith('*save_point')) {
     const saveLabel = t.replace('*save_point', '').trim() || null;
+    // Advance ip first so the saved position points to the line AFTER this
+    // directive. If we saved ip here (before the increment) then every restore
+    // would re-execute *save_point, triggering another write and banner.
+    ip += 1;
     saveGameToSlot('auto', saveLabel);
     addSystem('[ PROGRESS SAVED ]');
-    ip += 1; return;
+    return;
   }
 
   if (t.startsWith('*uppercase')) {
@@ -974,12 +987,19 @@ async function executeCurrentLine() {
           await executeBlock(bs, be, chainEnd);
           executed = true;
           if (awaitingChoice) return;
+          // If a *goto fired inside the block, executeBlock left _gotoJumped set.
+          // Honour the jump — clear the flag and return without stomping ip.
+          if (_gotoJumped) { _gotoJumped = false; return; }
         }
         cursor = be; continue;
       }
       if (c.trimmed.startsWith('*else')) {
         const bs = cursor + 1, be = findBlockEnd(bs, c.indent);
-        if (!executed) { await executeBlock(bs, be, chainEnd); if (awaitingChoice) return; }
+        if (!executed) {
+          await executeBlock(bs, be, chainEnd);
+          if (awaitingChoice) return;
+          if (_gotoJumped) { _gotoJumped = false; return; }
+        }
         cursor = be; continue;
       }
       cursor += 1;
@@ -993,6 +1013,8 @@ async function executeCurrentLine() {
     while (evaluateCondition(t) && guard < 100) {
       await executeBlock(blockStart, blockEnd);
       if (awaitingChoice) return;
+      // If a *goto fired inside the loop body, honour the jump.
+      if (_gotoJumped) { _gotoJumped = false; return; }
       guard += 1;
     }
     if (guard >= 100) console.warn(`[engine] *loop guard tripped in "${currentScene}"`);
@@ -1008,6 +1030,12 @@ async function executeCurrentLine() {
 
   if (t === '*ending') { ip = currentLines.length; showEndingScreen('The End', 'Your path is complete.'); return; }
 
+  // Unrecognised directive — warn and render as a narrative paragraph rather
+  // than silently dropping the line. This handles intentional content that
+  // starts with * (e.g. "*before.*" for italicised text) and surfaces typos
+  // in directive names (e.g. "*gooto label") so authors can catch them.
+  console.warn(`[engine] Unrecognised directive "${t.split(/\s/)[0]}" in "${currentScene}" at line ${ip} — rendering as text.`);
+  addParagraph(t);
   ip += 1;
 }
 
@@ -1069,6 +1097,9 @@ function renderChoices(choices) {
 // ---------------------------------------------------------------------------
 async function runInterpreter() {
   while (ip < currentLines.length) {
+    _gotoJumped = false;   // clear any stale flag from a top-level *goto before
+                           // the next line runs, so executeBlock never sees a
+                           // flag that was set by a previous iteration
     await executeCurrentLine();
     if (awaitingChoice) break;
   }
@@ -1426,6 +1457,26 @@ function saveGameToSlot(slot, label = null) {
   }
 }
 
+// Copies the current auto-save payload verbatim into a manual slot.
+// Only the 'slot' and 'timestamp' fields are updated.
+// This guarantees manual saves always reflect a real *save_point checkpoint
+// (the auto-save) rather than re-capturing live ip/playerState, which could
+// be mid-scene and produce an unrestorable position.
+function copyAutoSaveToSlot(targetSlot) {
+  const key = saveKeyForSlot(targetSlot);
+  if (!key) { console.warn(`[engine] Unknown save slot: "${targetSlot}"`); return false; }
+  const autoSave = loadSaveFromSlot('auto');
+  if (!autoSave) { console.warn('[engine] copyAutoSaveToSlot: no auto-save to copy.'); return false; }
+  try {
+    const payload = { ...autoSave, slot: String(targetSlot), timestamp: Date.now() };
+    localStorage.setItem(key, JSON.stringify(payload));
+    return true;
+  } catch (err) {
+    console.warn(`[engine] copyAutoSaveToSlot to slot "${targetSlot}" failed:`, err);
+    return false;
+  }
+}
+
 let _staleSaveFound = false;
 
 function loadSaveFromSlot(slot) {
@@ -1459,7 +1510,7 @@ async function restoreFromSave(save) {
   if (!Array.isArray(playerState.skills)) playerState.skills = [];
   clearTempState();
   await runStatsScene();
-  await gotoScene(save.scene, save.label, save.ip ?? null);
+  await gotoScene(save.scene, save.label, save.ip ?? null, true);
 }
 
 // ---------------------------------------------------------------------------
@@ -1519,7 +1570,8 @@ function refreshAllSlotCards() {
 // Splash screen
 // ---------------------------------------------------------------------------
 function showSplash() {
-  ['auto', 1, 2, 3].forEach(loadSaveFromSlot);
+  // refreshAllSlotCards calls loadSaveFromSlot for every slot, which sets
+  // _staleSaveFound as a side-effect — no need for a separate loop here.
   refreshAllSlotCards();
 
   const notice = document.getElementById('splash-stale-notice');
@@ -1757,9 +1809,14 @@ function wireUI() {
     btn.addEventListener('click', () => {
       const existing = loadSaveFromSlot(slot);
       if (existing && !confirm(`Overwrite Slot ${slot}?`)) return;
-      // Inherit the label from the auto-save so we resume at the right checkpoint.
-      const autoSave = loadSaveFromSlot('auto');
-      saveGameToSlot(slot, autoSave?.label ?? null);
+      // Copy the auto-save payload verbatim so the manual slot always holds
+      // a real *save_point checkpoint. Re-capturing live ip here would save a
+      // mid-scene position that can't be cleanly restored.
+      const ok = copyAutoSaveToSlot(slot);
+      if (!ok) {
+        showToast('Nothing to save yet — reach a save point first.');
+        return;
+      }
       hideSaveMenu();
       showToast(`Saved to Slot ${slot}`);
       refreshAllSlotCards();
