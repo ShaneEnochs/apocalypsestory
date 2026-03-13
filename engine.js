@@ -71,7 +71,6 @@ const dom = {
   narrativePanel:     document.getElementById('narrative-panel'),
   statusPanel:        document.getElementById('status-panel'),
   statusToggle:       document.getElementById('status-toggle'),
-  restartBtn:         document.getElementById('restart-btn'),
   saveBtn:            document.getElementById('save-btn'),
   // Splash
   splashOverlay:      document.getElementById('splash-overlay'),
@@ -91,12 +90,7 @@ const dom = {
   errorFirstName:     document.getElementById('error-first-name'),
   errorLastName:      document.getElementById('error-last-name'),
   charBeginBtn:       document.getElementById('char-begin-btn'),
-  // Ending
-  endingOverlay:      document.getElementById('ending-overlay'),
-  endingTitle:        document.getElementById('ending-title'),
-  endingContent:      document.getElementById('ending-content'),
-  endingStats:        document.getElementById('ending-stats'),
-  endingActionBtn:    document.getElementById('ending-action-btn'),
+  // Ending — no overlay; ending renders inline in the narrative
   // Toast
   toast:              document.getElementById('toast'),
 };
@@ -1086,17 +1080,26 @@ function showInlineLevelUp() {
 }
 
 // ---------------------------------------------------------------------------
-// Ending screen — FIX #6: calls resetGame() instead of inlining reload.
+// Inline ending — renders at the bottom of the narrative instead of a popup.
 // ---------------------------------------------------------------------------
 function showEndingScreen(title, subtitle) {
-  dom.endingTitle.textContent     = title;
-  dom.endingContent.textContent   = subtitle;
-  dom.endingStats.innerHTML       = `Level: ${playerState.level || 0}<br>XP: ${playerState.xp || 0}<br>Class: ${playerState.class_name || 'Unclassed'}`;
-  dom.endingActionBtn.textContent = 'Play Again';
-  dom.endingActionBtn.onclick     = resetGame;
-  dom.endingOverlay.classList.remove('hidden');
-  dom.endingOverlay.style.opacity = '1';
-  trapFocus(dom.endingOverlay, null); // released by resetGame (page reload)
+  const block = document.createElement('div');
+  block.className = 'ending-inline-block';
+  block.innerHTML = `
+    <span class="ending-inline-label">[ END ]</span>
+    <div class="ending-inline-title">${title}</div>
+    <div class="ending-inline-subtitle">${subtitle}</div>
+    <div class="ending-inline-stats">
+      Level: ${playerState.level || 0} &nbsp;·&nbsp;
+      XP: ${playerState.xp || 0} &nbsp;·&nbsp;
+      Class: ${playerState.class_name || 'Unclassed'}
+    </div>
+    <button class="ending-inline-btn">↺ Play Again</button>
+  `;
+  block.querySelector('.ending-inline-btn').addEventListener('click', resetGame);
+  dom.narrativeContent.insertBefore(block, dom.choiceArea);
+  // Scroll to the ending block so the player sees it
+  setTimeout(() => block.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
 }
 
 function resetGame() { location.reload(); }
@@ -1211,9 +1214,11 @@ function populateSlotCard({ nameEl, metaEl, loadBtn, deleteBtn, cardEl, save }) 
 
 function refreshAllSlotCards() {
   ['auto', 1, 2, 3].forEach(slot => {
-    const save    = loadSaveFromSlot(slot);
-    const s       = String(slot);
-    const sCard   = document.getElementById(`slot-card-${s}`);
+    const save = loadSaveFromSlot(slot);
+    const s    = String(slot);
+
+    // Splash screen cards (auto + 1-3)
+    const sCard = document.getElementById(`slot-card-${s}`);
     if (sCard) populateSlotCard({
       nameEl:    document.getElementById(`slot-name-${s}`),
       metaEl:    document.getElementById(`slot-meta-${s}`),
@@ -1222,12 +1227,16 @@ function refreshAllSlotCards() {
       cardEl:    sCard,
       save,
     });
-    if (slot !== 'auto') {
-      const iCard = document.getElementById(`save-card-${s}`);
-      if (iCard) populateSlotCard({
+
+    // In-game save/load menu cards (auto + 1-3)
+    const iCard = document.getElementById(`save-card-${s}`);
+    if (iCard) {
+      // For in-game cards, "loadBtn" points at the load button
+      // and for slots 1-3 we also have a separate save button.
+      populateSlotCard({
         nameEl:    document.getElementById(`save-slot-name-${s}`),
         metaEl:    document.getElementById(`save-slot-meta-${s}`),
-        loadBtn:   document.getElementById(`save-to-${s}`),
+        loadBtn:   document.getElementById(`ingame-load-${s}`),
         deleteBtn: document.getElementById(`save-delete-${s}`),
         cardEl:    iCard,
         save,
@@ -1477,18 +1486,10 @@ function wireUI() {
     }
   });
 
-  // Restart → title screen; keeps manual saves, clears auto-save.
-  dom.restartBtn.addEventListener('click', () => {
-    if (confirm('Return to the title screen? Manual saves will be kept.')) {
-      deleteSaveSlot('auto');
-      resetGame();
-    }
-  });
-
-  // Header save button
+  // Header save/load button → open unified menu
   dom.saveBtn.addEventListener('click', showSaveMenu);
 
-  // In-game save menu — write to manual slots
+  // In-game menu — Save to manual slots
   [1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`save-to-${slot}`);
     if (!btn) return;
@@ -1502,16 +1503,42 @@ function wireUI() {
     });
   });
 
+  // In-game menu — Load buttons (auto + manual slots)
+  ['auto', 1, 2, 3].forEach(slot => {
+    const btn = document.getElementById(`ingame-load-${slot}`);
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      const save = loadSaveFromSlot(slot);
+      if (!save) return;
+      hideSaveMenu();
+      await parseStartup();
+      await restoreFromSave(save);
+    });
+  });
+
+  // In-game menu — Restart button
+  const ingameRestartBtn = document.getElementById('ingame-restart-btn');
+  if (ingameRestartBtn) {
+    ingameRestartBtn.addEventListener('click', () => {
+      if (confirm('Return to the title screen? Manual saves will be kept.')) {
+        hideSaveMenu();
+        deleteSaveSlot('auto');
+        resetGame();
+      }
+    });
+  }
+
   dom.saveMenuClose.addEventListener('click', hideSaveMenu);
   dom.saveOverlay.addEventListener('click', e => { if (e.target === dom.saveOverlay) hideSaveMenu(); });
   dom.saveOverlay.addEventListener('keydown', e => { if (e.key === 'Escape') hideSaveMenu(); });
 
-  // In-game save menu — delete buttons
-  [1, 2, 3].forEach(slot => {
+  // In-game menu — delete buttons
+  ['auto', 1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`save-delete-${slot}`);
     if (!btn) return;
     btn.addEventListener('click', () => {
-      if (confirm(`Delete Slot ${slot}? This cannot be undone.`)) {
+      const label = slot === 'auto' ? 'the auto-save' : `Slot ${slot}`;
+      if (confirm(`Delete ${label}? This cannot be undone.`)) {
         deleteSaveSlot(slot);
         refreshAllSlotCards();
       }
