@@ -283,14 +283,16 @@ function clearTempState() { tempState = {}; }
 // ---------------------------------------------------------------------------
 function checkAndApplyLevelUp() {
   if (!Number(playerState.xp_to_next || 0)) return;
-  const mult = Number(playerState.xp_up_mult      ?? 2.2);
-  const gain = Number(playerState.lvl_up_stat_gain ?? 5);
+  const mult      = Number(playerState.xp_up_mult       ?? 2.2);
+  const gain      = Number(playerState.lvl_up_stat_gain ?? 5);
+  const spGain    = Number(playerState.lvl_up_skill_gain ?? 1);
   let changed = false;
   while (Number(playerState.xp) >= Number(playerState.xp_to_next)) {
-    playerState.level      = Number(playerState.level || 0) + 1;
-    playerState.xp_to_next = Math.floor(Number(playerState.xp_to_next) * mult);
-    pendingStatPoints      += gain;
-    _pendingLevelUpCount   += 1;
+    playerState.level        = Number(playerState.level || 0) + 1;
+    playerState.xp_to_next  = Math.floor(Number(playerState.xp_to_next) * mult);
+    playerState.skill_points = Number(playerState.skill_points || 0) + spGain;
+    pendingStatPoints        += gain;
+    _pendingLevelUpCount     += 1;
     changed = true;
   }
   if (changed) pendingLevelUpDisplay = true;
@@ -319,7 +321,6 @@ function addSystem(text) {
   const formatted = formatText(text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
   div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
   dom.narrativeContent.insertBefore(div, dom.choiceArea);
-  if (pendingLevelUpDisplay) showInlineLevelUp();
 }
 
 // ---------------------------------------------------------------------------
@@ -394,15 +395,16 @@ function revokeSkill(key) {
   return true;
 }
 
-// Purchases a skill from the level-up browser (deducts XP).
+// Purchases a skill from the level-up browser (deducts Skill Points).
 // Returns { ok: true } or { ok: false, reason: string }.
 function purchaseSkill(key) {
   const nk    = normalizeKey(key);
   const entry = getSkillEntry(nk);
-  if (!entry)                     return { ok: false, reason: 'Skill not found in registry.' };
-  if (playerHasSkill(nk))         return { ok: false, reason: 'Already owned.' };
-  if (playerState.xp < entry.cost) return { ok: false, reason: 'Insufficient XP.' };
-  playerState.xp -= entry.cost;
+  if (!entry)                               return { ok: false, reason: 'Skill not found in registry.' };
+  if (playerHasSkill(nk))                   return { ok: false, reason: 'Already owned.' };
+  const spCost = entry.spCost ?? entry.cost ?? 1;
+  if ((playerState.skill_points || 0) < spCost) return { ok: false, reason: 'Insufficient Skill Points.' };
+  playerState.skill_points = Number(playerState.skill_points || 0) - spCost;
   grantSkill(nk);
   return { ok: true };
 }
@@ -1126,18 +1128,35 @@ async function runStatsScene() {
       } else {
         const skillItems = owned.map(key => {
           const entry = getSkillEntry(key);
-          if (!entry) return `<li class="skill-tag"><span class="skill-tag-name">${key}</span></li>`;
-          return `<li class="skill-tag">
-            <span class="skill-tag-name">${entry.label}</span>
-            ${entry.description ? `<span class="skill-tag-desc">${entry.description}</span>` : ''}
+          if (!entry) return `<li class="skill-accordion"><button class="skill-accordion-btn" aria-expanded="false"><span class="skill-accordion-name">${key}</span><span class="skill-accordion-chevron">▾</span></button></li>`;
+          return `<li class="skill-accordion">
+            <button class="skill-accordion-btn" aria-expanded="false">
+              <span class="skill-accordion-name">${entry.label}</span>
+              <span class="skill-accordion-chevron">▾</span>
+            </button>
+            ${entry.description ? `<div class="skill-accordion-desc" hidden>${entry.description}</div>` : ''}
           </li>`;
         }).join('');
-        html += `<div class="status-section"><div class="status-label status-section-header">Skills</div><ul class="tag-list skill-tag-list">${skillItems}</ul></div>`;
+        html += `<div class="status-section"><div class="status-label status-section-header">Skills</div><ul class="skill-accordion-list">${skillItems}</ul></div>`;
       }
     }
   });
   if (inGroup) html += `</div>`;
   dom.statusPanel.innerHTML = html;
+
+  // Wire skill accordion toggles
+  dom.statusPanel.querySelectorAll('.skill-accordion-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const expanded = btn.getAttribute('aria-expanded') === 'true';
+      const desc = btn.nextElementSibling;
+      btn.setAttribute('aria-expanded', String(!expanded));
+      btn.classList.toggle('skill-accordion-btn--open', !expanded);
+      if (desc && desc.classList.contains('skill-accordion-desc')) {
+        if (!expanded) desc.removeAttribute('hidden');
+        else           desc.setAttribute('hidden', '');
+      }
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1178,52 +1197,56 @@ function showInlineLevelUp() {
     // ── Skill browser HTML ──────────────────────────────────────────────
     let skillBrowserHTML = '';
     if (skillBrowserOpen) {
-      const currentXP    = Number(playerState.xp || 0) - spent; // show XP as-is; purchases deduct live
-      const purchasableXP = Number(playerState.xp || 0);
+      const availableSP  = Number(playerState.skill_points || 0);
       const available    = skillRegistry.filter(s => !playerHasSkill(s.key));
       const alreadyOwned = skillRegistry.filter(s =>  playerHasSkill(s.key));
 
-      const skillRows = available.length === 0 && alreadyOwned.length === 0
+      const emptyMsg = available.length === 0 && alreadyOwned.length === 0
         ? `<p class="skill-browser-empty">No skills defined in skills.txt yet.</p>`
         : '';
 
       const availableRows = available.map(s => {
-        const canAfford = purchasableXP >= s.cost;
+        const spCost   = s.spCost ?? s.cost ?? 1;
+        const canAfford = availableSP >= spCost;
         return `
-          <div class="skill-browser-row ${canAfford ? '' : 'skill-browser-row--unaffordable'}">
-            <div class="skill-browser-info">
-              <span class="skill-browser-name">${s.label}</span>
-              <span class="skill-browser-desc">${s.description || ''}</span>
+          <div class="skill-browser-card ${canAfford ? '' : 'skill-browser-card--unaffordable'}">
+            <div class="skill-browser-card-top">
+              <div class="skill-browser-card-name">${s.label}</div>
+              <div class="skill-browser-card-actions">
+                <span class="skill-browser-sp-badge ${canAfford ? 'skill-browser-sp-badge--can-afford' : ''}">${spCost} SP</span>
+                <button class="skill-purchase-btn" data-sk="${s.key}" ${canAfford ? '' : 'disabled'}>Unlock</button>
+              </div>
             </div>
-            <div class="skill-browser-cost-col">
-              <span class="skill-browser-cost">${s.cost} XP</span>
-              <button class="skill-purchase-btn" data-sk="${s.key}" ${canAfford ? '' : 'disabled'}>
-                Buy
-              </button>
-            </div>
+            <div class="skill-browser-card-desc">${s.description || ''}</div>
           </div>`;
       }).join('');
 
-      const ownedRows = alreadyOwned.map(s => `
-        <div class="skill-browser-row skill-browser-row--owned">
-          <div class="skill-browser-info">
-            <span class="skill-browser-name">${s.label}</span>
-            <span class="skill-browser-desc">${s.description || ''}</span>
-          </div>
-          <div class="skill-browser-cost-col">
-            <span class="skill-browser-owned-badge">Owned</span>
-          </div>
-        </div>`).join('');
+      const ownedRows = alreadyOwned.map(s => {
+        const spCost = s.spCost ?? s.cost ?? 1;
+        return `
+          <div class="skill-browser-card skill-browser-card--owned">
+            <div class="skill-browser-card-top">
+              <div class="skill-browser-card-name">${s.label}</div>
+              <div class="skill-browser-card-actions">
+                <span class="skill-browser-owned-badge">✓ Learned</span>
+              </div>
+            </div>
+            <div class="skill-browser-card-desc">${s.description || ''}</div>
+          </div>`;
+      }).join('');
 
       skillBrowserHTML = `
         <div class="skill-browser">
           <div class="skill-browser-header">
             <span class="skill-browser-title">[ SKILL BROWSER ]</span>
-            <span class="skill-browser-xp">Available XP: <strong>${purchasableXP}</strong></span>
+            <span class="skill-browser-sp-pool">
+              <span class="skill-browser-sp-pool-label">Available SP</span>
+              <span class="skill-browser-sp-pool-val">${availableSP}</span>
+            </span>
           </div>
-          ${skillRows}
-          ${availableRows}
-          ${ownedRows}
+          ${emptyMsg}
+          ${availableRows.length ? `<div class="skill-browser-section-label">Available</div>${availableRows}` : ''}
+          ${ownedRows.length    ? `<div class="skill-browser-section-label skill-browser-section-label--owned">Learned</div>${ownedRows}` : ''}
         </div>`;
     }
 
@@ -1285,7 +1308,7 @@ function showInlineLevelUp() {
         const result = purchaseSkill(key);
         if (result.ok) {
           scheduleStatsRender();
-          render();   // re-render to update XP display and move skill to "Owned"
+          render();   // re-render to update SP display and move skill to "Owned"
         } else {
           console.warn(`[engine] Skill purchase failed: ${result.reason}`);
         }
