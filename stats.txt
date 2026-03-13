@@ -1,6 +1,7 @@
 *stat_group "Operative"
 *stat_icon first_name "◈"
-*stat_combined first_name last_name "Name"
+*stat first_name "First Name"
+*stat last_name "Last Name"
 *stat class_name "Class"
 
 *stat_group "Progress"
@@ -19,3 +20,5 @@
 *stat_registered
 
 *inventory
+
+*skills_registered
