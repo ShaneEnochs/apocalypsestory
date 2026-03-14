@@ -903,7 +903,7 @@ async function executeCurrentLine() {
     ip += 1;
     const saved = saveGameToSlot('auto', saveLabel);
     addSystem(saved
-      ? '[ AUTOSAVE SUCCESSFUL ]\nManual save slot available in Save·Load menu.'
+      ? '[ AUTOSAVE SUCCESSFUL ]\nManual save slot available in the Save · Load menu.'
       : '[ SAVE FAILED — storage unavailable ]');
     return;
   }
@@ -1580,6 +1580,8 @@ function refreshAllSlotCards() {
   ['auto', 1, 2, 3].forEach(slot => {
     const save    = loadSaveFromSlot(slot);
     const s       = String(slot);
+
+    // Splash screen slot cards
     const sCard   = document.getElementById(`slot-card-${s}`);
     if (sCard) populateSlotCard({
       nameEl:    document.getElementById(`slot-name-${s}`),
@@ -1589,22 +1591,22 @@ function refreshAllSlotCards() {
       cardEl:    sCard,
       save,
     });
-    if (slot !== 'auto') {
-      const iCard = document.getElementById(`save-card-${slot}`);
-      if (iCard) {
-        const loadBtn = document.getElementById(`ingame-load-${slot}`);
-        populateSlotCard({
-          nameEl:    document.getElementById(`save-slot-name-${slot}`),
-          metaEl:    document.getElementById(`save-slot-meta-${slot}`),
-          loadBtn,
-          deleteBtn: document.getElementById(`save-delete-${slot}`),
-          cardEl:    iCard,
-          save,
-        });
-        // Save button is always enabled in-game; never disable it
-        const saveBtn = document.getElementById(`save-to-${slot}`);
-        if (saveBtn) saveBtn.disabled = false;
-      }
+
+    // In-game save menu slot cards (all slots including auto)
+    const iCard = document.getElementById(`save-card-${s}`);
+    if (iCard) {
+      const loadBtn = document.getElementById(`ingame-load-${s}`);
+      populateSlotCard({
+        nameEl:    document.getElementById(`save-slot-name-${s}`),
+        metaEl:    document.getElementById(`save-slot-meta-${s}`),
+        loadBtn,
+        deleteBtn: document.getElementById(`save-delete-${s}`),
+        cardEl:    iCard,
+        save,
+      });
+      // Re-enable the Save button for manual slots (auto has no Save button)
+      const saveBtn = document.getElementById(`save-to-${s}`);
+      if (saveBtn) saveBtn.disabled = false;
     }
   });
 }
