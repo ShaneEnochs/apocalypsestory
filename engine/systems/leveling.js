@@ -7,8 +7,8 @@
 // with the UI layer while keeping the dependency explicit.
 // ---------------------------------------------------------------------------
 
-import { playerState, statRegistry }          from '../core/state.js';
-import { addPendingStatPoints, addPendingLevelUpCount,
+import { playerState, statRegistry,
+         addPendingStatPoints, addPendingLevelUpCount,
          setPendingLevelUpDisplay }            from '../core/state.js';
 import { addInventoryItem,
          parseInventoryUpdateText }            from './inventory.js';
@@ -31,8 +31,9 @@ export function getAllocatableStatKeys() {
 export function checkAndApplyLevelUp(onChanged) {
   if (!Number(playerState.xp_to_next || 0)) return;
 
-  const mult = Number(playerState.xp_up_mult      ?? 2.2);
-  const gain = Number(playerState.lvl_up_stat_gain ?? 5);
+  const mult      = Number(playerState.xp_up_mult       ?? 2.2);
+  const gain      = Number(playerState.lvl_up_stat_gain  ?? 5);
+  const skillGain = Number(playerState.lvl_up_skill_gain ?? 0);
   let changed = false;
 
   while (Number(playerState.xp) >= Number(playerState.xp_to_next)) {
@@ -40,6 +41,10 @@ export function checkAndApplyLevelUp(onChanged) {
     playerState.xp_to_next = Math.floor(Number(playerState.xp_to_next) * mult);
     addPendingStatPoints(gain);
     addPendingLevelUpCount(1);
+    // Award skill points — accumulate in playerState, spent via skill browser
+    if (skillGain > 0) {
+      playerState.skill_points = Number(playerState.skill_points || 0) + skillGain;
+    }
     changed = true;
   }
 
