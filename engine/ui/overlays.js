@@ -187,13 +187,18 @@ export function refreshAllSlotCards() {
       save,
     });
 
-    // In-game save menu slot cards (save-card-* prefix; no auto slot here)
-    if (slot !== 'auto') {
-      const iCard = document.getElementById(`save-card-${s}`);
-      if (iCard) populateSlotCard({
+    // In-game save menu slot cards (save-card-* prefix)
+    const iCard = document.getElementById(`save-card-${s}`);
+    if (iCard) {
+      // Auto slot has no save-to button — use the ingame-load button for
+      // the loadBtn parameter so populateSlotCard can toggle its enabled state.
+      const loadBtnEl = slot === 'auto'
+        ? document.getElementById(`ingame-load-${s}`)
+        : document.getElementById(`save-to-${s}`);
+      populateSlotCard({
         nameEl:    document.getElementById(`save-slot-name-${s}`),
         metaEl:    document.getElementById(`save-slot-meta-${s}`),
-        loadBtn:   document.getElementById(`save-to-${s}`),
+        loadBtn:   loadBtnEl,
         deleteBtn: document.getElementById(`save-delete-${s}`),
         cardEl:    iCard,
         save,
