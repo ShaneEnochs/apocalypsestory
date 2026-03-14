@@ -18,6 +18,7 @@
 //     → inventory.js    (addInventoryItem, removeInventoryItem, itemBaseName)
 //     → leveling.js     (checkAndApplyLevelUp)
 //     → saves.js        (saveGameToSlot)
+//     → skills.js       (grantSkill, revokeSkill, playerHasSkill)
 //     ← engine.js       (injects UI callbacks at boot via registerCallbacks)
 // ---------------------------------------------------------------------------
 
@@ -26,7 +27,7 @@ import {
   _gotoJumped, awaitingChoice, pendingLevelUpDisplay,
   setCurrentScene, setCurrentLines, setIp, advanceIp,
   setGotoJumped, setAwaitingChoice, setDelayIndex, clearTempState,
-  normalizeKey, setVar, declareTemp,
+  normalizeKey, setVar, declareTemp, patchPlayerState,
 } from './state.js';
 
 import { evalValue }            from './expression.js';
@@ -34,6 +35,8 @@ import { parseLines, indexLabels, parseChoice, parseSystemBlock } from './parser
 import { addInventoryItem, removeInventoryItem, itemBaseName }     from '../systems/inventory.js';
 import { checkAndApplyLevelUp }                                    from '../systems/leveling.js';
 import { saveGameToSlot }                                          from '../systems/saves.js';
+import { grantSkill, revokeSkill, playerHasSkill }                 from '../systems/skills.js';
+import { addJournalEntry }                                         from '../systems/journal.js';
 
 // ---------------------------------------------------------------------------
 // Callback registry — UI functions injected by engine.js at boot.
@@ -55,6 +58,7 @@ const cb = {
   showEngineError:    null,
   scheduleStatsRender:null,
   setChapterTitle:    null,   // (title: string) → void
+  showInputPrompt:    null,   // (varName, prompt, onSubmit) → void
   runStatsScene:      null,
   fetchTextFile:      null,
 };
@@ -121,7 +125,9 @@ export function evaluateCondition(raw) {
     .replace(/^\*elseif\s*/, '')
     .replace(/^\*loop\s*/,   '')
     .trim();
-  return !!evalValue(condition.replace(/^\(|\)$/g, ''));
+  // evalValue's recursive descent parser handles all paren forms correctly —
+  // (condition), (a) and (b), bare identifiers — so no stripping is needed.
+  return !!evalValue(condition);
 }
 
 // ---------------------------------------------------------------------------
@@ -310,7 +316,7 @@ registerCommand('*set', (t) => {
 // *flag key  — sets playerState[key] = true
 registerCommand('*flag', (t) => {
   const key = normalizeKey(t.replace(/^\*flag\s*/, '').trim());
-  if (key) { playerState[key] = true; cb.scheduleStatsRender(); }
+  if (key) { patchPlayerState({ [key]: true }); cb.scheduleStatsRender(); }
   advanceIp();
 });
 
@@ -324,17 +330,25 @@ registerCommand('*save_point', (t) => {
 
 // *uppercase key
 registerCommand('*uppercase', (t) => {
-  const key   = normalizeKey(t.replace(/^\*uppercase\s*/, '').trim());
-  const store = Object.prototype.hasOwnProperty.call(tempState, key) ? tempState : playerState;
-  if (typeof store[key] === 'string') store[key] = store[key].toUpperCase();
+  const key    = normalizeKey(t.replace(/^\*uppercase\s*/, '').trim());
+  const inTemp = Object.prototype.hasOwnProperty.call(tempState, key);
+  if (inTemp && typeof tempState[key] === 'string') {
+    tempState[key] = tempState[key].toUpperCase();
+  } else if (typeof playerState[key] === 'string') {
+    patchPlayerState({ [key]: playerState[key].toUpperCase() });
+  }
   advanceIp();
 });
 
 // *lowercase key
 registerCommand('*lowercase', (t) => {
-  const key   = normalizeKey(t.replace(/^\*lowercase\s*/, '').trim());
-  const store = Object.prototype.hasOwnProperty.call(tempState, key) ? tempState : playerState;
-  if (typeof store[key] === 'string') store[key] = store[key].toLowerCase();
+  const key    = normalizeKey(t.replace(/^\*lowercase\s*/, '').trim());
+  const inTemp = Object.prototype.hasOwnProperty.call(tempState, key);
+  if (inTemp && typeof tempState[key] === 'string') {
+    tempState[key] = tempState[key].toLowerCase();
+  } else if (typeof playerState[key] === 'string') {
+    patchPlayerState({ [key]: playerState[key].toLowerCase() });
+  }
   advanceIp();
 });
 
@@ -376,6 +390,98 @@ registerCommand('*check_item', (t) => {
     playerState[destKey] = checkResult;
   }
   advanceIp();
+});
+
+// *grant_skill "key" — adds skill without SP cost
+registerCommand('*grant_skill', (t) => {
+  const key = t.replace(/^\*grant_skill\s*/, '').trim().replace(/^"|"$/g, '');
+  grantSkill(key);
+  cb.scheduleStatsRender();
+  advanceIp();
+});
+
+// *revoke_skill "key" — removes a skill
+registerCommand('*revoke_skill', (t) => {
+  const key = t.replace(/^\*revoke_skill\s*/, '').trim().replace(/^"|"$/g, '');
+  revokeSkill(key);
+  cb.scheduleStatsRender();
+  advanceIp();
+});
+
+// *check_skill "key" dest_var — writes bool to variable
+registerCommand('*check_skill', (t) => {
+  const checkArgs  = t.replace(/^\*check_skill\s*/, '').trim();
+  const checkMatch = checkArgs.match(/^"([^"]+)"\s+([a-zA-Z_][\w]*)$/) ||
+                     checkArgs.match(/^(\S+)\s+([a-zA-Z_][\w]*)$/);
+  if (!checkMatch) {
+    cb.showEngineError(`*check_skill requires two arguments: *check_skill "key" dest_var\nGot: ${t}`);
+    setIp(currentLines.length);
+    return;
+  }
+  const skillKey    = normalizeKey(checkMatch[1]);
+  const destKey     = normalizeKey(checkMatch[2]);
+  const checkResult = playerHasSkill(skillKey);
+  if (Object.prototype.hasOwnProperty.call(tempState, destKey)) {
+    tempState[destKey] = checkResult;
+  } else {
+    if (!Object.prototype.hasOwnProperty.call(playerState, destKey))
+      console.warn(`[interpreter] *check_skill dest_var "${destKey}" is undeclared.`);
+    playerState[destKey] = checkResult;
+  }
+  advanceIp();
+});
+
+// *journal "Entry text" — adds a journal entry
+registerCommand('*journal', (t) => {
+  const text = t.replace(/^\*journal\s*/, '').trim().replace(/^"|"$/g, '');
+  if (text) {
+    addJournalEntry(text, 'entry');
+    cb.scheduleStatsRender();
+  }
+  advanceIp();
+});
+
+// *achievement "Achievement text" — adds an achievement
+registerCommand('*achievement', (t) => {
+  const text = t.replace(/^\*achievement\s*/, '').trim().replace(/^"|"$/g, '');
+  if (text) {
+    addJournalEntry(text, 'achievement');
+    cb.addSystem(`◆ Achievement Unlocked: ${text}`);
+    cb.scheduleStatsRender();
+  }
+  advanceIp();
+});
+
+// *input varName "Prompt text" — inline text input that pauses the interpreter.
+// Creates a text field in the narrative; stores the value in the named variable
+// when the player submits. Works like *choice: pauses execution until input is
+// provided, then resumes from the next line.
+registerCommand('*input', (t) => {
+  const m = t.match(/^\*input\s+([a-zA-Z_][\w]*)\s+"([^"]+)"$/);
+  if (!m) {
+    cb.showEngineError(`*input requires: *input varName "Prompt text"\nGot: ${t}`);
+    setIp(currentLines.length);
+    return;
+  }
+  const varName = normalizeKey(m[1]);
+  const prompt  = m[2];
+  const resumeIp = ip + 1;
+
+  // Jump ip past end of scene to stop runInterpreter's loop.
+  // The onSubmit callback restores ip to resumeIp and re-enters the loop.
+  setIp(currentLines.length);
+
+  // Build the input UI via the callback system
+  cb.showInputPrompt(varName, prompt, (value) => {
+    // Store the value in tempState if it exists there, otherwise playerState
+    if (Object.prototype.hasOwnProperty.call(tempState, varName)) {
+      tempState[varName] = value;
+    } else {
+      playerState[varName] = value;
+    }
+    setIp(resumeIp);
+    runInterpreter();
+  });
 });
 
 // *if / *elseif / *else  (full chain resolution)
