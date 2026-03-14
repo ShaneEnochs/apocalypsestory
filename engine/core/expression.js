@@ -29,6 +29,7 @@ const TT = {
   PLUS: '+', MINUS: '-', STAR: '*', SLASH: '/',
   LT: '<', GT: '>', LTE: '<=', GTE: '>=', EQ: '=', NEQ: '!=',
   AND: 'AND', OR: 'OR', NOT: 'NOT',
+  COMMA: ',',
   EOF: 'EOF',
 };
 
@@ -84,7 +85,7 @@ function tokenise(src) {
       '+': TT.PLUS,  '-': TT.MINUS, '*': TT.STAR, '/': TT.SLASH,
       '<': TT.LT,    '>': TT.GT,    '=': TT.EQ,
       '(': TT.LPAREN, ')': TT.RPAREN, '[': TT.LBRACKET, ']': TT.RBRACKET,
-      '!': TT.NOT,
+      '!': TT.NOT,   ',': TT.COMMA,
     };
     if (SINGLE[src[i]]) { tokens.push({ type: SINGLE[src[i]], value: src[i] }); i++; continue; }
 
@@ -216,9 +217,15 @@ function makeParser(tokens) {
       return val;
     }
 
-    // Variable lookup: tempState first, then playerState
+    // Variable lookup OR function call: tempState first, then playerState
     if (tok.type === TT.IDENT) {
       advance();
+
+      // Function call: identifier followed by (
+      if (peek().type === TT.LPAREN) {
+        return parseFunction(tok.value);
+      }
+
       const k = normalizeKey(tok.value);
       if (Object.prototype.hasOwnProperty.call(tempState,   k)) return tempState[k];
       if (Object.prototype.hasOwnProperty.call(playerState, k)) return playerState[k];
@@ -230,6 +237,51 @@ function makeParser(tokens) {
     console.warn(`[expression] Unexpected token ${tok.type} in expression`);
     advance();
     return undefined;
+  }
+
+  // --- Built-in functions ---
+  // parseArgList: consumes ( expr, expr, ... ) and returns an array of values.
+  function parseArgList() {
+    expect(TT.LPAREN);
+    const args = [];
+    if (peek().type !== TT.RPAREN) {
+      args.push(parseExpr());
+      while (peek().type === TT.COMMA) { advance(); args.push(parseExpr()); }
+    }
+    expect(TT.RPAREN);
+    return args;
+  }
+
+  // Built-in function dispatch table. Each entry: (args) → value.
+  const BUILTINS = {
+    // random(min, max) — returns integer in [min, max] inclusive
+    random: (args) => {
+      const lo = Math.ceil(Number(args[0]  ?? 1));
+      const hi = Math.floor(Number(args[1] ?? lo));
+      return Math.floor(Math.random() * (hi - lo + 1)) + lo;
+    },
+    round: (args) => Math.round(Number(args[0] ?? 0)),
+    floor: (args) => Math.floor(Number(args[0] ?? 0)),
+    ceil:  (args) => Math.ceil(Number(args[0] ?? 0)),
+    abs:   (args) => Math.abs(Number(args[0] ?? 0)),
+    min:   (args) => Math.min(...args.map(Number)),
+    max:   (args) => Math.max(...args.map(Number)),
+    length: (args) => {
+      const v = args[0];
+      if (Array.isArray(v)) return v.length;
+      return String(v ?? '').length;
+    },
+  };
+
+  function parseFunction(name) {
+    const lower = name.toLowerCase();
+    const fn    = BUILTINS[lower];
+    if (!fn) {
+      console.warn(`[expression] Unknown function "${name}" — returning 0`);
+      parseArgList(); // consume args so tokens don't leak
+      return 0;
+    }
+    return fn(parseArgList());
   }
 
   return { parseExpr };
