@@ -38,7 +38,7 @@
 // saves from older builds are rejected cleanly rather than silently corrupting
 // state on load.
 // ---------------------------------------------------------------------------
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 
 const SAVE_KEY_AUTO  = 'sa_save_auto';
 const SAVE_KEY_SLOTS = { 1: 'sa_save_slot_1', 2: 'sa_save_slot_2', 3: 'sa_save_slot_3' };
@@ -717,7 +717,13 @@ async function gotoScene(name, label = null, savedIp = null, isRestore = false) 
   // auto-save (or was just promoted to it); overwriting it here would record the
   // scene entry timestamp rather than the original checkpoint timestamp, and
   // would also fire before runInterpreter has had a chance to re-render anything.
-  if (!isRestore) saveGameToSlot('auto', label || null);
+  //
+  // For non-restore calls: we deliberately do NOT write a scene-entry auto-save
+  // here. A scene-entry save always has ip=0 and label=null, which means loading
+  // it restarts the scene from page 1 — functionally identical to having no save.
+  // The only correct auto-save writes come from *save_point directives, which
+  // capture a real checkpoint. The save slot shows empty until then, which is
+  // the honest and correct behaviour.
   await runInterpreter();
 }
 
