@@ -139,6 +139,10 @@ export function declareTemp(command, evalValueFn) {
 // Accepts fetchTextFileFn and evalValueFn as injected dependencies so this
 // module remains pure (no direct fetch calls, no Function() evaluator import).
 // ---------------------------------------------------------------------------
+// _statRegistryWarningFired: module-level so it only fires once per page load,
+// not on every parseStartup call (boot + each restoreFromSave).
+let _statRegistryWarningFired = false;
+
 export async function parseStartup(fetchTextFileFn, evalValueFn) {
   const text  = await fetchTextFileFn('startup');
   const lines = text.split(/\r?\n/).map(raw => ({
@@ -155,7 +159,6 @@ export async function parseStartup(fetchTextFileFn, evalValueFn) {
   startup      = { sceneList: [] };
 
   let inSceneList               = false;
-  let _statRegistryWarningFired = false;
 
   for (const line of lines) {
     if (!line.trimmed || line.trimmed.startsWith('//')) continue;
