@@ -54,6 +54,8 @@ const PRONOUN_SETS = {
   'he/him':    { they: 'he',   them: 'him',  their: 'his',   themself: 'himself'  },
   'she/her':   { they: 'she',  them: 'her',  their: 'her',   themself: 'herself'  },
   'they/them': { they: 'they', them: 'them', their: 'their', themself: 'themself' },
+  'xe/xem':    { they: 'xe',   them: 'xem',  their: 'xyr',   themself: 'xemself'  },
+  'ze/zir':    { they: 'ze',   them: 'zir',  their: 'zir',   themself: 'zirself'  },
 };
 
 function resolvePronoun(tokenLower, capitalise) {
@@ -193,4 +195,50 @@ export function renderChoices(choices) {
     ov.innerHTML = `<span>All stat points must be allocated</span>`;
     _choiceArea.appendChild(ov);
   }
+}
+
+// ---------------------------------------------------------------------------
+// showInputPrompt — inline text input that pauses the interpreter.
+// Used by the *input directive. Creates a styled input field in the narrative
+// area and calls onSubmit(value) when the player presses Enter or clicks Submit.
+// ---------------------------------------------------------------------------
+export function showInputPrompt(varName, prompt, onSubmit) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'input-prompt-block';
+  wrapper.style.animationDelay = `${delayIndex * 80}ms`;
+  advanceDelayIndex();
+
+  wrapper.innerHTML = `
+    <span class="system-block-label">[ INPUT ]</span>
+    <label class="input-prompt-label">${formatText(prompt)}</label>
+    <div class="input-prompt-row">
+      <input type="text" class="input-prompt-field" autocomplete="off" spellcheck="false" maxlength="60" />
+      <button class="input-prompt-submit" disabled>Submit</button>
+    </div>`;
+
+  _narrativeContent.insertBefore(wrapper, _choiceArea);
+
+  const field  = wrapper.querySelector('.input-prompt-field');
+  const submit = wrapper.querySelector('.input-prompt-submit');
+
+  field.addEventListener('input', () => {
+    submit.disabled = !field.value.trim();
+  });
+
+  function doSubmit() {
+    const value = field.value.trim();
+    if (!value) return;
+    field.disabled  = true;
+    submit.disabled = true;
+    wrapper.classList.add('input-prompt-block--submitted');
+    // Sanitize the displayed value — user input must never be injected raw into innerHTML
+    const safe = value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    wrapper.innerHTML = `<span class="system-block-label">[ INPUT ]</span><span class="system-block-text">${formatText(prompt)}: <strong>${safe}</strong></span>`;
+    onSubmit(value);
+  }
+
+  field.addEventListener('keydown', e => { if (e.key === 'Enter') doSubmit(); });
+  submit.addEventListener('click', doSubmit);
+
+  requestAnimationFrame(() => { try { field.focus(); } catch (_) {} });
 }
