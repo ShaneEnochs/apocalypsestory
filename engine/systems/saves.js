@@ -2,8 +2,7 @@
 // systems/saves.js — Save / load / slot management
 //
 // Handles localStorage serialisation and deserialisation of game state.
-// DOM slot-card rendering (populateSlotCard, refreshAllSlotCards) stays in
-// engine.js until Phase 4 when it moves to ui/overlays.js.
+// DOM slot-card rendering lives in ui/overlays.js (moved in Phase 4).
 //
 // Save version: bump SAVE_VERSION whenever the payload shape changes so stale
 // saves are rejected cleanly rather than silently corrupting state.
