@@ -902,7 +902,9 @@ async function executeCurrentLine() {
     // would re-execute *save_point, triggering another write and banner.
     ip += 1;
     const saved = saveGameToSlot('auto', saveLabel);
-    addSystem(saved ? '[ PROGRESS SAVED ]' : '[ SAVE FAILED — storage unavailable ]');
+    addSystem(saved
+      ? '[ PROGRESS SAVED ]\nOpen the Save menu (⬡ Save · Load) to save to a manual slot.'
+      : '[ SAVE FAILED — storage unavailable ]');
     return;
   }
 
@@ -1355,6 +1357,8 @@ function showInlineLevelUp() {
       </div>
 
       ${skillBrowserHTML}
+
+      ${!skillBrowserOpen ? `<p style="font-family:var(--font-mono);font-size:0.62rem;letter-spacing:0.06em;color:var(--text-faint);margin:10px 0 4px;line-height:1.6;">Skill Points (SP) carry over between levels — you can spend them now or save them up for costlier skills.</p>` : ''}
 
       <div class="levelup-inline-footer">
         <button class="skill-browse-btn" data-browse>
