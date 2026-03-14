@@ -903,7 +903,7 @@ async function executeCurrentLine() {
     ip += 1;
     const saved = saveGameToSlot('auto', saveLabel);
     addSystem(saved
-      ? '[ AUTOSAVE SUCCESSFUL ]\nManual save slot available in Save·Load menu.'
+      ? '[ AUTOSAVE SUCCESSFUL ]\nManual save slot available in the Save · Load menu.'
       : '[ SAVE FAILED — storage unavailable ]');
     return;
   }
@@ -1860,9 +1860,17 @@ function wireUI() {
         showToast('Nothing to save yet — reach a save point first.');
         return;
       }
-      hideSaveMenu();
-      showToast(`Saved to Slot ${slot}`);
+      // Flash the card so the player has clear visual confirmation of which
+      // slot was written, then close the menu once the animation settles.
+      const card = document.getElementById(`save-card-${slot}`);
+      if (card) {
+        card.classList.remove('slot-card--saved'); // reset if re-saving same slot
+        void card.offsetWidth;                     // force reflow to restart animation
+        card.classList.add('slot-card--saved');
+      }
       refreshAllSlotCards();
+      showToast(`Saved to Slot ${slot}`);
+      setTimeout(() => hideSaveMenu(), 500);
     });
   });
 
