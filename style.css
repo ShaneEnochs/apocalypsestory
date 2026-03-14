@@ -925,4 +925,16 @@ body {
 .toast-hide { animation: toastOut 0.3s ease forwards; }
 
 @keyframes toastIn { to { opacity: 1; transform: translateX(-50%) translateY(0); } }
-@keyframes toastOut { to { opacity: 0; transform: translateX(-50%) translateY(8px); } } 
+@keyframes toastOut { to { opacity: 0; transform: translateX(-50%) translateY(8px); } }
+
+/* Save-flash: brief cyan border pulse on a slot card after a successful manual save */
+.slot-card--saved {
+  animation: slotSaveFlash 0.55s ease forwards;
+}
+
+@keyframes slotSaveFlash {
+  0%   { border-color: var(--border-dim); }
+  25%  { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-glow-md); }
+  70%  { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-glow-md); }
+  100% { border-color: var(--border-glow); box-shadow: none; }
+} 
