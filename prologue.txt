@@ -132,6 +132,8 @@ Maybe silence is the right language for this. Maybe there are no words big enoug
 
 *label sable_speaks
 
+*save_point sable_speaks
+
 Sable spoke without turning her head.
 
 "There's someone in the courtyard."
@@ -184,6 +186,8 @@ You take the stairs.
 *goto meet_janus
 
 *label meet_janus
+
+*save_point meet_janus
 
 *title The Two-Faced God
 
