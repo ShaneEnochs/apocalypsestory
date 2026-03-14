@@ -32,6 +32,8 @@ import {
 } from '../core/state.js';
 
 import { getAllocatableStatKeys } from '../systems/leveling.js';
+import { skillRegistry, playerHasSkill, purchaseSkill } from '../systems/skills.js';
+import { getJournalEntries, getAchievements } from '../systems/journal.js';
 
 // ---------------------------------------------------------------------------
 // Module-level DOM references and callbacks — populated by init()
@@ -104,6 +106,12 @@ export async function runStatsScene() {
       if (m) styleState.icons[normalizeKey(m[1])] = m[2];
     } else if (t.startsWith('*inventory')) {
       entries.push({ type: 'inventory' });
+    } else if (t.trim() === '*skills_registered') {
+      entries.push({ type: 'skills' });
+    } else if (t.trim() === '*journal_section') {
+      entries.push({ type: 'journal' });
+    } else if (t.trim() === '*achievements') {
+      entries.push({ type: 'achievements' });
     } else if (t === '*stat_registered') {
       statRegistry.forEach(({ key, label }) => entries.push({ type: 'stat', key, label }));
     } else if (t.startsWith('*stat')) {
@@ -131,9 +139,56 @@ export async function runStatsScene() {
         : '<li class="tag-empty">Empty</li>';
       html += `<div class="status-section"><div class="status-label status-section-header">Inventory</div><ul class="tag-list">${items}</ul></div>`;
     }
+    if (e.type === 'skills') {
+      if (inGroup) { html += `</div>`; inGroup = false; }
+      const owned = Array.isArray(playerState.skills) ? playerState.skills : [];
+      if (owned.length === 0 && skillRegistry.length === 0) {
+        // No skills defined and none owned — skip the section entirely
+      } else {
+        const skillItems = owned.length
+          ? owned.map(k => {
+              const entry = skillRegistry.find(s => s.key === k);
+              const label = entry ? entry.label : k;
+              return `<li class="skill-accordion"><button class="skill-accordion-btn" data-skill-key="${k}"><span class="skill-accordion-name">${label}</span><span class="skill-accordion-chevron">▾</span></button><div class="skill-accordion-desc" style="display:none;">${entry ? entry.description : ''}</div></li>`;
+            }).join('')
+          : '<li class="tag-empty">No skills learned</li>';
+        html += `<div class="status-section"><div class="status-label status-section-header">Skills</div><ul class="skill-accordion-list">${skillItems}</ul></div>`;
+      }
+    }
+    if (e.type === 'achievements') {
+      if (inGroup) { html += `</div>`; inGroup = false; }
+      const achvs = getAchievements();
+      if (achvs.length > 0) {
+        const items = achvs.map(a => `<li class="journal-entry journal-entry--achievement"><span class="journal-achievement-icon">◆</span> ${a.text}</li>`).join('');
+        html += `<div class="status-section"><div class="status-label status-section-header">Achievements</div><ul class="journal-list">${items}</ul></div>`;
+      }
+    }
+    if (e.type === 'journal') {
+      if (inGroup) { html += `</div>`; inGroup = false; }
+      const entries = getJournalEntries();
+      if (entries.length > 0) {
+        // Show newest first in the sidebar
+        const items = [...entries].reverse().map(j => {
+          const cls = j.type === 'achievement' ? 'journal-entry journal-entry--achievement' : 'journal-entry';
+          const prefix = j.type === 'achievement' ? '<span class="journal-achievement-icon">◆</span> ' : '';
+          return `<li class="${cls}">${prefix}${j.text}</li>`;
+        }).join('');
+        html += `<div class="status-section"><div class="status-label status-section-header">Journal</div><ul class="journal-list">${items}</ul></div>`;
+      }
+    }
   });
   if (inGroup) html += `</div>`;
   _statusPanel.innerHTML = html;
+
+  // Wire skill accordion toggles in the status panel
+  _statusPanel.querySelectorAll('.skill-accordion-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const desc = btn.nextElementSibling;
+      const isOpen = desc.style.display !== 'none';
+      desc.style.display = isOpen ? 'none' : 'block';
+      btn.classList.toggle('skill-accordion-btn--open', !isOpen);
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -158,6 +213,9 @@ export function showInlineLevelUp() {
   const labelMap = Object.fromEntries(statRegistry.map(({ key, label }) => [key, label]));
   const alloc    = Object.fromEntries(keys.map(k => [k, 0]));
 
+  // Track whether the skill browser sub-panel is visible
+  let skillBrowserOpen = false;
+
   const block = document.createElement('div');
   block.className = 'levelup-inline-block';
   block.style.animationDelay = `${delayIndex * 80}ms`;
@@ -175,10 +233,71 @@ export function showInlineLevelUp() {
     _choiceArea.appendChild(ov);
   }
 
+  // --- Skill browser HTML builder ---
+  function buildSkillBrowserHTML() {
+    if (skillRegistry.length === 0) return '';
+    const sp = Number(playerState.skill_points || 0);
+    const available = skillRegistry.filter(s => !playerHasSkill(s.key));
+    const owned     = skillRegistry.filter(s =>  playerHasSkill(s.key));
+
+    let html = `
+      <div class="skill-browser">
+        <div class="skill-browser-header">
+          <span class="skill-browser-title">SKILL BROWSER</span>
+          <div class="skill-browser-sp-pool">
+            <span class="skill-browser-sp-pool-label">SP</span>
+            <span class="skill-browser-sp-pool-val">${sp}</span>
+          </div>
+        </div>`;
+
+    if (available.length) {
+      html += `<div class="skill-browser-section-label">Available</div>`;
+      available.forEach(s => {
+        const canAfford = sp >= s.spCost;
+        html += `
+          <div class="skill-browser-card ${canAfford ? '' : 'skill-browser-card--unaffordable'}">
+            <div class="skill-browser-card-top">
+              <span class="skill-browser-card-name">${s.label}</span>
+              <div class="skill-browser-card-actions">
+                <span class="skill-browser-sp-badge ${canAfford ? 'skill-browser-sp-badge--can-afford' : ''}">${s.spCost} SP</span>
+                <button class="skill-purchase-btn" data-purchase-key="${s.key}" ${canAfford ? '' : 'disabled'}>Unlock</button>
+              </div>
+            </div>
+            <div class="skill-browser-card-desc">${s.description}</div>
+          </div>`;
+      });
+    }
+
+    if (owned.length) {
+      html += `<div class="skill-browser-section-label skill-browser-section-label--owned">Learned</div>`;
+      owned.forEach(s => {
+        html += `
+          <div class="skill-browser-card skill-browser-card--owned">
+            <div class="skill-browser-card-top">
+              <span class="skill-browser-card-name">${s.label}</span>
+              <div class="skill-browser-card-actions">
+                <span class="skill-browser-owned-badge">✓ Learned</span>
+              </div>
+            </div>
+            <div class="skill-browser-card-desc">${s.description}</div>
+          </div>`;
+      });
+    }
+
+    if (!available.length && !owned.length) {
+      html += `<div class="skill-browser-empty">No skills defined.</div>`;
+    }
+
+    html += `</div>`;
+    return html;
+  }
+
+  // --- Main render ---
   const render = () => {
     const spent    = Object.values(alloc).reduce((a, b) => a + b, 0);
     const remain   = pendingStatPoints - spent;
     const allSpent = remain === 0;
+    const hasSkills = skillRegistry.length > 0;
 
     block.innerHTML = `
       <span class="system-block-label">[ LEVEL UP ]</span>
@@ -198,13 +317,16 @@ export function showInlineLevelUp() {
           </div>
         `).join('')}
       </div>
-      <div class="levelup-inline-footer">
+      ${skillBrowserOpen ? buildSkillBrowserHTML() : ''}
+      <div class="levelup-inline-footer" style="display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap;">
+        ${hasSkills ? `<button class="skill-browse-btn" data-toggle-skills>${skillBrowserOpen ? 'Hide Skills' : `Browse Skills (${Number(playerState.skill_points || 0)} SP)`}</button>` : ''}
         <button class="levelup-confirm-btn ${allSpent ? '' : 'levelup-confirm-btn--locked'}"
           data-confirm ${allSpent ? '' : 'aria-disabled="true"'}>
           ${allSpent ? 'Confirm' : `Spend all points to confirm (${remain} remaining)`}
         </button>
       </div>`;
 
+    // Wire stat allocation buttons
     block.querySelectorAll('.alloc-btn').forEach(btn => {
       btn.onclick = () => {
         const k = btn.dataset.k;
@@ -215,6 +337,24 @@ export function showInlineLevelUp() {
       };
     });
 
+    // Wire skill browser toggle
+    const toggleBtn = block.querySelector('[data-toggle-skills]');
+    if (toggleBtn) {
+      toggleBtn.onclick = () => { skillBrowserOpen = !skillBrowserOpen; render(); };
+    }
+
+    // Wire skill purchase buttons
+    block.querySelectorAll('[data-purchase-key]').forEach(btn => {
+      btn.onclick = () => {
+        const key = btn.dataset.purchaseKey;
+        if (purchaseSkill(key)) {
+          _scheduleStats();
+          render();
+        }
+      };
+    });
+
+    // Wire confirm button
     block.querySelector('[data-confirm]').onclick = () => {
       if (Object.values(alloc).reduce((a, b) => a + b, 0) < pendingStatPoints) return;
       Object.entries(alloc).forEach(([k, v]) => {
