@@ -85,7 +85,6 @@
   font-size: 0.82rem;
   color: var(--text-dim);
   line-height: 1.55;
-  font-style: italic;
   padding: 8px 10px 10px;
   border-top: 1px solid var(--border-dim);
   background: rgba(0, 0, 0, 0.2);
@@ -190,7 +189,6 @@
   font-family: var(--font-mono);
   font-size: 0.68rem;
   color: var(--text-faint);
-  font-style: italic;
   padding: 12px;
 }
 
@@ -269,7 +267,6 @@
   font-size: 0.88rem;
   color: var(--text-dim);
   line-height: 1.55;
-  font-style: italic;
 }
 
 /* "✓ Learned" green pill */
