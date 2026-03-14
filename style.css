@@ -27,8 +27,8 @@
   --red-glow:      rgba(224, 85, 85, 0.2);
 
   --text-primary:  #d8ddf0;
-  --text-dim:      #7a82a8;
-  --text-faint:    #454c6a;
+  --text-dim:      #9ba2c0;
+  --text-faint:    #6a7198;
 
   --font-display:  'Cinzel', serif;
   --font-body:     'Crimson Text', serif;
@@ -191,7 +191,7 @@ body {
 }
 
 .narrative-paragraph:last-child { margin-bottom: 0; }
-.narrative-paragraph em { color: var(--amber); font-style: italic; }
+.narrative-paragraph em { color: var(--text-primary); font-style: italic; }
 .narrative-paragraph strong { color: var(--cyan); font-weight: 600; }
 
 /* --- System Message Blocks --- */
@@ -363,7 +363,7 @@ body {
 
 .tag-list { list-style: none; display: flex; flex-direction: column; gap: 5px; }
 .tag-list li { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-primary); padding: 4px 8px; border: 1px solid var(--border-dim); background: var(--bg-deep); letter-spacing: 0.06em; animation: tagAppear 0.3s ease forwards; }
-.tag-empty { color: var(--text-faint) !important; border-color: transparent !important; background: transparent !important; font-style: italic; }
+.tag-empty { color: var(--text-faint) !important; border-color: transparent !important; background: transparent !important; }
 
 /* --- Overlays --- */
 .overlay {
@@ -527,7 +527,7 @@ body {
   animation: none;
 }
 
-.levelup-confirmed-text { color: var(--text-dim); font-style: italic; }
+.levelup-confirmed-text { color: var(--text-dim); }
 
 .levelup-choice-overlay {
   position: absolute;
@@ -937,4 +937,192 @@ body {
   25%  { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-glow-md); }
   70%  { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-glow-md); }
   100% { border-color: var(--border-glow); box-shadow: none; }
-} 
+}
+
+/* ============================================================
+   *INPUT PROMPT — inline text input in the narrative
+   ============================================================ */
+
+.input-prompt-block {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--cyan);
+  background: var(--bg-system);
+  border-left: 2px solid var(--cyan);
+  border-top: 1px solid var(--border-glow);
+  border-bottom: 1px solid var(--border-glow);
+  padding: 14px 16px;
+  margin: 1.4em 0;
+  position: relative;
+  opacity: 0;
+  animation: systemFlicker 0.5s ease forwards;
+}
+
+.input-prompt-label {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin: 6px 0 12px;
+}
+
+.input-prompt-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.input-prompt-field {
+  flex: 1;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-dim);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  padding: 9px 14px;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  caret-color: var(--cyan);
+  min-width: 0;
+}
+
+.input-prompt-field:focus {
+  border-color: var(--cyan-dim);
+  box-shadow: 0 0 0 2px var(--cyan-glow);
+}
+
+.input-prompt-submit {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bg-deep);
+  background: var(--cyan);
+  border: none;
+  padding: 9px 20px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.input-prompt-submit:hover:not(:disabled) { background: #fff; }
+.input-prompt-submit:disabled { background: var(--border-dim); color: var(--text-faint); cursor: not-allowed; opacity: 0.5; }
+
+.input-prompt-block--submitted {
+  opacity: 0.55;
+  border-left-color: var(--border-dim);
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  animation: none;
+}
+
+/* ============================================================
+   JOURNAL / ACHIEVEMENTS — sidebar list
+   ============================================================ */
+
+.journal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.journal-entry {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  padding: 5px 8px;
+  border: 1px solid var(--border-dim);
+  background: var(--bg-deep);
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  animation: tagAppear 0.3s ease forwards;
+}
+
+.journal-entry--achievement {
+  color: var(--amber);
+  border-color: var(--amber-dim);
+  background: rgba(240, 165, 0, 0.04);
+}
+
+.journal-achievement-icon {
+  color: var(--amber);
+  margin-right: 2px;
+}
+
+/* ============================================================
+   MOBILE RESPONSIVENESS — comprehensive pass
+   ============================================================ */
+
+@media (max-width: 768px) {
+  /* Level-up stat grid: 2 columns instead of 3 on small screens */
+  .stat-alloc-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Overlays: reduce padding, full-width on very small screens */
+  .overlay-box {
+    width: 95%;
+    padding: 28px 20px;
+  }
+
+  .splash-box { padding: 32px 24px 28px; }
+  .save-menu-box { max-width: 100%; }
+  .char-box { max-width: 100%; padding: 28px 20px 24px; }
+
+  /* Level-up block: tighter padding */
+  .levelup-inline-block { padding: 12px 12px 16px; }
+  .levelup-inline-header { flex-wrap: wrap; gap: 6px; }
+  .levelup-inline-footer { flex-wrap: wrap; gap: 8px; }
+
+  /* Skill browser cards: stack actions below name */
+  .skill-browser-card-top { flex-wrap: wrap; gap: 8px; }
+  .skill-browser-card-actions { width: 100%; justify-content: flex-end; }
+
+  /* Choice buttons: less padding */
+  .choice-btn { padding: 12px 16px; font-size: 0.95rem; }
+
+  /* Input prompt: stack vertically on narrow screens */
+  .input-prompt-row { flex-direction: column; }
+  .input-prompt-submit { width: 100%; }
+
+  /* Save slot cards: tighter layout */
+  .slot-card { padding: 10px 12px; gap: 10px; }
+  .slot-actions { gap: 6px; }
+  .slot-load-btn { padding: 5px 10px; font-size: 0.6rem; }
+  .slot-badge { font-size: 0.55rem; min-width: 36px; }
+
+  /* System blocks: less margin */
+  .system-block { margin: 1em 0; padding: 10px 12px; }
+
+  /* Pronoun cards: 2 per row on narrow screens */
+  .pronoun-card { min-width: calc(50% - 10px); }
+
+  /* Skill browser panel inside level-up */
+  .skill-browser { margin-top: 10px; }
+  .skill-browser-card { padding: 10px 12px; }
+  .skill-browser-header { padding: 6px 10px; }
+}
+
+/* Extra-small screens (phones in portrait) */
+@media (max-width: 400px) {
+  .stat-alloc-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .stat-alloc-item { padding: 8px 4px; }
+  .stat-alloc-name { font-size: 0.52rem; }
+  .stat-alloc-val { font-size: 0.9rem; }
+
+  .levelup-confirm-btn { font-size: 0.62rem; padding: 7px 16px; }
+  .skill-browse-btn { font-size: 0.58rem; padding: 6px 12px; }
+
+  #narrative-content { padding: 18px 14px calc(24px + env(safe-area-inset-bottom)); }
+  #header-top { padding: 6px 12px; padding-top: calc(6px + env(safe-area-inset-top)); }
+  #game-title { font-size: 0.68rem; letter-spacing: 0.15em; }
+
+  .overlay-box { padding: 22px 16px; }
+  .overlay-title { font-size: 1.1rem; letter-spacing: 0.15em; }
+  .overlay-btn { font-size: 0.75rem; padding: 10px 24px; }
+}
