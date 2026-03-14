@@ -209,10 +209,10 @@ function formatText(text) {
     }
   );
 
-  // 3. Markdown
+  // 3. Markdown — use non-greedy matching to handle multiple pairs correctly
   result = result
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
 
   return result;
 }
@@ -296,20 +296,25 @@ function clearTempState() { tempState = {}; }
 // Level-up logic
 // ---------------------------------------------------------------------------
 function checkAndApplyLevelUp() {
-  if (!Number(playerState.xp_to_next || 0)) return;
+  const threshold = Number(playerState.xp_to_next || 0);
+  if (threshold <= 0) return;
   const mult      = Number(playerState.xp_up_mult       ?? 2.2);
   const gain      = Number(playerState.lvl_up_stat_gain ?? 5);
   const spGain    = Number(playerState.lvl_up_skill_gain ?? 1);
   let changed = false;
-  while (Number(playerState.xp) >= Number(playerState.xp_to_next)) {
-    const threshold          = Number(playerState.xp_to_next);
-    playerState.xp           = Number(playerState.xp) - threshold;
-    playerState.level        = Number(playerState.level || 0) + 1;
-    playerState.xp_to_next  = Math.floor(threshold * mult);
-    playerState.skill_points = Number(playerState.skill_points || 0) + spGain;
-    pendingStatPoints        += gain;
+  let guard   = 0;
+  while (Number(playerState.xp) >= Number(playerState.xp_to_next) && guard < 200) {
+    const t                      = Number(playerState.xp_to_next);
+    if (t <= 0) break;
+    playerState.xp               = Number(playerState.xp) - t;
+    playerState.level            = Number(playerState.level || 0) + 1;
+    playerState.xp_to_next       = Math.floor(t * mult);
+    playerState.skill_points     = Number(playerState.skill_points || 0) + spGain;
+    pendingStatPoints            += gain;
     changed = true;
+    guard  += 1;
   }
+  if (guard >= 200) console.warn('[engine] checkAndApplyLevelUp: runaway loop guard tripped.');
   if (changed) pendingLevelUpDisplay = true;
 }
 
@@ -380,27 +385,23 @@ function removeInventoryItem(item) {
 // Skill helpers
 // ---------------------------------------------------------------------------
 
-// Returns the skill registry entry for a given key, or null.
 function getSkillEntry(key) {
   return skillRegistry.find(s => s.key === normalizeKey(key)) ?? null;
 }
 
-// Returns true if the player owns the skill.
 function playerHasSkill(key) {
   if (!Array.isArray(playerState.skills)) return false;
   return playerState.skills.includes(normalizeKey(key));
 }
 
-// Grants a skill unconditionally (no XP cost). Returns true if newly added.
 function grantSkill(key) {
   const nk = normalizeKey(key);
   if (!Array.isArray(playerState.skills)) playerState.skills = [];
-  if (playerState.skills.includes(nk)) return false;  // already owned
+  if (playerState.skills.includes(nk)) return false;
   playerState.skills.push(nk);
   return true;
 }
 
-// Removes a skill. Returns true if it was present.
 function revokeSkill(key) {
   const nk = normalizeKey(key);
   if (!Array.isArray(playerState.skills)) return false;
@@ -410,8 +411,6 @@ function revokeSkill(key) {
   return true;
 }
 
-// Purchases a skill from the level-up browser (deducts Skill Points).
-// Returns { ok: true } or { ok: false, reason: string }.
 function purchaseSkill(key) {
   const nk    = normalizeKey(key);
   const entry = getSkillEntry(nk);
@@ -493,7 +492,6 @@ function applySystemRewards(text) {
     const m2 = text.match(regex);
     if (!m2) return;
     const b = Number(m2[1]);
-    // Skip if the current value is a non-numeric string (e.g. health = "Healthy")
     if (numericOnly && typeof playerState[key] === 'string' && isNaN(Number(playerState[key]))) return;
     if (b > 0) { playerState[key] = Number(playerState[key] || 0) + b; stateChanged = true; }
   });
@@ -577,14 +575,6 @@ async function parseStartup() {
 
 // ---------------------------------------------------------------------------
 // Skills file parser
-// Parses skills.txt and populates skillRegistry.
-// Also ensures playerState.skills is initialised as an array.
-//
-// skills.txt format:
-//   *skill key "Label" cost
-//     Description line one.
-//     Description line two (same indent or deeper).
-//   (blank line or next *skill terminates description)
 // ---------------------------------------------------------------------------
 async function parseSkills() {
   skillRegistry = [];
@@ -599,7 +589,7 @@ async function parseSkills() {
   }
 
   const lines = parseLines(text);
-  let current = null;   // the skill entry being built
+  let current = null;
   let descLines = [];
 
   function commitCurrent() {
@@ -611,11 +601,10 @@ async function parseSkills() {
   }
 
   for (const line of lines) {
-    if (line.trimmed.startsWith('//')) continue;   // comment
+    if (line.trimmed.startsWith('//')) continue;
 
     if (line.trimmed.startsWith('*skill')) {
       commitCurrent();
-      // *skill key "Label" cost
       const m = line.trimmed.match(/^\*skill\s+([a-zA-Z_][\w]*)\s+"([^"]+)"\s+(\d+)$/);
       if (!m) {
         console.warn(`[engine] Malformed *skill line: "${line.trimmed}" — expected: *skill key "Label" cost`);
@@ -627,18 +616,13 @@ async function parseSkills() {
       continue;
     }
 
-    // Non-command lines after a *skill header are description text.
     if (current && line.trimmed) {
       descLines.push(line.trimmed);
       continue;
     }
-
-    // Blank lines while building description are ignored (treated as paragraph breaks
-    // if you want them, but for stats panel we collapse to a single string).
-    // When there's no current skill, blank lines are also harmless.
   }
 
-  commitCurrent();   // flush the last skill
+  commitCurrent();
 
   if (!Array.isArray(playerState.skills)) playerState.skills = [];
 
@@ -672,6 +656,19 @@ function showEngineError(message) {
 }
 
 // ---------------------------------------------------------------------------
+// Directive matching helper
+// Tests whether a trimmed line starts with a given directive keyword,
+// ensuring it doesn't false-match a longer word (e.g. *title vs *titlecard).
+// Returns true if the line is exactly the directive or the directive followed
+// by whitespace.
+// ---------------------------------------------------------------------------
+function isDirective(trimmedLine, directive) {
+  if (!trimmedLine.startsWith(directive)) return false;
+  if (trimmedLine.length === directive.length) return true;
+  return /\s/.test(trimmedLine[directive.length]);
+}
+
+// ---------------------------------------------------------------------------
 // Scene navigation
 // ---------------------------------------------------------------------------
 async function gotoScene(name, label = null, savedIp = null, isRestore = false) {
@@ -682,7 +679,10 @@ async function gotoScene(name, label = null, savedIp = null, isRestore = false) 
     showEngineError(`Could not load scene "${name}".\n${err.message}`);
     return;
   }
-  clearTempState();
+  // During a restore, tempState was already populated by restoreFromSave.
+  // Clearing it here would destroy the saved *temp variables, breaking every
+  // *if that depends on them after a load.
+  if (!isRestore) clearTempState();
   // Reset mid-scene state. During a restore we preserve pendingLevelUpDisplay
   // because restoreFromSave already set it from the saved pendingStatPoints —
   // clearing it here would leave choices locked with no level-up block shown.
@@ -699,12 +699,11 @@ async function gotoScene(name, label = null, savedIp = null, isRestore = false) 
     ip = savedIp;
     // Recover the chapter title that was in effect at the restore point by
     // scanning backward from savedIp for the most recent *title directive.
-    // Without this, the title always shows the raw scene filename on load.
     let restoredTitle = null;
     for (let i = savedIp - 1; i >= 0; i--) {
       const l = currentLines[i];
-      if (l && l.trimmed.startsWith('*title')) {
-        restoredTitle = l.trimmed.replace('*title', '').trim();
+      if (l && isDirective(l.trimmed, '*title')) {
+        restoredTitle = l.trimmed.replace(/^\*title\s+/, '').trim();
         break;
       }
     }
@@ -713,17 +712,6 @@ async function gotoScene(name, label = null, savedIp = null, isRestore = false) 
     const labels = labelsCache.get(name) || {};
     ip = labels[label] ?? 0;
   }
-  // During a restore, skip the auto-save write. The save we just loaded IS the
-  // auto-save (or was just promoted to it); overwriting it here would record the
-  // scene entry timestamp rather than the original checkpoint timestamp, and
-  // would also fire before runInterpreter has had a chance to re-render anything.
-  //
-  // For non-restore calls: we deliberately do NOT write a scene-entry auto-save
-  // here. A scene-entry save always has ip=0 and label=null, which means loading
-  // it restarts the scene from page 1 — functionally identical to having no save.
-  // The only correct auto-save writes come from *save_point directives, which
-  // capture a real checkpoint. The save slot shows empty until then, which is
-  // the honest and correct behaviour.
   await runInterpreter();
 }
 
@@ -765,6 +753,14 @@ function evaluateCondition(raw) {
   return !!evalValue(condition.replace(/^\(|\)$/g, ''));
 }
 
+// ---------------------------------------------------------------------------
+// parseChoice — parses a *choice block into an array of option descriptors.
+//
+// Supports:
+//   #Text                                — plain option
+//   *selectable_if (cond) #Text          — conditionally greyed-out option
+//   *if cond / #Text / *elseif / *else   — conditionally shown/hidden options
+// ---------------------------------------------------------------------------
 function parseChoice(startIndex, indent) {
   const choices = [];
   let i = startIndex + 1;
@@ -773,25 +769,85 @@ function parseChoice(startIndex, indent) {
     if (!line.trimmed) { i += 1; continue; }
     if (line.indent <= indent) break;
 
-    let selectable   = true;
-    let optionText   = '';
     const optionIndent = line.indent;
 
-    if (line.trimmed.startsWith('*selectable_if')) {
-      const m = line.trimmed.match(/^\*selectable_if\s*\((.+)\)\s*#(.*)$/);
-      if (m) { selectable = !!evalValue(m[1]); optionText = m[2].trim(); }
-      else   { console.warn(`[engine] Malformed *selectable_if at line ${i} in "${currentScene}": ${line.trimmed}`); }
-    } else if (line.trimmed.startsWith('#')) {
-      optionText = line.trimmed.slice(1).trim();
+    // ── *if / *elseif / *else chains inside *choice ──
+    // Walk the entire chain, evaluate each branch, and collect the # from
+    // whichever branch wins (if any).
+    if (line.trimmed.startsWith('*if') && !line.trimmed.startsWith('*if_')) {
+      let cursor = i;
+      let chainHandled = false;
+
+      while (cursor < currentLines.length) {
+        const cl = currentLines[cursor];
+        if (!cl || !cl.trimmed) { cursor += 1; continue; }
+        // Only process lines at the same indent as the opening *if
+        if (cl.indent !== optionIndent) break;
+
+        const isIf     = cl.trimmed.startsWith('*if') && !cl.trimmed.startsWith('*if_');
+        const isElseIf = cl.trimmed.startsWith('*elseif');
+        const isElse   = cl.trimmed.startsWith('*else') && !cl.trimmed.startsWith('*elseif');
+
+        if (!isIf && !isElseIf && !isElse) break;
+
+        const bodyStart = cursor + 1;
+        const bodyEnd   = findBlockEnd(bodyStart, optionIndent);
+
+        // *else always true; *if/*elseif evaluate the condition
+        const condResult = isElse ? true : evaluateCondition(cl.trimmed);
+
+        if (!chainHandled && condResult) {
+          // Scan this branch body for a # option line
+          for (let j = bodyStart; j < bodyEnd; j++) {
+            const inner = currentLines[j];
+            if (!inner.trimmed) continue;
+            if (inner.trimmed.startsWith('#')) {
+              const innerText   = inner.trimmed.slice(1).trim();
+              const innerIndent = inner.indent;
+              const innerStart  = j + 1;
+              const innerEnd    = findBlockEnd(innerStart, innerIndent);
+              choices.push({ text: innerText, selectable: true, start: innerStart, end: innerEnd });
+              break;
+            }
+          }
+          chainHandled = true;
+        }
+
+        cursor = bodyEnd;
+        if (isElse) break;
+      }
+
+      i = cursor;
+      continue;
     }
 
-    if (optionText) {
+    // ── *selectable_if — option is always visible but may be greyed out ──
+    if (line.trimmed.startsWith('*selectable_if')) {
+      const m = line.trimmed.match(/^\*selectable_if\s*\((.+)\)\s*#(.*)$/);
+      if (m) {
+        const selectable = !!evalValue(m[1]);
+        const optionText = m[2].trim();
+        const start = i + 1;
+        const end   = findBlockEnd(start, optionIndent);
+        choices.push({ text: optionText, selectable, start, end });
+        i = end;
+        continue;
+      }
+      console.warn(`[engine] Malformed *selectable_if at line ${i} in "${currentScene}": ${line.trimmed}`);
+      i += 1;
+      continue;
+    }
+
+    // ── Plain # option ──
+    if (line.trimmed.startsWith('#')) {
+      const optionText = line.trimmed.slice(1).trim();
       const start = i + 1;
       const end   = findBlockEnd(start, optionIndent);
-      choices.push({ text: optionText, selectable, start, end });
+      choices.push({ text: optionText, selectable: true, start, end });
       i = end;
       continue;
     }
+
     i += 1;
   }
   return { choices, end: i };
@@ -807,10 +863,6 @@ async function executeBlock(start, end, resumeAfter = end) {
       return;
     }
     if (_gotoJumped) {
-      // Do NOT clear _gotoJumped here. Leave it set so that the calling
-      // handler (*if, *loop, or the choice click handler via runInterpreter)
-      // can detect the jump and avoid overwriting ip with its own resume point.
-      // runInterpreter clears _gotoJumped at the top of each iteration.
       return;
     }
   }
@@ -844,18 +896,18 @@ async function executeCurrentLine() {
 
   if (!t.startsWith('*')) { addParagraph(t); ip += 1; return; }
 
-  if (t.startsWith('*title'))   { dom.chapterTitle.textContent = t.replace('*title', '').trim(); ip += 1; return; }
-  if (t.startsWith('*label'))   { ip += 1; return; }
-  if (t.startsWith('*comment')) { ip += 1; return; }
+  if (isDirective(t, '*title'))   { dom.chapterTitle.textContent = t.replace(/^\*title\s+/, '').trim(); ip += 1; return; }
+  if (isDirective(t, '*label'))   { ip += 1; return; }
+  if (isDirective(t, '*comment')) { ip += 1; return; }
 
   // NOTE: *goto_scene MUST precede *goto.
-  if (t.startsWith('*goto_scene')) {
-    await gotoScene(t.replace('*goto_scene', '').trim());
+  if (isDirective(t, '*goto_scene')) {
+    await gotoScene(t.replace(/^\*goto_scene\s+/, '').trim());
     return;
   }
 
-  if (t.startsWith('*goto')) {
-    const label  = t.replace('*goto', '').trim();
+  if (isDirective(t, '*goto')) {
+    const label  = t.replace(/^\*goto\s+/, '').trim();
     const labels = labelsCache.get(currentScene) || {};
     if (labels[label] === undefined) {
       showEngineError(`Unknown label "${label}" in scene "${currentScene}".`);
@@ -864,13 +916,11 @@ async function executeCurrentLine() {
     }
     ip = labels[label];
     _gotoJumped = true;
-    // Reset animation delay counter so content after this jump starts fresh.
-    // Without this, paragraphs accumulate ever-longer delays across the scene.
     delayIndex = 0;
     return;
   }
 
-  if (t.startsWith('*system')) {
+  if (isDirective(t, '*system')) {
     if (t === '*system') {
       const parsed = parseSystemBlock(ip);
       if (!parsed.ok) {
@@ -882,24 +932,21 @@ async function executeCurrentLine() {
       ip = parsed.endIp;
       return;
     }
-    addSystem(t.replace('*system', '').trim().replace(/^"|"$/g, ''));
+    addSystem(t.replace(/^\*system\s+/, '').trim().replace(/^"|"$/g, ''));
     ip += 1; return;
   }
 
-  if (t.startsWith('*temp'))  { declareTemp(t); ip += 1; return; }
-  if (t.startsWith('*set'))   { setVar(t);      ip += 1; return; }
+  if (isDirective(t, '*temp'))  { declareTemp(t); ip += 1; return; }
+  if (isDirective(t, '*set'))   { setVar(t);      ip += 1; return; }
 
-  if (t.startsWith('*flag')) {
-    const key = normalizeKey(t.replace('*flag', '').trim());
+  if (isDirective(t, '*flag')) {
+    const key = normalizeKey(t.replace(/^\*flag\s+/, '').trim());
     if (key) { playerState[key] = true; scheduleStatsRender(); }
     ip += 1; return;
   }
 
-  if (t.startsWith('*save_point')) {
-    const saveLabel = t.replace('*save_point', '').trim() || null;
-    // Advance ip first so the saved position points to the line AFTER this
-    // directive. If we saved ip here (before the increment) then every restore
-    // would re-execute *save_point, triggering another write and banner.
+  if (isDirective(t, '*save_point')) {
+    const saveLabel = t.replace(/^\*save_point\s*/, '').trim() || null;
     ip += 1;
     const saved = saveGameToSlot('auto', saveLabel);
     addSystem(saved
@@ -908,36 +955,36 @@ async function executeCurrentLine() {
     return;
   }
 
-  if (t.startsWith('*uppercase')) {
-    const key = normalizeKey(t.replace('*uppercase', '').trim());
+  if (isDirective(t, '*uppercase')) {
+    const key = normalizeKey(t.replace(/^\*uppercase\s+/, '').trim());
     const store = Object.prototype.hasOwnProperty.call(tempState, key) ? tempState : playerState;
     if (typeof store[key] === 'string') store[key] = store[key].toUpperCase();
     ip += 1; return;
   }
 
-  if (t.startsWith('*lowercase')) {
-    const key = normalizeKey(t.replace('*lowercase', '').trim());
+  if (isDirective(t, '*lowercase')) {
+    const key = normalizeKey(t.replace(/^\*lowercase\s+/, '').trim());
     const store = Object.prototype.hasOwnProperty.call(tempState, key) ? tempState : playerState;
     if (typeof store[key] === 'string') store[key] = store[key].toLowerCase();
     ip += 1; return;
   }
 
-  if (t.startsWith('*add_item')) {
-    const item = t.replace('*add_item', '').trim().replace(/^"|"$/g, '');
+  if (isDirective(t, '*add_item')) {
+    const item = t.replace(/^\*add_item\s+/, '').trim().replace(/^"|"$/g, '');
     if (!Array.isArray(playerState.inventory)) playerState.inventory = [];
     addInventoryItem(item);
     scheduleStatsRender();
     ip += 1; return;
   }
 
-  if (t.startsWith('*remove_item')) {
-    removeInventoryItem(t.replace('*remove_item', '').trim().replace(/^"|"$/g, ''));
+  if (isDirective(t, '*remove_item')) {
+    removeInventoryItem(t.replace(/^\*remove_item\s+/, '').trim().replace(/^"|"$/g, ''));
     scheduleStatsRender();
     ip += 1; return;
   }
 
-  if (t.startsWith('*check_item')) {
-    const checkArgs  = t.replace('*check_item', '').trim();
+  if (isDirective(t, '*check_item')) {
+    const checkArgs  = t.replace(/^\*check_item\s+/, '').trim();
     const checkMatch = checkArgs.match(/^"([^"]+)"\s+([a-zA-Z_][\w]*)$/) ||
                        checkArgs.match(/^(\S+)\s+([a-zA-Z_][\w]*)$/);
     if (!checkMatch) {
@@ -960,10 +1007,8 @@ async function executeCurrentLine() {
 
   // ── Skill commands ──────────────────────────────────────────────────────
 
-  // *check_skill "key" dest_var
-  // Writes true/false to dest_var depending on whether the player owns the skill.
-  if (t.startsWith('*check_skill')) {
-    const args  = t.replace('*check_skill', '').trim();
+  if (isDirective(t, '*check_skill')) {
+    const args  = t.replace(/^\*check_skill\s+/, '').trim();
     const match = args.match(/^"([^"]+)"\s+([a-zA-Z_][\w]*)$/) ||
                   args.match(/^(\S+)\s+([a-zA-Z_][\w]*)$/);
     if (!match) {
@@ -975,7 +1020,6 @@ async function executeCurrentLine() {
     const destKey   = normalizeKey(match[2]);
     const result    = playerHasSkill(skillKey);
 
-    // Warn if the key isn't in the registry — it might be a typo.
     if (!getSkillEntry(skillKey)) {
       console.warn(`[engine] *check_skill: "${skillKey}" is not in the skill registry. Check skills.txt.`);
     }
@@ -989,10 +1033,8 @@ async function executeCurrentLine() {
     ip += 1; return;
   }
 
-  // *grant_skill "key"
-  // Gives the player a skill without any XP cost. Useful for story rewards.
-  if (t.startsWith('*grant_skill')) {
-    const key = normalizeKey(t.replace('*grant_skill', '').trim().replace(/^"|"$/g, ''));
+  if (isDirective(t, '*grant_skill')) {
+    const key = normalizeKey(t.replace(/^\*grant_skill\s+/, '').trim().replace(/^"|"$/g, ''));
     if (!getSkillEntry(key)) {
       console.warn(`[engine] *grant_skill: "${key}" is not in the skill registry. Check skills.txt.`);
     }
@@ -1000,10 +1042,8 @@ async function executeCurrentLine() {
     ip += 1; return;
   }
 
-  // *revoke_skill "key"
-  // Removes a skill from the player. Useful for story consequences.
-  if (t.startsWith('*revoke_skill')) {
-    const key = normalizeKey(t.replace('*revoke_skill', '').trim().replace(/^"|"$/g, ''));
+  if (isDirective(t, '*revoke_skill')) {
+    const key = normalizeKey(t.replace(/^\*revoke_skill\s+/, '').trim().replace(/^"|"$/g, ''));
     if (revokeSkill(key)) scheduleStatsRender();
     ip += 1; return;
   }
@@ -1022,8 +1062,6 @@ async function executeCurrentLine() {
           await executeBlock(bs, be, chainEnd);
           executed = true;
           if (awaitingChoice) return;
-          // If a *goto fired inside the block, executeBlock left _gotoJumped set.
-          // Honour the jump — clear the flag and return without stomping ip.
           if (_gotoJumped) { _gotoJumped = false; return; }
         }
         cursor = be; continue;
@@ -1048,7 +1086,6 @@ async function executeCurrentLine() {
     while (evaluateCondition(t) && guard < 100) {
       await executeBlock(blockStart, blockEnd);
       if (awaitingChoice) return;
-      // If a *goto fired inside the loop body, honour the jump.
       if (_gotoJumped) { _gotoJumped = false; return; }
       guard += 1;
     }
@@ -1056,7 +1093,7 @@ async function executeCurrentLine() {
     ip = blockEnd; return;
   }
 
-  if (t.startsWith('*choice')) {
+  if (isDirective(t, '*choice')) {
     const parsed = parseChoice(ip, line.indent);
     awaitingChoice = { end: parsed.end, choices: parsed.choices };
     renderChoices(parsed.choices);
@@ -1065,10 +1102,6 @@ async function executeCurrentLine() {
 
   if (t === '*ending') { ip = currentLines.length; showEndingScreen('The End', 'Your path is complete.'); return; }
 
-  // Unrecognised directive — warn and render as a narrative paragraph rather
-  // than silently dropping the line. This handles intentional content that
-  // starts with * (e.g. "*before.*" for italicised text) and surfaces typos
-  // in directive names (e.g. "*gooto label") so authors can catch them.
   console.warn(`[engine] Unrecognised directive "${t.split(/\s/)[0]}" in "${currentScene}" at line ${ip} — rendering as text.`);
   addParagraph(t);
   ip += 1;
@@ -1098,7 +1131,7 @@ function renderChoices(choices) {
     }
 
     btn.addEventListener('click', async () => {
-      // Guard: if another click already cleared awaitingChoice, ignore this one.
+      // Guard: if another click already cleared awaitingChoice, ignore.
       if (!awaitingChoice) return;
       dom.choiceArea.querySelectorAll('button').forEach(b => b.disabled = true);
       const ctx = awaitingChoice;
@@ -1108,9 +1141,6 @@ function renderChoices(choices) {
       applyTransition();
       await executeBlock(choice.start, choice.end);
       if (!awaitingChoice) {
-        // If ip is still inside (or at the end of) this option's block, the block
-        // ran to its natural end — use resumeAt to continue after the *choice.
-        // If ip is outside the block, a *goto redirected it; honour that instead.
         if (ip >= choice.start && ip <= choice.end) ip = resumeAt;
         await runInterpreter();
       }
@@ -1131,12 +1161,16 @@ function renderChoices(choices) {
 // Interpreter loop
 // ---------------------------------------------------------------------------
 async function runInterpreter() {
-  while (ip < currentLines.length) {
-    _gotoJumped = false;   // clear any stale flag from a top-level *goto before
-                           // the next line runs, so executeBlock never sees a
-                           // flag that was set by a previous iteration
-    await executeCurrentLine();
-    if (awaitingChoice) break;
+  try {
+    while (ip < currentLines.length) {
+      _gotoJumped = false;
+      await executeCurrentLine();
+      if (awaitingChoice) break;
+    }
+  } catch (err) {
+    console.error('[engine] Interpreter error:', err);
+    showEngineError(`Interpreter crashed in "${currentScene}" near line ${ip}.\n${err.message}`);
+    return;
   }
   if (pendingLevelUpDisplay) showInlineLevelUp();
   await runStatsScene();
@@ -1145,6 +1179,48 @@ async function runInterpreter() {
 // ---------------------------------------------------------------------------
 // Stats panel renderer
 // ---------------------------------------------------------------------------
+
+// Cached parsed stats structure — populated once by parseStatsStructure(),
+// reused on every render so we don't re-parse the file each frame.
+let _statsParsedEntries = null;
+
+async function parseStatsStructure() {
+  let text;
+  try {
+    text = await fetchTextFile('stats');
+  } catch (err) {
+    console.warn('[engine] Could not load stats.txt:', err.message);
+    return;
+  }
+  const lines = parseLines(text);
+  const entries = [];
+
+  lines.forEach(line => {
+    const t = line.trimmed;
+    if (!t || t.startsWith('//')) return;
+    if (t.startsWith('*stat_group')) {
+      entries.push({ type: 'group', name: t.replace(/^\*stat_group\s+/, '').trim().replace(/^"|"$/g, '') });
+    } else if (t.startsWith('*stat_color')) {
+      const parts = t.split(/\s+/);
+      if (parts.length >= 3) entries.push({ type: 'color', key: normalizeKey(parts[1]), color: parts[2] });
+    } else if (t.startsWith('*stat_icon')) {
+      const m = t.match(/^\*stat_icon\s+([\w_]+)\s+"(.+)"$/);
+      if (m) entries.push({ type: 'icon', key: normalizeKey(m[1]), icon: m[2] });
+    } else if (t.startsWith('*inventory')) {
+      entries.push({ type: 'inventory' });
+    } else if (t.startsWith('*skills_registered')) {
+      entries.push({ type: 'skills' });
+    } else if (t === '*stat_registered') {
+      entries.push({ type: 'stat_registered' });
+    } else if (t.startsWith('*stat')) {
+      const m = t.match(/^\*stat\s+([\w_]+)\s+"(.+)"$/);
+      if (m) entries.push({ type: 'stat', key: normalizeKey(m[1]), label: m[2] });
+    }
+  });
+
+  _statsParsedEntries = entries;
+}
+
 async function runStatsScene() {
   if (_statsRenderRunning) return;
   _statsRenderRunning = true;
@@ -1156,44 +1232,32 @@ async function runStatsScene() {
 }
 
 async function _runStatsSceneImpl() {
-  let text;
-  try {
-    text = await fetchTextFile('stats');
-  } catch (err) {
-    console.warn('[engine] Could not load stats.txt:', err.message);
-    return;
+  // Parse the structure once; reuse on subsequent renders.
+  if (!_statsParsedEntries) {
+    await parseStatsStructure();
+    if (!_statsParsedEntries) return;
   }
-  const lines = parseLines(text);
+
   let html = '';
   styleState.colors = {};
   styleState.icons  = {};
+  for (const e of _statsParsedEntries) {
+    if (e.type === 'color') styleState.colors[e.key] = e.color;
+    if (e.type === 'icon')  styleState.icons[e.key]  = e.icon;
+  }
 
-  const entries = [];
-  lines.forEach(line => {
-    const t = line.trimmed;
-    if (!t || t.startsWith('//')) return;
-    if (t.startsWith('*stat_group')) {
-      entries.push({ type: 'group', name: t.replace('*stat_group', '').trim().replace(/^"|"$/g, '') });
-    } else if (t.startsWith('*stat_color')) {
-      const [, rawKey, color] = t.split(/\s+/);
-      styleState.colors[normalizeKey(rawKey)] = color;
-    } else if (t.startsWith('*stat_icon')) {
-      const m = t.match(/^\*stat_icon\s+([\w_]+)\s+"(.+)"$/);
-      if (m) styleState.icons[normalizeKey(m[1])] = m[2];
-    } else if (t.startsWith('*inventory')) {
-      entries.push({ type: 'inventory' });
-    } else if (t.startsWith('*skills_registered')) {
-      entries.push({ type: 'skills' });
-    } else if (t === '*stat_registered') {
-      statRegistry.forEach(({ key, label }) => entries.push({ type: 'stat', key, label }));
-    } else if (t.startsWith('*stat')) {
-      const m = t.match(/^\*stat\s+([\w_]+)\s+"(.+)"$/);
-      if (m) entries.push({ type: 'stat', key: normalizeKey(m[1]), label: m[2] });
+  // Expand *stat_registered into concrete stat entries at render time
+  const resolved = [];
+  for (const e of _statsParsedEntries) {
+    if (e.type === 'stat_registered') {
+      statRegistry.forEach(({ key, label }) => resolved.push({ type: 'stat', key, label }));
+    } else if (e.type !== 'color' && e.type !== 'icon') {
+      resolved.push(e);
     }
-  });
+  }
 
   let inGroup = false;
-  entries.forEach(e => {
+  resolved.forEach(e => {
     if (e.type === 'group') {
       if (inGroup) html += `</div>`;
       html += `<div class="status-section"><div class="status-label status-section-header">${escapeHtml(e.name)}</div>`;
@@ -1235,7 +1299,6 @@ async function _runStatsSceneImpl() {
   if (inGroup) html += `</div>`;
   dom.statusPanel.innerHTML = html;
 
-  // Wire skill accordion toggles
   dom.statusPanel.querySelectorAll('.skill-accordion-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const expanded = btn.getAttribute('aria-expanded') === 'true';
@@ -1269,11 +1332,7 @@ function showInlineLevelUp() {
   dom.choiceArea.querySelectorAll('button').forEach(b => {
     if (!b.dataset.unselectable) b.disabled = true;
   });
-  // Note: the levelup-choice-overlay is renderChoices' responsibility.
-  // showInlineLevelUp only disables existing buttons; it never appends the
-  // overlay itself, so there is no risk of double-adding it.
 
-  // Track whether the skill browser panel is open.
   let skillBrowserOpen = false;
 
   const render = () => {
@@ -1281,7 +1340,6 @@ function showInlineLevelUp() {
     const remain   = pendingStatPoints - spent;
     const allSpent = remain === 0;
 
-    // ── Skill browser HTML ──────────────────────────────────────────────
     let skillBrowserHTML = '';
     if (skillBrowserOpen) {
       const availableSP  = Number(playerState.skill_points || 0);
@@ -1309,7 +1367,6 @@ function showInlineLevelUp() {
       }).join('');
 
       const ownedRows = alreadyOwned.map(s => {
-        const spCost = s.spCost ?? s.cost ?? 1;
         return `
           <div class="skill-browser-card skill-browser-card--owned">
             <div class="skill-browser-card-top">
@@ -1370,8 +1427,6 @@ function showInlineLevelUp() {
         </button>
       </div>`;
 
-    // ── Event listeners ──────────────────────────────────────────────────
-
     block.querySelectorAll('.alloc-btn').forEach(btn => {
       btn.onclick = () => {
         const k = btn.dataset.k;
@@ -1390,14 +1445,13 @@ function showInlineLevelUp() {
       };
     }
 
-    // Skill purchase buttons
     block.querySelectorAll('.skill-purchase-btn').forEach(btn => {
       btn.onclick = () => {
         const key    = btn.dataset.sk;
         const result = purchaseSkill(key);
         if (result.ok) {
           scheduleStatsRender();
-          render();   // re-render to update SP display and move skill to "Owned"
+          render();
         } else {
           console.warn(`[engine] Skill purchase failed: ${result.reason}`);
         }
@@ -1422,11 +1476,8 @@ function showInlineLevelUp() {
 
 // ---------------------------------------------------------------------------
 // Ending screen
-// FIX: scroll narrative back to top before the overlay appears, so the
-// underlying content doesn't peek out at the bottom on short viewports.
 // ---------------------------------------------------------------------------
 function showEndingScreen(title, subtitle) {
-  // Reset scroll before the overlay fades in.
   dom.narrativeContent.scrollTop = 0;
 
   dom.endingTitle.textContent     = title;
@@ -1475,6 +1526,7 @@ function buildSavePayload(slot, label) {
     ip:               ip,
     characterName:    `${playerState.first_name || ''} ${playerState.last_name || ''}`.trim() || 'Unknown',
     playerState:      JSON.parse(JSON.stringify(playerState)),
+    tempState:        JSON.parse(JSON.stringify(tempState)),
     pendingStatPoints,
     timestamp:        Date.now(),
   };
@@ -1492,11 +1544,6 @@ function saveGameToSlot(slot, label = null) {
   }
 }
 
-// Copies the current auto-save payload verbatim into a manual slot.
-// Only the 'slot' and 'timestamp' fields are updated.
-// This guarantees manual saves always reflect a real *save_point checkpoint
-// (the auto-save) rather than re-capturing live ip/playerState, which could
-// be mid-scene and produce an unrestorable position.
 function copyAutoSaveToSlot(targetSlot) {
   const key = saveKeyForSlot(targetSlot);
   if (!key) { console.warn(`[engine] Unknown save slot: "${targetSlot}"`); return false; }
@@ -1536,22 +1583,22 @@ function deleteSaveSlot(slot) {
 }
 
 async function restoreFromSave(save) {
-  // Validate the save payload has a usable scene name before touching any
-  // engine state. gotoScene will fetch the file and show a proper error if
-  // it doesn't exist, but we want to catch a missing/malformed name here so
-  // playerState is never clobbered when the restore has no chance of working.
   if (!save.scene || typeof save.scene !== 'string' || !save.scene.trim()) {
     showEngineError('Save data is corrupt: missing scene name. Cannot restore.');
     return;
   }
   playerState       = { ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) };
   pendingStatPoints = save.pendingStatPoints ?? 0;
-  // If there are unspent stat points, re-arm the level-up display so the
-  // block renders and choices aren't permanently locked after a load.
   if (pendingStatPoints > 0) pendingLevelUpDisplay = true;
-  // Ensure skills array exists even on saves predating the skill system.
   if (!Array.isArray(playerState.skills)) playerState.skills = [];
-  clearTempState();
+
+  // Restore tempState from save payload.
+  if (save.tempState && typeof save.tempState === 'object') {
+    tempState = JSON.parse(JSON.stringify(save.tempState));
+  } else {
+    tempState = {};
+  }
+
   await runStatsScene();
   await gotoScene(save.scene, save.label, save.ip ?? null, true);
 }
@@ -1581,7 +1628,6 @@ function refreshAllSlotCards() {
     const save    = loadSaveFromSlot(slot);
     const s       = String(slot);
 
-    // Splash screen slot cards
     const sCard   = document.getElementById(`slot-card-${s}`);
     if (sCard) populateSlotCard({
       nameEl:    document.getElementById(`slot-name-${s}`),
@@ -1592,7 +1638,6 @@ function refreshAllSlotCards() {
       save,
     });
 
-    // In-game save menu slot cards (all slots including auto)
     const iCard = document.getElementById(`save-card-${s}`);
     if (iCard) {
       const loadBtn = document.getElementById(`ingame-load-${s}`);
@@ -1604,7 +1649,6 @@ function refreshAllSlotCards() {
         cardEl:    iCard,
         save,
       });
-      // Re-enable the Save button for manual slots (auto has no Save button)
       const saveBtn = document.getElementById(`save-to-${s}`);
       if (saveBtn) saveBtn.disabled = false;
     }
@@ -1615,8 +1659,6 @@ function refreshAllSlotCards() {
 // Splash screen
 // ---------------------------------------------------------------------------
 function showSplash() {
-  // refreshAllSlotCards calls loadSaveFromSlot for every slot, which sets
-  // _staleSaveFound as a side-effect — no need for a separate loop here.
   refreshAllSlotCards();
 
   const notice = document.getElementById('splash-stale-notice');
@@ -1772,7 +1814,6 @@ function showCharacterCreation() {
   requestAnimationFrame(() => {
     const _charTrapRelease = trapFocus(dom.charOverlay, null);
     dom.charOverlay._trapRelease = _charTrapRelease;
-    // Only focus the first field if the user hasn't already clicked somewhere else.
     if (!dom.charOverlay.contains(document.activeElement)) {
       try { dom.inputFirstName.focus(); } catch (_) {}
     }
@@ -1854,20 +1895,15 @@ function wireUI() {
     btn.addEventListener('click', () => {
       const existing = loadSaveFromSlot(slot);
       if (existing && !confirm(`Overwrite Slot ${slot}?`)) return;
-      // Copy the auto-save payload verbatim so the manual slot always holds
-      // a real *save_point checkpoint. Re-capturing live ip here would save a
-      // mid-scene position that can't be cleanly restored.
       const ok = copyAutoSaveToSlot(slot);
       if (!ok) {
         showToast('Nothing to save yet — reach a save point first.');
         return;
       }
-      // Flash the card so the player has clear visual confirmation of which
-      // slot was written, then close the menu once the animation settles.
       const card = document.getElementById(`save-card-${slot}`);
       if (card) {
-        card.classList.remove('slot-card--saved'); // reset if re-saving same slot
-        void card.offsetWidth;                     // force reflow to restart animation
+        card.classList.remove('slot-card--saved');
+        void card.offsetWidth;
         card.classList.add('slot-card--saved');
       }
       refreshAllSlotCards();
@@ -1876,7 +1912,6 @@ function wireUI() {
     });
   });
 
-  // In-game Load buttons (ingame-load-*)
   ['auto', 1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`ingame-load-${slot}`);
     if (!btn) return;
@@ -1961,12 +1996,9 @@ function wireUI() {
 // Boot
 // ---------------------------------------------------------------------------
 async function boot() {
-  // wireUI must succeed for any buttons to work — catch and surface errors.
   try {
     wireUI();
   } catch (err) {
-    // If wireUI throws, we can't use the normal error display (it needs DOM).
-    // Write directly to the body so the developer can see what failed.
     document.body.insertAdjacentHTML('beforeend',
       `<div style="position:fixed;inset:0;background:#0d0f1a;color:#e05555;font-family:monospace;
         padding:40px;z-index:9999;white-space:pre-wrap;font-size:14px;">
@@ -1983,9 +2015,7 @@ async function boot() {
     return;
   }
 
-  // parseSkills is non-critical — a failure here must never block the splash.
   try {
-    // Race against a 5-second timeout so a hanging fetch never freezes boot.
     await Promise.race([
       parseSkills(),
       new Promise((_, reject) =>
@@ -1994,11 +2024,13 @@ async function boot() {
     ]);
   } catch (err) {
     console.warn('[engine] parseSkills() failed or timed out:', err.message);
-    // Ensure skills array always exists even on failure.
     if (!Array.isArray(playerState.skills)) playerState.skills = [];
   }
+
+  // Reset the stats cache so it's freshly parsed on first render.
+  _statsParsedEntries = null;
 
   showSplash();
 }
 
-document.addEventListener('DOMContentLoaded', boot); 
+document.addEventListener('DOMContentLoaded', boot);
