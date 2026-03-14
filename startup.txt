@@ -23,6 +23,8 @@
 
 *comment --- Skill points (accumulated; spent in level-up skill browser) ---
 *create skill_points 0
+*create skills []
+*create journal []
 
 *comment --- Vitals (plain *create; shown in stats panel but not allocatable) ---
 *create health "Healthy"

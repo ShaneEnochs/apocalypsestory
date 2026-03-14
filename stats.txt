@@ -23,4 +23,8 @@
 
 *inventory
 
-*skills_registered 
+*skills_registered
+
+*achievements
+
+*journal_section

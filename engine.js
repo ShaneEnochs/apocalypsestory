@@ -40,10 +40,12 @@ import {
   deleteSaveSlot,
 } from './engine/systems/saves.js';
 
+import { parseSkills } from './engine/systems/skills.js';
+
 import {
   init      as initNarrative,
   addParagraph, addSystem, clearNarrative, applyTransition,
-  renderChoices,
+  renderChoices, showInputPrompt,
 } from './engine/ui/narrative.js';
 
 import {
@@ -356,6 +358,7 @@ async function boot() {
     showInlineLevelUp,
     showEndingScreen,
     showEngineError,
+    showInputPrompt,
     scheduleStatsRender,
     setChapterTitle: (t) => { dom.chapterTitle.textContent = t; },
     runStatsScene,
@@ -365,9 +368,10 @@ async function boot() {
   // 4. Wire all UI event listeners
   wireUI();
 
-  // 5. Parse startup.txt and show the splash screen
+  // 5. Parse startup.txt, skills.txt, and show the splash screen
   try {
     await parseStartup(fetchTextFile, evalValue);
+    await parseSkills(fetchTextFile);
     showSplash();
   } catch (err) {
     showEngineError(`Boot failed: ${err.message}`);
