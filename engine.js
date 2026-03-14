@@ -903,7 +903,7 @@ async function executeCurrentLine() {
     ip += 1;
     const saved = saveGameToSlot('auto', saveLabel);
     addSystem(saved
-      ? '[ AUTOSAVE SUCCESSFUL ]\nManual save slot available in the Save · Load menu.'
+      ? '[ AUTOSAVE SUCCESSFUL ]\nManual save slot available in Save·Load menu.'
       : '[ SAVE FAILED — storage unavailable ]');
     return;
   }
