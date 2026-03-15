@@ -16,16 +16,11 @@
 // ---------------------------------------------------------------------------
 
 import {
-  playerState, tempState, statRegistry, startup,
-  currentScene, currentLines, ip, pendingStatPoints,
-  awaitingChoice, delayIndex, pauseState,
-  patchPlayerState, parseStartup,
-  setPlayerState, setTempState, setPendingStatPoints,
-  setCurrentScene, setCurrentLines, setIp, setDelayIndex,
-  setAwaitingChoice, setPendingLevelUpDisplay,
-  setChapterTitleState, clearPauseState,
-  sessionState, clearSessionState,  // ENH-08: sessionState needed by pushUndoSnapshot/popUndo
-} from './engine/core/state.js';
+  playerState, tempState,
+  pendingLevelUpDisplay, pendingStatPoints,
+  delayIndex, setDelayIndex, advanceDelayIndex,
+  normalizeKey,
+} from '../core/state.js';
 
 import { applySystemRewards } from '../systems/leveling.js';
 
@@ -334,9 +329,11 @@ export function renderChoices(choices) {
         // FIX: actually execute the chosen option's block and resume the interpreter.
         // Previously this import resolved but the .then() body was empty (just a
         // comment), so clicking a choice button did nothing — the game froze.
+        // _savedIp is the ip to resume at after the choice block completes;
+        // it is stashed on awaitingChoice by executeBlock when a *choice is
+        // encountered mid-block, or falls back to choice.end for top-level choices.
         import('../core/interpreter.js').then(({ executeBlock, runInterpreter, awaitingChoice: ac }) => {
-          const resumeAfter = ac?._blockEnd ?? choice.end;
-          const savedIp     = ac?._savedIp  ?? choice.end;
+          const savedIp = ac?._savedIp ?? choice.end;
           executeBlock(choice.start, choice.end, savedIp)
             .then(() => runInterpreter())
             .catch(err => console.error('[narrative] choice execution error:', err));
