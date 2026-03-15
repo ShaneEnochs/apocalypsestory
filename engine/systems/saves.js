@@ -8,14 +8,14 @@
 // saves are rejected cleanly rather than silently corrupting state.
 // ---------------------------------------------------------------------------
 
-import { playerState, pendingStatPoints, currentScene,
+import { playerState, pendingStatPoints, currentScene, ip,
          setPlayerState, setPendingStatPoints,
          clearTempState, parseStartup }                from '../core/state.js';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-export const SAVE_VERSION  = 2;
+export const SAVE_VERSION  = 3;
 
 export const SAVE_KEY_AUTO  = 'sa_save_auto';
 export const SAVE_KEY_SLOTS = { 1: 'sa_save_slot_1', 2: 'sa_save_slot_2', 3: 'sa_save_slot_3' };
@@ -42,6 +42,7 @@ export function buildSavePayload(slot, label) {
     slot:             String(slot),
     scene:            currentScene,
     label:            label ?? null,
+    ip:               ip,
     characterName:    `${playerState.first_name || ''} ${playerState.last_name || ''}`.trim() || 'Unknown',
     playerState:      JSON.parse(JSON.stringify(playerState)),
     pendingStatPoints,
@@ -76,7 +77,7 @@ export function loadSaveFromSlot(slot) {
     if (!raw) return null;
     const save = JSON.parse(raw);
     if (save.version !== SAVE_VERSION) {
-      console.warn(`[saves] Slot "${slot}" version mismatch — discarding.`);
+      console.warn(`[saves] Slot "${slot}" version mismatch (v${save.version}) — discarding.`);
       setStaleSaveFound();
       return null;
     }
@@ -113,5 +114,7 @@ export async function restoreFromSave(save, { gotoScene, runStatsScene, fetchTex
   clearTempState();
 
   await runStatsScene();
-  await gotoScene(save.scene, save.label, true);
+  // Pass savedIp so gotoScene can resume at the exact line position.
+  // Falls back to label or ip=0 for older saves that don't have ip.
+  await gotoScene(save.scene, save.label, true, save.ip ?? null);
 }
