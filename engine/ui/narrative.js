@@ -135,6 +135,8 @@ export function clearNarrative() {
   }
   _choiceArea.innerHTML = '';
   setDelayIndex(0);
+  // Reset scroll position so new content starts at the top
+  _narrativeContent.scrollTop = 0;
 }
 
 // ---------------------------------------------------------------------------
