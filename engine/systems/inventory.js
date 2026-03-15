@@ -3,6 +3,11 @@
 //
 // Stacking inventory: duplicate items are tracked as "Item (2)", "Item (3)",
 // etc. All functions operate directly on playerState.inventory.
+//
+// BUG-07 fix: parseInventoryUpdateText no longer requires item names to start
+// with an uppercase letter. The restriction silently dropped valid lowercase
+// names like "rusty dagger" or "ancient map". The filter now relies only on
+// the word-exclusion list and length check.
 // ---------------------------------------------------------------------------
 
 import { playerState } from '../core/state.js';
@@ -62,10 +67,10 @@ export function removeInventoryItem(item) {
 // parseInventoryUpdateText — extracts item names from a system block string.
 // Used by applySystemRewards to detect "Inventory updated: Item A, Item B".
 //
-// Positive filter: item names must start with an uppercase letter or digit
-// and be no longer than 60 characters. Generic words like "assembled",
-// "acquired", etc., are excluded (they appear in surrounding prose, not as
-// item names).
+// BUG-07 fix: removed the /^[A-Z0-9]/ uppercase-start requirement.
+// Item names are now matched case-insensitively; only the word-exclusion list
+// and max-length check remain as filters. Authors can now use lowercase item
+// names freely.
 // ---------------------------------------------------------------------------
 export function parseInventoryUpdateText(text) {
   const m = text.match(/Inventory\s+updated\s*:\s*([^\n]+)/i);
@@ -73,6 +78,6 @@ export function parseInventoryUpdateText(text) {
   return m[1].trim().split(',')
     .map(e => e.trim().replace(/\.$/, ''))
     .filter(e => e &&
-      /^[A-Z0-9][^\n.!?]{0,60}$/.test(e) &&
+      e.length <= 60 &&
       !/\b(assembled|acquired|secured|updated|complete|lost|destroyed)\b/i.test(e));
 }

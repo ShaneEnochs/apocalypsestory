@@ -137,10 +137,14 @@ export function setVar(command, evalValueFn) {
     return; // Don't silently create garbage keys in persistent state
   }
 
-  // Arithmetic shorthand — validate result is finite before committing (sweep 2 fix #11).
+  // Arithmetic shorthand — validate result is finite before committing.
   if (/^[+\-*/]\s*/.test(rhs) && typeof store[key] === 'number') {
     const result = evalValueFn(`${store[key]} ${rhs}`);
-    store[key] = Number.isFinite(result) ? result : evalValueFn(rhs);
+    // BUG-03 fix: normalise -0 → 0 so JSON serialisation and comparisons
+    // behave consistently. Object.is(-0, 0) is false, which could silently
+    // break equality checks after a round-trip through JSON.stringify.
+    const coerced = Number.isFinite(result) ? result : evalValueFn(rhs);
+    store[key] = coerced === 0 ? 0 : coerced;
   } else {
     store[key] = evalValueFn(rhs);
   }

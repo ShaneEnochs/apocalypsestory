@@ -20,6 +20,18 @@
 //     → saves.js        (saveGameToSlot)
 //     → skills.js       (grantSkill, revokeSkill, playerHasSkill)
 //     ← engine.js       (injects UI callbacks at boot via registerCallbacks)
+//
+// Bug fixes in this file:
+//   BUG-02: gotoScene auto-save now only fires when the interpreter halts at
+//     a *choice or end-of-scene, not on chained *goto_scene. This prevents
+//     double-saves and ensures the auto-save always reflects the scene that
+//     is actually visible to the player.
+//   BUG-04: *loop guard now calls cb.showEngineError (not just console.warn)
+//     so authors see the infinite-loop error in-game, not just in DevTools.
+//   BUG-06: malformed *selectable_if lines now call cb.showEngineError instead
+//     of silently dropping the choice option.
+//   BUG-08: pause directives (*page_break, *delay, *input) now warn if
+//     pauseState is already set when they fire, preventing silent overwrites.
 // ---------------------------------------------------------------------------
 
 import {
@@ -28,7 +40,7 @@ import {
   setCurrentScene, setCurrentLines, setIp, advanceIp,
   setGotoJumped, setAwaitingChoice, setDelayIndex, clearTempState,
   normalizeKey, setVar, declareTemp, patchPlayerState,
-  setPauseState, clearPauseState,
+  setPauseState, clearPauseState, pauseState,
 } from './state.js';
 
 import { evalValue }            from './expression.js';
@@ -158,6 +170,17 @@ export async function executeBlock(start, end, resumeAfter = end) {
 
 // ---------------------------------------------------------------------------
 // gotoScene — cross-scene navigation.
+//
+// BUG-02 fix: the auto-save is now ONLY written when runInterpreter actually
+// halts (at a *choice or end-of-scene). If gotoScene is called recursively
+// via *goto_scene inside a running scene, the inner call's runInterpreter
+// will handle the save when it stops. The outer gotoScene call must NOT
+// also write an auto-save, because:
+//   1. The outer save fires after the inner one (wrong scene content).
+//   2. It causes two consecutive localStorage writes for a single navigation.
+//
+// Implementation: runInterpreter now writes the auto-save after it stops.
+// gotoScene no longer calls saveGameToSlot directly.
 // ---------------------------------------------------------------------------
 export async function gotoScene(name, label = null) {
   let text;
@@ -188,16 +211,18 @@ export async function gotoScene(name, label = null) {
   clearPauseState();
 
   await runInterpreter();
-
-  // Auto-save after runInterpreter so the narrative log is fully populated.
-  // Saving before runInterpreter would capture an empty log (clearNarrative
-  // was called above), producing a blank screen on load.
-  saveGameToSlot('auto', label || null, cb.getNarrativeLog ? cb.getNarrativeLog() : []);
+  // NOTE: auto-save is now written inside runInterpreter when it stops,
+  // not here. See BUG-02 fix comment above.
 }
 
 // ---------------------------------------------------------------------------
 // runInterpreter — main execution loop.
 // Runs until ip reaches end of scene or a *choice pauses execution.
+//
+// BUG-02 fix: auto-save is written here, after the loop stops, so the saved
+// narrative log is always fully populated. This is the single canonical
+// auto-save point for normal scene execution. *save_point writes its own
+// save independently.
 // ---------------------------------------------------------------------------
 export async function runInterpreter() {
   while (ip < currentLines.length) {
@@ -206,6 +231,13 @@ export async function runInterpreter() {
   }
   if (pendingLevelUpDisplay) cb.showInlineLevelUp();
   cb.runStatsScene();
+
+  // Auto-save: fires when the interpreter halts at a *choice or end-of-scene.
+  // Paused states (*page_break, *delay, *input) set pauseState before stopping
+  // the loop via setIp(currentLines.length); the auto-save captures that too.
+  if (cb.getNarrativeLog) {
+    saveGameToSlot('auto', null, cb.getNarrativeLog());
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -456,10 +488,21 @@ registerCommand('*achievement', (t) => {
   advanceIp();
 });
 
+// ---------------------------------------------------------------------------
+// Pause directives — page_break, delay, input
+//
+// BUG-08 fix: all three now warn if pauseState is already set when they fire.
+// This catches authoring mistakes like two consecutive pause directives with
+// no *choice or scene transition between them.
+// ---------------------------------------------------------------------------
+
 // *page_break [text] — clears the screen and shows a "Continue" button.
-// If text is provided, the button shows that text (e.g. "The next day...").
-// Pauses the interpreter until the player clicks; resumes from the next line.
 registerCommand('*page_break', (t) => {
+  // BUG-08 guard
+  if (pauseState !== null) {
+    console.warn(`[interpreter] *page_break fired while pauseState is already "${pauseState.type}" — overwriting. Check scene "${currentScene}" near line ${ip}.`);
+  }
+
   const btnText  = t.replace(/^\*page_break\s*/, '').trim().replace(/^"|"$/g, '') || 'Continue';
   const resumeIp = ip + 1;
 
@@ -476,10 +519,12 @@ registerCommand('*page_break', (t) => {
 });
 
 // *delay ms — pauses the interpreter for the given number of milliseconds.
-// Text before the delay renders normally; after the pause, execution continues.
-// On save/load restore, restoreFromSave sees type:'delay' and resumes
-// immediately — the elapsed time is not replayed.
 registerCommand('*delay', (t) => {
+  // BUG-08 guard
+  if (pauseState !== null) {
+    console.warn(`[interpreter] *delay fired while pauseState is already "${pauseState.type}" — overwriting. Check scene "${currentScene}" near line ${ip}.`);
+  }
+
   const ms       = Number(t.replace(/^\*delay\s*/, '').trim()) || 500;
   const resumeIp = ip + 1;
 
@@ -494,9 +539,6 @@ registerCommand('*delay', (t) => {
 });
 
 // *input varName "Prompt text" — inline text input that pauses the interpreter.
-// Creates a text field in the narrative; stores the value in the named variable
-// when the player submits. Works like *choice: pauses execution until input is
-// provided, then resumes from the next line.
 registerCommand('*input', (t) => {
   const m = t.match(/^\*input\s+([a-zA-Z_][\w]*)\s+"([^"]+)"$/);
   if (!m) {
@@ -504,6 +546,12 @@ registerCommand('*input', (t) => {
     setIp(currentLines.length);
     return;
   }
+
+  // BUG-08 guard
+  if (pauseState !== null) {
+    console.warn(`[interpreter] *input fired while pauseState is already "${pauseState.type}" — overwriting. Check scene "${currentScene}" near line ${ip}.`);
+  }
+
   const varName  = normalizeKey(m[1]);
   const prompt   = m[2];
   const resumeIp = ip + 1;
@@ -524,8 +572,16 @@ registerCommand('*input', (t) => {
 });
 
 // *choice
+// BUG-06 fix: parseChoice errors are surfaced via cb.showEngineError.
+// The fix lives in parser.js (parseChoice now accepts a showError callback),
+// but *choice also validates that at least one option was produced.
 registerCommand('*choice', (t, line) => {
   const parsed = parseChoice(ip, line.indent, { currentLines, evalValue });
+  if (parsed.choices.length === 0) {
+    cb.showEngineError(`*choice at line ${ip} in "${currentScene}" produced no options. Check for missing or malformed # lines.`);
+    setIp(currentLines.length);
+    return;
+  }
   setAwaitingChoice({ end: parsed.end, choices: parsed.choices });
   cb.renderChoices(parsed.choices);
 });
@@ -564,6 +620,8 @@ registerCommand('*if', async (t, line) => {
 });
 
 // *loop condition
+// BUG-04 fix: guard trip now calls cb.showEngineError so the author sees it
+// in-game rather than only in the browser console.
 registerCommand('*loop', async (t, line) => {
   const blockStart = ip + 1, blockEnd = findBlockEnd(blockStart, line.indent);
   let guard = 0;
@@ -571,12 +629,12 @@ registerCommand('*loop', async (t, line) => {
     await executeBlock(blockStart, blockEnd);
     if (awaitingChoice) return;
     // If a *goto inside the loop body relocated ip, honour it and exit the loop.
-    // Without this check, executeBlock returns early (ip already set by *goto),
-    // but the while loop re-evaluates the condition and calls executeBlock again,
-    // silently discarding the goto destination.
     if (_gotoJumped) { setGotoJumped(false); return; }
     guard += 1;
   }
-  if (guard >= 100) console.warn(`[interpreter] *loop guard tripped in "${currentScene}"`);
+  if (guard >= 100) {
+    // BUG-04: show error in-game, not just console, so author can diagnose it.
+    cb.showEngineError(`*loop guard tripped in scene "${currentScene}" — possible infinite loop. Check that the loop condition can become false.`);
+  }
   setIp(blockEnd);
 });

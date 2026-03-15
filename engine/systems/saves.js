@@ -17,6 +17,11 @@
 //     the DOM from the saved narrative log via renderFromLog, sets ip to the
 //     saved position, and re-presents any pause UI (page_break / input / delay)
 //     directly — no gotoScene call, no interpreter replay.
+//
+// BUG-05 fix: restoreFromSave now accepts and calls a setChoiceArea callback
+// after renderFromLog, mirroring what popUndo already does in engine.js.
+// Without this, narrative.js's internal _choiceArea pointer is stale after a
+// mid-session load, causing renderChoices to insert buttons into a detached node.
 // ---------------------------------------------------------------------------
 
 import {
@@ -132,6 +137,7 @@ export function deleteSaveSlot(slot) {
 //   4. Restore ip, scene, chapterTitle, delayIndex, awaitingChoice.
 //   5. Render narrative from saved log via renderFromLog — instant, no
 //      interpreter execution, no applySystemRewards calls.
+//   5b. Re-point narrative.js's _choiceArea at the live DOM element. (BUG-05)
 //   6. Re-present any pause UI (page_break / input / delay) from pauseState,
 //      or re-render choices if awaitingChoice was saved.
 //   7. Run the stats panel.
@@ -149,6 +155,7 @@ export async function restoreFromSave(save, {
   clearNarrative,
   applyTransition,
   setChapterTitle,
+  setChoiceArea,         // BUG-05: injected so we can re-point _choiceArea after renderFromLog
   parseAndCacheScene,
   fetchTextFileFn,
   evalValueFn,
@@ -190,6 +197,16 @@ export async function restoreFromSave(save, {
   clearNarrative();
   applyTransition();
   renderFromLog(save.narrativeLog ?? [], { skipAnimations: true });
+
+  // BUG-05 fix: renderFromLog clears and rebuilds the DOM, so the internal
+  // _choiceArea pointer inside narrative.js is now pointing at a stale element.
+  // Re-acquire the live #choice-area from the DOM and pass it to setChoiceArea
+  // so that subsequent renderChoices() calls insert buttons in the right place.
+  // (popUndo in engine.js already does this — this call makes restoreFromSave
+  // consistent with that behaviour.)
+  if (typeof setChoiceArea === 'function') {
+    setChoiceArea(document.getElementById('choice-area'));
+  }
 
   // 7. Run stats panel.
   await runStatsScene();

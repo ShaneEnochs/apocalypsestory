@@ -5,6 +5,11 @@
 // onChanged callback. When state changes, they call onChanged() — which
 // engine.js wires to scheduleStatsRender(). This avoids a circular import
 // with the UI layer while keeping the dependency explicit.
+//
+// BUG-01 fix: health supports string OR number. When health is a string,
+//   "+N health" sets it to N (numeric). When health is already a number,
+//   "+N health" adds N. This allows authors to transition from string status
+//   ("Healthy") to a numeric HP system via the first health reward.
 // ---------------------------------------------------------------------------
 
 import { playerState, statRegistry,
@@ -51,6 +56,28 @@ export function checkAndApplyLevelUp(onChanged) {
   if (changed) {
     setPendingLevelUpDisplay(true);
     if (typeof onChanged === 'function') onChanged();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// applyVitalNumeric — applies a numeric reward to a vital field.
+//
+// BUG-01 fix: health can be a string ("Healthy") or a number (100).
+//   - If it is a string, the reward SETS it to b (numeric), transitioning
+//     the field from status-string mode to numeric-HP mode.
+//   - If it is already a number, the reward ADDS b to it.
+//   - mana and max_mana are always numeric; no special handling needed.
+// ---------------------------------------------------------------------------
+function applyVitalNumeric(key, b) {
+  if (key === 'health') {
+    if (typeof playerState[key] === 'string') {
+      // Transition: string → number. First health reward sets the value.
+      playerState[key] = b;
+    } else {
+      playerState[key] = Number(playerState[key] || 0) + b;
+    }
+  } else {
+    playerState[key] = Number(playerState[key] || 0) + b;
   }
 }
 
@@ -102,6 +129,7 @@ export function applySystemRewards(text, onChanged) {
   }
 
   // --- Vitals (health, mana, max_mana) + per-stat patterns ---
+  // NOTE: health uses applyVitalNumeric to support string→number transition (BUG-01 fix).
   const vitals = [
     { regex: /\+\s*(\d+)\s+max\s+mana\b/i, key: 'max_mana' },
     { regex: /\+\s*(\d+)\s+mana\b/i,       key: 'mana'     },
@@ -124,7 +152,10 @@ export function applySystemRewards(text, onChanged) {
     const m2 = text.match(regex);
     if (!m2) return;
     const b = Number(m2[1]);
-    if (b > 0) { playerState[key] = Number(playerState[key] || 0) + b; stateChanged = true; }
+    if (b > 0) {
+      applyVitalNumeric(key, b);
+      stateChanged = true;
+    }
   });
 
   // --- Inventory ---

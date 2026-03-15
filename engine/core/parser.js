@@ -13,9 +13,13 @@
 //
 // The ctx (context) parameter passed to parseChoice and parseSystemBlock is an
 // object with the shape:
-//   { currentLines, evalValue }
+//   { currentLines, evalValue, showEngineError? }
 // This keeps parser.js free of direct state imports — the interpreter injects
 // the live currentLines array and evaluator at call time.
+//
+// BUG-06 fix: parseChoice now accepts an optional ctx.showEngineError callback.
+// When a *selectable_if line is malformed (regex fails), it calls showEngineError
+// instead of only logging a console.warn, so authors see the error in-game.
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -53,14 +57,16 @@ export function indexLabels(sceneName, lines, labelsCache) {
 // option's own indent) so the interpreter knows the exact line range to
 // execute when the option is selected.
 //
-// ctx.currentLines — the live line array (injected by interpreter)
-// ctx.evalValue    — expression evaluator (injected by interpreter)
+// ctx.currentLines  — the live line array (injected by interpreter)
+// ctx.evalValue     — expression evaluator (injected by interpreter)
+// ctx.showEngineError — optional; if provided, malformed lines call it
+//                       in addition to console.warn so authors see the error.
 //
 // Returns { choices: [{ text, selectable, start, end }], end }
 // where end is the line index just after the entire *choice block.
 // ---------------------------------------------------------------------------
 export function parseChoice(startIndex, indent, ctx) {
-  const { currentLines, evalValue } = ctx;
+  const { currentLines, evalValue, showEngineError } = ctx;
   const choices = [];
   let i = startIndex + 1;
 
@@ -79,7 +85,12 @@ export function parseChoice(startIndex, indent, ctx) {
         selectable = !!evalValue(m[1]);
         optionText = m[2].trim();
       } else {
-        console.warn(`[parser] Malformed *selectable_if at line ${i}: ${line.trimmed}`);
+        // BUG-06 fix: surface malformed *selectable_if to the author in-game,
+        // not just in the browser console, so the silently-dropped option
+        // is immediately visible during development.
+        const msg = `[parser] Malformed *selectable_if at line ${i}: "${line.trimmed}"\nExpected: *selectable_if (condition) #Option text`;
+        console.warn(msg);
+        if (typeof showEngineError === 'function') showEngineError(msg);
       }
     } else if (line.trimmed.startsWith('#')) {
       optionText = line.trimmed.slice(1).trim();
