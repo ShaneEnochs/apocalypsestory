@@ -13,10 +13,10 @@
 import {
   playerState, tempState, statRegistry, startup,
   currentScene, currentLines, ip, pendingStatPoints,
-  awaitingChoice, delayIndex, pauseState,
+  awaitingChoice, pauseState,
   patchPlayerState, parseStartup,
   setPlayerState, setTempState, setPendingStatPoints,
-  setCurrentScene, setCurrentLines, setIp, setDelayIndex,
+  setCurrentScene, setCurrentLines, setIp,
   setAwaitingChoice, setPendingLevelUpDisplay,
   setChapterTitleState, clearPauseState,
   sessionState, clearSessionState,  // ENH-08: sessionState needed by pushUndoSnapshot/popUndo
@@ -138,10 +138,6 @@ function showEngineError(message) {
   dom.chapterTitle.textContent = 'ERROR';
 }
 
-function getEngineState() {
-  return { playerState, tempState, statRegistry, startup, currentScene, pendingStatPoints };
-}
-
 // ---------------------------------------------------------------------------
 // Undo system
 // ---------------------------------------------------------------------------
@@ -189,7 +185,6 @@ async function popUndo() {
     indexLabels(snap.scene, currentLines, labelsCache);
   }
   setIp(snap.ip);
-  setDelayIndex(0);
   setAwaitingChoice(null);
   clearPauseState();
 
