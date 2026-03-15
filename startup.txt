@@ -9,7 +9,7 @@
 *create first_name "Alex"
 *create last_name  ""
 *create pronouns   "they/them"
-*create class_name "Infinite Sword"
+*create class_name "Unclassed"
 
 *comment --- Level / Essence progress ---
 *create level 1
