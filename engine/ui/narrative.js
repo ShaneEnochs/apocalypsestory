@@ -331,7 +331,7 @@ export function renderChoices(choices) {
         : (playerState[key] !== undefined ? playerState[key] : null);
       const met = val !== null && Number(val) >= requirement;
       const badge = document.createElement('span');
-      badge.className = `stat-requirement-badge ${met ? 'stat-req--met' : 'stat-req--unmet'}`;
+      badge.className = `choice-stat-badge ${met ? 'choice-stat-badge--met' : 'choice-stat-badge--unmet'}`;
       badge.textContent = `${label} ${requirement}`;
       btn.appendChild(badge);
     }
