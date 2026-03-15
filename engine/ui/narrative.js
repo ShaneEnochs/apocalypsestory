@@ -13,15 +13,6 @@
 //   Plain author-written narrative text and markdown (**bold** / *italic*)
 //   are NOT escaped — only the dynamic values injected from state are.
 //   This preserves all existing formatting behaviour for authored content.
-//
-// FIX Main + A + B (sweep 4): Choice click handler rewritten.
-//   - awaitingChoice is now read directly from state.js (no circular import).
-//   - setAwaitingChoice(null) is called before executeBlock so the stale
-//     truthy value doesn't cause executeBlock to bail immediately.
-//   - The correct resume IP (awaitingChoice.end — the whole choice block end)
-//     is captured before clearing, not choice.end (individual option end).
-//   - executeBlock and runInterpreter are received via init() callbacks
-//     to avoid a circular import with interpreter.js.
 // ---------------------------------------------------------------------------
 
 import {
@@ -29,7 +20,6 @@ import {
   pendingLevelUpDisplay, pendingStatPoints,
   delayIndex, setDelayIndex, advanceDelayIndex,
   normalizeKey,
-  awaitingChoice, setAwaitingChoice,
 } from '../core/state.js';
 
 import { applySystemRewards } from '../systems/leveling.js';
@@ -57,22 +47,14 @@ let _onShowLevelUp     = null;
 let _scheduleStats     = null;
 let _onBeforeChoice    = null;
 
-// FIX Main/A/B (sweep 4): interpreter functions injected via init() to avoid
-// circular import (narrative.js → interpreter.js → [via callbacks] → narrative.js).
-let _executeBlock      = null;
-let _runInterpreter    = null;
-
 export function init({ narrativeContent, choiceArea, narrativePanel,
-                       onShowLevelUp, scheduleStatsRender, onBeforeChoice,
-                       executeBlock, runInterpreter }) {
+                       onShowLevelUp, scheduleStatsRender, onBeforeChoice }) {
   _narrativeContent = narrativeContent;
   _choiceArea       = choiceArea;
   _narrativePanel   = narrativePanel;
   _onShowLevelUp    = onShowLevelUp    || (() => {});
   _scheduleStats    = scheduleStatsRender || (() => {});
   _onBeforeChoice   = onBeforeChoice   || (() => {});
-  _executeBlock     = executeBlock     || null;
-  _runInterpreter   = runInterpreter   || null;
 }
 
 export function setChoiceArea(el) { _choiceArea = el; }
@@ -305,7 +287,7 @@ export function applyTransition() {
 // renderChoices — builds choice buttons and wires click → executeBlock
 //
 // Called by the interpreter (via the cb.renderChoices callback registered
-// in engine.js). Disables choices while a level-up is pending.
+// in main.js). Disables choices while a level-up is pending.
 // ---------------------------------------------------------------------------
 export function renderChoices(choices) {
   // Show level-up UI before choices if points are still unspent
@@ -336,15 +318,7 @@ export function renderChoices(choices) {
       btn.appendChild(badge);
     }
 
-    if (!choice.selectable) {
-      // FIX BUG-6 (sweep 5): Mark permanently-unselectable buttons so the
-      // level-up confirm handler knows not to re-enable them.
-      btn.disabled = true;
-      btn.classList.add('choice-btn--disabled');
-      btn.dataset.unselectable = 'true';
-    } else if (levelUpActive) {
-      // Temporarily disabled until level-up is confirmed — no data marker,
-      // so the confirm handler WILL re-enable these.
+    if (!choice.selectable || levelUpActive) {
       btn.disabled = true;
       btn.classList.add('choice-btn--disabled');
     } else {
@@ -352,47 +326,18 @@ export function renderChoices(choices) {
         _onBeforeChoice();
         btn.disabled = true;
         _choiceArea.querySelectorAll('.choice-btn').forEach(b => { b.disabled = true; });
-
-        // FIX Main + A + B (sweep 4):
-        //
-        // Main/B: awaitingChoice is still set from the *choice handler that
-        // rendered these buttons. We MUST clear it before calling executeBlock,
-        // otherwise executeBlock's inner loop sees the truthy awaitingChoice on
-        // the very first iteration and bails immediately — the choice body
-        // never executes and the game freezes.
-        //
-        // A: The correct resume IP after the choice body finishes is the end of
-        // the entire *choice block (awaitingChoice.end), NOT choice.end (which
-        // is only the end of this individual option's body). For nested choices
-        // inside *if blocks, _savedIp was stashed by executeBlock on the
-        // awaitingChoice object — capture it before clearing.
-        //
-        // B: awaitingChoice and setAwaitingChoice are imported directly from
-        // state.js (no circular import). executeBlock and runInterpreter are
-        // received via init() callbacks to avoid circular imports with
-        // interpreter.js.
-        const choiceBlockEnd = awaitingChoice?.end ?? choice.end;
-        const savedIp = awaitingChoice?._savedIp ?? choiceBlockEnd;
-        console.log('[narrative] CHOICE CLICK DEBUG:', {
-          'choice.start': choice.start,
-          'choice.end': choice.end,
-          'awaitingChoice': awaitingChoice ? { end: awaitingChoice.end, _savedIp: awaitingChoice._savedIp } : null,
-          'choiceBlockEnd': choiceBlockEnd,
-          'savedIp': savedIp,
-          '_executeBlock type': typeof _executeBlock,
-          '_runInterpreter type': typeof _runInterpreter,
+        // FIX: actually execute the chosen option's block and resume the interpreter.
+        // Previously this import resolved but the .then() body was empty (just a
+        // comment), so clicking a choice button did nothing — the game froze.
+        // _savedIp is the ip to resume at after the choice block completes;
+        // it is stashed on awaitingChoice by executeBlock when a *choice is
+        // encountered mid-block, or falls back to choice.end for top-level choices.
+        import('../core/interpreter.js').then(({ executeBlock, runInterpreter, awaitingChoice: ac }) => {
+          const savedIp = ac?._savedIp ?? choice.end;
+          executeBlock(choice.start, choice.end, savedIp)
+            .then(() => runInterpreter())
+            .catch(err => console.error('[narrative] choice execution error:', err));
         });
-        setAwaitingChoice(null);
-
-        _executeBlock(choice.start, choice.end, savedIp)
-          .then(() => {
-            console.log('[narrative] executeBlock finished, calling runInterpreter');
-            return _runInterpreter();
-          })
-          .then(() => {
-            console.log('[narrative] runInterpreter finished');
-          })
-          .catch(err => console.error('[narrative] choice execution error:', err));
       });
     }
 
