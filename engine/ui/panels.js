@@ -38,33 +38,36 @@ import { getJournalEntries, getAchievements } from '../systems/journal.js';
 // ---------------------------------------------------------------------------
 // Module-level DOM references and callbacks — populated by init()
 // ---------------------------------------------------------------------------
-let _narrativeContent = null;
-let _choiceArea       = null;
-let _statusPanel      = null;
-let _endingOverlay    = null;
-let _endingTitle      = null;
-let _endingContent    = null;
-let _endingStats      = null;
-let _endingActionBtn  = null;
-let _fetchTextFile    = null;   // async (name) → string
-let _scheduleStats    = null;   // () → void
-let _trapFocus        = null;   // (el, trigger) → release fn
+let _narrativeContent   = null;
+let _choiceArea         = null;
+let _statusPanel        = null;
+let _endingOverlay      = null;
+let _endingTitle        = null;
+let _endingContent      = null;
+let _endingStats        = null;
+let _endingActionBtn    = null;
+let _fetchTextFile      = null;   // async (name) → string
+let _scheduleStats      = null;   // () → void
+let _trapFocus          = null;   // (el, trigger) → release fn
+let _onLevelUpConfirmed = null;   // (level: number) → void — records confirmed level-up in the narrative log
 
 export function init({ narrativeContent, choiceArea, statusPanel,
                        endingOverlay, endingTitle, endingContent,
                        endingStats, endingActionBtn,
-                       fetchTextFile, scheduleStatsRender, trapFocus }) {
-  _narrativeContent = narrativeContent;
-  _choiceArea       = choiceArea;
-  _statusPanel      = statusPanel;
-  _endingOverlay    = endingOverlay;
-  _endingTitle      = endingTitle;
-  _endingContent    = endingContent;
-  _endingStats      = endingStats;
-  _endingActionBtn  = endingActionBtn;
-  _fetchTextFile    = fetchTextFile;
-  _scheduleStats    = scheduleStatsRender;
-  _trapFocus        = trapFocus;
+                       fetchTextFile, scheduleStatsRender, trapFocus,
+                       onLevelUpConfirmed }) {
+  _narrativeContent   = narrativeContent;
+  _choiceArea         = choiceArea;
+  _statusPanel        = statusPanel;
+  _endingOverlay      = endingOverlay;
+  _endingTitle        = endingTitle;
+  _endingContent      = endingContent;
+  _endingStats        = endingStats;
+  _endingActionBtn    = endingActionBtn;
+  _fetchTextFile      = fetchTextFile;
+  _scheduleStats      = scheduleStatsRender;
+  _trapFocus          = trapFocus;
+  _onLevelUpConfirmed = onLevelUpConfirmed || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -165,10 +168,10 @@ export async function runStatsScene() {
     }
     if (e.type === 'journal') {
       if (inGroup) { html += `</div>`; inGroup = false; }
-      const entries = getJournalEntries();
-      if (entries.length > 0) {
+      const jentries = getJournalEntries();
+      if (jentries.length > 0) {
         // Show newest first in the sidebar
-        const items = [...entries].reverse().map(j => {
+        const items = [...jentries].reverse().map(j => {
           const cls = j.type === 'achievement' ? 'journal-entry journal-entry--achievement' : 'journal-entry';
           const prefix = j.type === 'achievement' ? '<span class="journal-achievement-icon">◆</span> ' : '';
           return `<li class="${cls}">${prefix}${j.text}</li>`;
@@ -361,6 +364,9 @@ export function showInlineLevelUp() {
         playerState[k] = Number(playerState[k] || 0) + v;
       });
       setPendingStatPoints(0);
+      // Record the confirmed level-up in the narrative log so undo snapshots
+      // and save payloads can reconstruct the greyed-out confirmed block via renderFromLog.
+      if (_onLevelUpConfirmed) _onLevelUpConfirmed(playerState.level);
       block.innerHTML = `<span class="system-block-label">[ LEVEL UP ]</span><span class="system-block-text levelup-confirmed-text">Level ${playerState.level} reached — stats allocated.</span>`;
       block.classList.add('levelup-inline-block--confirmed');
       const ov = _choiceArea.querySelector('.levelup-choice-overlay');

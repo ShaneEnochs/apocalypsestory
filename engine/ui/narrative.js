@@ -15,7 +15,7 @@
 //     → state.js       (playerState, tempState, delayIndex, awaitingChoice …)
 //     → leveling.js    (applySystemRewards)
 //     → interpreter.js (executeBlock, runInterpreter)
-//     ← main.js        (injects dom slice + showInlineLevelUp via init())
+//     ← engine.js      (injects dom slice + showInlineLevelUp via init())
 // ---------------------------------------------------------------------------
 
 import {
@@ -23,7 +23,7 @@ import {
   pendingLevelUpDisplay, pendingStatPoints,
   awaitingChoice, setAwaitingChoice,
   delayIndex, advanceDelayIndex, setDelayIndex,
-  normalizeKey, _isRestoring,
+  normalizeKey,
 } from '../core/state.js';
 
 import { applySystemRewards }            from '../systems/leveling.js';
@@ -49,9 +49,131 @@ export function init({ narrativeContent, choiceArea, narrativePanel,
   _onBeforeChoice   = onBeforeChoice || null;
 }
 
-// setChoiceArea — called by popUndo after innerHTML replacement to re-point
-// _choiceArea at the live DOM element (innerHTML kills the old reference).
+// setChoiceArea — called by popUndo after renderFromLog to re-point _choiceArea
+// at the live DOM element (renderFromLog clears _choiceArea.innerHTML, which
+// detaches child elements; the #choice-area element itself is re-acquired from
+// the DOM and passed in here so both engine.js and narrative.js agree on it).
 export function setChoiceArea(el) { _choiceArea = el; }
+
+// ---------------------------------------------------------------------------
+// Narrative Log — records every piece of visible narrative content during play.
+//
+// Each entry is a plain object describing one rendered item:
+//   { type: 'paragraph', text }
+//   { type: 'system',    text }
+//   { type: 'input',     varName, prompt, value }   (value filled on submit)
+//   { type: 'levelup_confirmed', level }
+//
+// Choices and page-break buttons are NOT logged — they are transient
+// interactive state, not historical narrative content. Page breaks clear the
+// narrative when clicked, so the log resets to [] on clearNarrative().
+//
+// renderFromLog() consumes this log to rebuild the DOM without re-executing
+// any scene code. Used by popUndo and restoreFromSave.
+// ---------------------------------------------------------------------------
+let _narrativeLog = [];
+
+export function getNarrativeLog()        { return _narrativeLog; }
+export function setNarrativeLog(log)     { _narrativeLog = log; }
+export function pushNarrativeLogEntry(e) { _narrativeLog.push(e); }
+export function clearNarrativeLog()      { _narrativeLog = []; }
+
+// ---------------------------------------------------------------------------
+// renderFromLog — paints the DOM from a log array with zero side effects.
+//
+// This is the heart of the new save/load and undo approach: instead of
+// re-executing scene code, we replay the visible record of what was shown.
+// No rewards are re-applied, no interpreter runs, no state changes occur.
+//
+// opts.skipAnimations (default true): renders elements without CSS animation
+// delay so the screen fills instantly on restore.
+// ---------------------------------------------------------------------------
+export function renderFromLog(log, { skipAnimations = true } = {}) {
+  // Clear DOM — but do NOT touch _narrativeLog here; we're about to adopt
+  // the incoming log as the new current log at the end of this function.
+  for (const el of [..._narrativeContent.children]) {
+    if (el !== _choiceArea) el.remove();
+  }
+  _choiceArea.innerHTML = '';
+  _narrativeContent.scrollTop = 0;
+
+  if (skipAnimations) setDelayIndex(0);
+
+  for (const entry of log) {
+    switch (entry.type) {
+
+      case 'paragraph': {
+        const p = document.createElement('p');
+        p.className = 'narrative-paragraph';
+        if (skipAnimations) {
+          p.style.opacity   = '1';
+          p.style.transform = 'none';
+          p.style.animation = 'none';
+        } else {
+          p.style.animationDelay = `${delayIndex * 80}ms`;
+        }
+        p.innerHTML = formatText(entry.text);
+        _narrativeContent.insertBefore(p, _choiceArea);
+        if (!skipAnimations) advanceDelayIndex();
+        break;
+      }
+
+      case 'system': {
+        const div       = document.createElement('div');
+        const isXP      = /XP\s+gained|bonus\s+XP|\+\d+\s+XP/i.test(entry.text);
+        const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(entry.text);
+        div.className = `system-block${isXP ? ' xp-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
+        if (skipAnimations) {
+          div.style.opacity   = '1';
+          div.style.transform = 'none';
+          div.style.animation = 'none';
+        } else {
+          div.style.animationDelay = `${delayIndex * 80}ms`;
+        }
+        const formatted = formatText(entry.text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
+        div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
+        _narrativeContent.insertBefore(div, _choiceArea);
+        if (!skipAnimations) advanceDelayIndex();
+        // DO NOT call applySystemRewards — this is a pure render, no side effects.
+        break;
+      }
+
+      case 'input': {
+        // Render the completed input as a static read-only block.
+        const wrapper = document.createElement('div');
+        wrapper.className = 'input-prompt-block input-prompt-block--submitted';
+        if (skipAnimations) {
+          wrapper.style.opacity   = '1';
+          wrapper.style.animation = 'none';
+        }
+        const safe = (entry.value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                                        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        wrapper.innerHTML = `<span class="system-block-label">[ INPUT ]</span><span class="system-block-text">${formatText(entry.prompt)}: <strong>${safe}</strong></span>`;
+        _narrativeContent.insertBefore(wrapper, _choiceArea);
+        break;
+      }
+
+      case 'levelup_confirmed': {
+        const block = document.createElement('div');
+        block.className = 'levelup-inline-block levelup-inline-block--confirmed';
+        if (skipAnimations) {
+          block.style.opacity   = '0.55';
+          block.style.animation = 'none';
+        }
+        block.innerHTML = `<span class="system-block-label">[ LEVEL UP ]</span><span class="system-block-text levelup-confirmed-text">Level ${entry.level} reached — stats allocated.</span>`;
+        _narrativeContent.insertBefore(block, _choiceArea);
+        break;
+      }
+
+      // Future entry types can be added here without touching any other code.
+    }
+  }
+
+  // Adopt the supplied log as the current log so subsequent pushes append
+  // correctly (e.g. if the interpreter continues after a restore).
+  _narrativeLog = [...log];
+  if (skipAnimations) setDelayIndex(log.length);
+}
 
 // ---------------------------------------------------------------------------
 // Pronoun resolution
@@ -109,16 +231,17 @@ export function addParagraph(text, cls = 'narrative-paragraph') {
   p.innerHTML = formatText(text);
   advanceDelayIndex();
   _narrativeContent.insertBefore(p, _choiceArea);
+
+  // Log the raw text (before formatText) so renderFromLog can re-resolve
+  // variable interpolation against the restored state on load/undo.
+  _narrativeLog.push({ type: 'paragraph', text });
 }
 
 // ---------------------------------------------------------------------------
 // addSystem — renders a system block, applies rewards, triggers level-up UI
 // ---------------------------------------------------------------------------
 export function addSystem(text) {
-  // Skip reward parsing during save/load replay — playerState was already
-  // restored from the save payload, so re-applying rewards would double-count
-  // XP and trigger a spurious level-up (KB1).
-  if (!_isRestoring) applySystemRewards(text, _scheduleStats);
+  applySystemRewards(text, _scheduleStats);
 
   const div       = document.createElement('div');
   const isXP      = /XP\s+gained|bonus\s+XP|\+\d+\s+XP/i.test(text);
@@ -130,6 +253,9 @@ export function addSystem(text) {
   const formatted = formatText(text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
   div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
   _narrativeContent.insertBefore(div, _choiceArea);
+
+  // Log the raw system text so renderFromLog can reconstruct the block.
+  _narrativeLog.push({ type: 'system', text });
 
   // pendingLevelUpDisplay is set by checkAndApplyLevelUp inside applySystemRewards
   if (pendingLevelUpDisplay) _onShowLevelUp();
@@ -146,6 +272,9 @@ export function clearNarrative() {
   setDelayIndex(0);
   // Reset scroll position so new content starts at the top
   _narrativeContent.scrollTop = 0;
+
+  // Clear the narrative log — a page break or scene transition starts fresh.
+  _narrativeLog = [];
 }
 
 // ---------------------------------------------------------------------------
@@ -216,6 +345,12 @@ export function renderChoices(choices) {
 // area and calls onSubmit(value) when the player presses Enter or clicks Submit.
 // ---------------------------------------------------------------------------
 export function showInputPrompt(varName, prompt, onSubmit) {
+  // Create the log entry immediately with value: null. The value field is
+  // mutated to the actual string inside doSubmit so that renderFromLog can
+  // show the completed answer when restoring from an undo or save.
+  const logEntry = { type: 'input', varName, prompt, value: null };
+  _narrativeLog.push(logEntry);
+
   const wrapper = document.createElement('div');
   wrapper.className = 'input-prompt-block';
   wrapper.style.animationDelay = `${delayIndex * 80}ms`;
@@ -247,6 +382,11 @@ export function showInputPrompt(varName, prompt, onSubmit) {
     // Sanitize the displayed value — user input must never be injected raw into innerHTML
     const safe = value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     wrapper.innerHTML = `<span class="system-block-label">[ INPUT ]</span><span class="system-block-text">${formatText(prompt)}: <strong>${safe}</strong></span>`;
+
+    // Record the submitted value in the existing log entry so that any undo
+    // snapshot taken after this point captures the completed input correctly.
+    logEntry.value = value;
+
     onSubmit(value);
   }
 
@@ -260,6 +400,9 @@ export function showInputPrompt(varName, prompt, onSubmit) {
 // showPageBreak — renders a full-width "Continue" button in the choice area.
 // Used by the *page_break directive. The button text is configurable
 // (e.g. "The next day..."). Clicking clears the screen and resumes.
+//
+// Page breaks are intentionally NOT logged: clicking one clears the narrative
+// and starts a fresh screen, so the log resets via clearNarrative() anyway.
 // ---------------------------------------------------------------------------
 export function showPageBreak(btnText, onContinue) {
   _choiceArea.innerHTML = '';

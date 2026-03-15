@@ -54,21 +54,26 @@ export let delayIndex = 0;
 export let startup = { sceneList: [] };
 
 // ---------------------------------------------------------------------------
-// _isRestoring — true while restoreFromSave is replaying a scene.
-// addSystem checks this flag and skips applySystemRewards during replay to
-// prevent double-counting XP / rewards (KB1).
+// pauseState — tracks which directive has halted the interpreter and carries
+// all context needed to re-present its UI on save/load restore.
+//
+// Shapes (one of):
+//   { type: 'page_break', btnText: string, resumeIp: number }
+//   { type: 'delay',      ms: number,      resumeIp: number }
+//   { type: 'input',      varName: string, prompt: string, resumeIp: number }
+//
+// null when the interpreter is not paused at a directive.
 // ---------------------------------------------------------------------------
-export let _isRestoring = false;
-export function setIsRestoring(v) { _isRestoring = v; }
+export let pauseState = null;
+export function setPauseState(s)  { pauseState = s; }
+export function clearPauseState() { pauseState = null; }
 
 // ---------------------------------------------------------------------------
-// _pausedAtIp — set by *page_break / *delay / *input before they jump ip to
-// currentLines.length. buildSavePayload reads this so saves record the real
-// directive line rather than the synthetic "past-end" ip (KB3).
+// chapterTitle — state-side mirror of the DOM #chapter-title text.
+// Persisted in the save payload so restore can set it without a DOM query.
 // ---------------------------------------------------------------------------
-export let _pausedAtIp = null;
-export function setPausedAtIp(n) { _pausedAtIp = n; }
-export function clearPausedAtIp() { _pausedAtIp = null; }
+export let chapterTitle = '—';
+export function setChapterTitleState(t) { chapterTitle = t; }
 
 // ---------------------------------------------------------------------------
 // Setters
@@ -176,7 +181,7 @@ export async function parseStartup(fetchTextFileFn, evalValueFn) {
   statRegistry = [];
   startup      = { sceneList: [] };
 
-  let inSceneList               = false;
+  let inSceneList = false;
 
   for (const line of lines) {
     if (!line.trimmed || line.trimmed.startsWith('//')) continue;

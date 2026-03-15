@@ -6,17 +6,34 @@
 //
 // Save version: bump SAVE_VERSION whenever the payload shape changes so stale
 // saves are rejected cleanly rather than silently corrupting state.
+//
+// Phase 3 changes:
+//   • SAVE_VERSION bumped to 4. v3 saves are rejected by loadSaveFromSlot and
+//     show the stale-save banner — no migration code needed.
+//   • buildSavePayload now accepts a narrativeLog parameter and stores it in
+//     the payload. pauseState and chapterTitle are also persisted.
+//   • saveGameToSlot accepts an optional narrativeLog argument.
+//   • restoreFromSave is rewritten to use the no-replay approach: it paints
+//     the DOM from the saved narrative log via renderFromLog, sets ip to the
+//     saved position, and re-presents any pause UI (page_break / input / delay)
+//     directly — no gotoScene call, no interpreter replay.
 // ---------------------------------------------------------------------------
 
-import { playerState, pendingStatPoints, currentScene, ip,
-         setPlayerState, setPendingStatPoints, setPendingLevelUpDisplay,
-         clearTempState, parseStartup,
-         _pausedAtIp, setIsRestoring }                from '../core/state.js';
+import {
+  playerState, tempState, pendingStatPoints, currentScene, ip,
+  chapterTitle,
+  setPlayerState, setPendingStatPoints, setPendingLevelUpDisplay,
+  setCurrentScene, setCurrentLines, setIp, setDelayIndex,
+  setAwaitingChoice,
+  clearTempState, parseStartup,
+  pauseState, setPauseState, clearPauseState,
+  setChapterTitleState,
+} from '../core/state.js';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-export const SAVE_VERSION  = 3;
+export const SAVE_VERSION  = 4;
 
 export const SAVE_KEY_AUTO  = 'sa_save_auto';
 export const SAVE_KEY_SLOTS = { 1: 'sa_save_slot_1', 2: 'sa_save_slot_2', 3: 'sa_save_slot_3' };
@@ -31,38 +48,45 @@ export function saveKeyForSlot(slot) {
 // Only shown once per boot; cleared after the banner fires.
 // ---------------------------------------------------------------------------
 export let _staleSaveFound = false;
-export function clearStaleSaveFound()  { _staleSaveFound = false; }
-export function setStaleSaveFound()    { _staleSaveFound = true;  }
+export function clearStaleSaveFound() { _staleSaveFound = false; }
+export function setStaleSaveFound()   { _staleSaveFound = true;  }
 
 // ---------------------------------------------------------------------------
-// buildSavePayload — constructs the object written to localStorage
+// buildSavePayload — constructs the v4 object written to localStorage.
+//
+// narrativeLog: the current narrative log array from getNarrativeLog().
+//   Passed explicitly so saves.js has no direct import of narrative.js
+//   (which would create a circular dependency).
 // ---------------------------------------------------------------------------
-export function buildSavePayload(slot, label) {
+export function buildSavePayload(slot, label, narrativeLog) {
   return {
-    version:          SAVE_VERSION,
-    slot:             String(slot),
-    scene:            currentScene,
-    label:            label ?? null,
-    // Use _pausedAtIp when the interpreter is halted at a *page_break / *delay /
-    // *input directive — those directives jump ip to currentLines.length to stop
-    // the loop, so raw ip would give us a past-end value that breaks restore (KB3).
-    ip:               _pausedAtIp !== null ? _pausedAtIp : ip,
-    characterName:    `${playerState.first_name || ''} ${playerState.last_name || ''}`.trim() || 'Unknown',
-    playerState:      JSON.parse(JSON.stringify(playerState)),
+    version:       SAVE_VERSION,
+    slot:          String(slot),
+    scene:         currentScene,
+    label:         label ?? null,
+    ip,                                       // exact ip at time of save
+    chapterTitle,                             // state-side mirror of DOM title
+    pauseState:    pauseState ?? null,        // page_break / delay / input context
+    characterName: `${playerState.first_name || ''} ${playerState.last_name || ''}`.trim() || 'Unknown',
+    playerState:   JSON.parse(JSON.stringify(playerState)),
     pendingStatPoints,
-    timestamp:        Date.now(),
+    narrativeLog:  JSON.parse(JSON.stringify(narrativeLog ?? [])),
+    timestamp:     Date.now(),
   };
 }
 
 // ---------------------------------------------------------------------------
 // saveGameToSlot — serialises and persists the current state to a slot.
 // Slot can be 'auto', 1, 2, or 3.
+//
+// narrativeLog must be passed by the caller (engine.js / interpreter.js) so
+// saves.js stays free of a direct narrative.js import.
 // ---------------------------------------------------------------------------
-export function saveGameToSlot(slot, label = null) {
+export function saveGameToSlot(slot, label = null, narrativeLog = []) {
   const key = saveKeyForSlot(slot);
   if (!key) { console.warn(`[saves] Unknown save slot: "${slot}"`); return; }
   try {
-    localStorage.setItem(key, JSON.stringify(buildSavePayload(slot, label)));
+    localStorage.setItem(key, JSON.stringify(buildSavePayload(slot, label, narrativeLog)));
   } catch (err) {
     console.warn(`[saves] Save to slot "${slot}" failed:`, err);
   }
@@ -98,50 +122,126 @@ export function deleteSaveSlot(slot) {
 }
 
 // ---------------------------------------------------------------------------
-// restoreFromSave — applies a save payload to live engine state.
+// restoreFromSave — applies a v4 save payload to live engine state.
 //
-// Merges saved playerState over fresh startup defaults (fix #5: new keys get
-// defaults, removed keys are dropped). Then delegates to gotoScene() to
-// resume at the saved position.
+// The no-replay approach:
+//   1. Re-parse startup to establish fresh variable defaults.
+//   2. Merge saved playerState over fresh defaults.
+//   3. Parse and cache the saved scene's lines (needed if undo or gotoScene
+//      ever needs to replay from this point).
+//   4. Restore ip, scene, chapterTitle, delayIndex, awaitingChoice.
+//   5. Render narrative from saved log via renderFromLog — instant, no
+//      interpreter execution, no applySystemRewards calls.
+//   6. Re-present any pause UI (page_break / input / delay) from pauseState,
+//      or re-render choices if awaitingChoice was saved.
+//   7. Run the stats panel.
 //
-// Accepts gotoScene and runStatsScene as injected callbacks to avoid circular
-// imports (those functions live in the interpreter / UI layers).
+// All callbacks are injected to avoid circular imports.
 // ---------------------------------------------------------------------------
-export async function restoreFromSave(save, { gotoScene, runStatsScene, fetchTextFileFn, evalValueFn }) {
-  // Re-parse startup to establish fresh defaults before merging saved state.
-  // This ensures that variables added in a newer version of startup.txt get
-  // their defaults even when loading a save that predates them.
+export async function restoreFromSave(save, {
+  runStatsScene,
+  renderFromLog,
+  renderChoices,
+  showInlineLevelUp,
+  showPageBreak,
+  showInputPrompt,
+  runInterpreter,
+  clearNarrative,
+  applyTransition,
+  setChapterTitle,
+  parseAndCacheScene,
+  fetchTextFileFn,
+  evalValueFn,
+}) {
+  // 1. Re-parse startup to establish fresh defaults.
   await parseStartup(fetchTextFileFn, evalValueFn);
 
-  // Merge saved state over fresh defaults. Filter to keys that exist after the
-  // fresh parseStartup so that variables removed from startup.txt in a newer
-  // version are actually dropped rather than re-introduced by the old save.
-  // New keys added to startup.txt retain their fresh defaults automatically.
-  const freshKeys    = new Set(Object.keys(playerState));
+  // 2. Merge saved playerState over fresh defaults. Filter to keys that exist
+  //    after the fresh parseStartup so variables removed from startup.txt in a
+  //    newer version are actually dropped rather than re-introduced.
+  const freshKeys     = new Set(Object.keys(playerState));
   const savedFiltered = {};
   for (const [k, v] of Object.entries(save.playerState)) {
     if (freshKeys.has(k)) savedFiltered[k] = v;
   }
   setPlayerState({ ...playerState, ...JSON.parse(JSON.stringify(savedFiltered)) });
+
+  // 3. Restore pending stat points and arm the level-up display flag if needed.
   const savedPoints = save.pendingStatPoints ?? 0;
   setPendingStatPoints(savedPoints);
-  // If points were unspent when the save was made, arm the display flag so
-  // renderChoices (called during the gotoScene replay) triggers showInlineLevelUp.
-  // Without this, the player would see disabled choices with no way to allocate.
   if (savedPoints > 0) setPendingLevelUpDisplay(true);
   clearTempState();
 
+  // 4. Parse and cache the saved scene's lines so ip is meaningful and
+  //    any future gotoScene / undo operations have a live currentLines array.
+  await parseAndCacheScene(save.scene);
+  setCurrentScene(save.scene);
+  setIp(save.ip ?? 0);
+  setDelayIndex(0);
+  setAwaitingChoice(null);
+  clearPauseState();
+
+  // 5. Restore chapter title — both DOM and state field.
+  if (save.chapterTitle) {
+    setChapterTitle(save.chapterTitle);      // updates DOM + setChapterTitleState via engine.js callback
+  }
+
+  // 6. Render narrative from the saved log — pure DOM paint, no side effects.
+  clearNarrative();
+  applyTransition();
+  renderFromLog(save.narrativeLog ?? [], { skipAnimations: true });
+
+  // 7. Run stats panel.
   await runStatsScene();
-  // Set _isRestoring so addSystem skips applySystemRewards during the replay
-  // from the nearest *label — playerState is already correct from the save
-  // payload and re-applying rewards would double-count XP / trigger a
-  // spurious level-up (KB1).
-  setIsRestoring(true);
-  try {
-    // Pass savedIp so gotoScene can resume at the exact line position.
-    // Falls back to label or ip=0 for older saves that don't have ip.
-    await gotoScene(save.scene, save.label, true, save.ip ?? null);
-  } finally {
-    setIsRestoring(false);
+
+  // 8. Re-present pause UI or choices.
+  //
+  // pauseState takes priority — it means the interpreter was halted mid-scene
+  // at a *page_break, *input, or *delay directive. We restore that UI and
+  // wire up continuation so the player can resume from exactly that point.
+  if (save.pauseState) {
+    const ps = save.pauseState;
+    setPauseState(ps);
+    setIp(ps.resumeIp);
+
+    switch (ps.type) {
+      case 'page_break':
+        showPageBreak(ps.btnText, () => {
+          clearPauseState();
+          clearNarrative();
+          applyTransition();
+          runInterpreter();
+        });
+        break;
+
+      case 'input':
+        showInputPrompt(ps.varName, ps.prompt, (value) => {
+          clearPauseState();
+          // Mirror the same tempState-first logic as the live *input handler
+          // in interpreter.js — the variable may live in either store.
+          if (Object.prototype.hasOwnProperty.call(tempState, ps.varName)) {
+            tempState[ps.varName] = value;
+          } else {
+            playerState[ps.varName] = value;
+          }
+          runInterpreter();
+        });
+        break;
+
+      case 'delay':
+        // The delay has already elapsed during the player's absence; resume now.
+        clearPauseState();
+        runInterpreter();
+        break;
+    }
+  } else {
+    // No pause state — run the interpreter from the saved ip. It will
+    // immediately hit the *choice (or *ending etc.) at that position
+    // and render choices / end screen without replaying any narrative text
+    // (that's already on screen from renderFromLog).
+    //
+    // If pendingStatPoints > 0, showInlineLevelUp will be called by
+    // runInterpreter → renderChoices → pendingLevelUpDisplay check.
+    await runInterpreter();
   }
 }

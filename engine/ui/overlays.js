@@ -53,10 +53,22 @@ let _charBeginBtn   = null;
 let _toast          = null;
 
 // Callbacks injected by main.js
-let _gotoScene      = null;   // async (name, label?, isRestore?) → void
-let _runStatsScene  = null;   // async () → void
-let _fetchTextFile  = null;   // async (name) → string
-let _evalValue      = null;   // (expr) → value
+let _runStatsScene       = null;   // async () → void
+let _fetchTextFile       = null;   // async (name) → string
+let _evalValue           = null;   // (expr) → value
+
+// Phase 3 — new callbacks for the no-replay restoreFromSave
+let _renderFromLog       = null;   // (log, opts) → void
+let _renderChoices       = null;   // (choices) → void
+let _showInlineLevelUp   = null;   // () → void
+let _showPageBreak       = null;   // (btnText, onContinue) → void
+let _showInputPrompt     = null;   // (varName, prompt, onSubmit) → void
+let _runInterpreter      = null;   // async () → void
+let _clearNarrative      = null;   // () → void
+let _applyTransition     = null;   // () → void
+let _setChapterTitle     = null;   // (t: string) → void
+let _parseAndCacheScene  = null;   // async (name: string) → void
+let _clearUndoStack      = null;   // () → void — clears undo history on load
 
 export function init({
   splashOverlay, splashSlots,
@@ -64,29 +76,46 @@ export function init({
   charOverlay, inputFirstName, inputLastName,
   counterFirst, counterLast, errorFirstName, errorLastName, charBeginBtn,
   toast,
-  gotoScene, runStatsScene, fetchTextFile, evalValue,
+  runStatsScene, fetchTextFile, evalValue,
+  // Callbacks needed by the no-replay restoreFromSave:
+  renderFromLog, renderChoices, showInlineLevelUp,
+  showPageBreak, showInputPrompt, runInterpreter,
+  clearNarrative, applyTransition, setChapterTitle,
+  parseAndCacheScene,
+  clearUndoStack,
 }) {
-  _splashOverlay   = splashOverlay;
-  _splashSlots     = splashSlots;
+  _splashOverlay  = splashOverlay;
+  _splashSlots    = splashSlots;
 
-  _saveOverlay     = saveOverlay;
-  _saveBtn         = saveBtn;
+  _saveOverlay    = saveOverlay;
+  _saveBtn        = saveBtn;
 
-  _charOverlay     = charOverlay;
-  _inputFirstName  = inputFirstName;
-  _inputLastName   = inputLastName;
-  _counterFirst    = counterFirst;
-  _counterLast     = counterLast;
-  _errorFirstName  = errorFirstName;
-  _errorLastName   = errorLastName;
-  _charBeginBtn    = charBeginBtn;
+  _charOverlay    = charOverlay;
+  _inputFirstName = inputFirstName;
+  _inputLastName  = inputLastName;
+  _counterFirst   = counterFirst;
+  _counterLast    = counterLast;
+  _errorFirstName = errorFirstName;
+  _errorLastName  = errorLastName;
+  _charBeginBtn   = charBeginBtn;
 
-  _toast           = toast;
+  _toast          = toast;
 
-  _gotoScene       = gotoScene;
-  _runStatsScene   = runStatsScene;
-  _fetchTextFile   = fetchTextFile;
-  _evalValue       = evalValue;
+  _runStatsScene      = runStatsScene;
+  _fetchTextFile      = fetchTextFile;
+  _evalValue          = evalValue;
+
+  _renderFromLog      = renderFromLog;
+  _renderChoices      = renderChoices;
+  _showInlineLevelUp  = showInlineLevelUp;
+  _showPageBreak      = showPageBreak;
+  _showInputPrompt    = showInputPrompt;
+  _runInterpreter     = runInterpreter;
+  _clearNarrative     = clearNarrative;
+  _applyTransition    = applyTransition;
+  _setChapterTitle    = setChapterTitle;
+  _parseAndCacheScene = parseAndCacheScene;
+  _clearUndoStack     = clearUndoStack || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -208,17 +237,29 @@ export function refreshAllSlotCards() {
 
 // ---------------------------------------------------------------------------
 // loadAndResume — shared helper used by splash load and in-game load flows.
-// Shows the save button, calls restoreFromSave with injected dependencies.
+// Shows the save button, calls restoreFromSave with all injected dependencies.
 // ---------------------------------------------------------------------------
 export async function loadAndResume(save) {
   _saveBtn.classList.remove('hidden');
   const undoBtn = document.getElementById('undo-btn');
   if (undoBtn) undoBtn.classList.remove('hidden');
+  // Clear undo history — snapshots from a previous session must not survive
+  // a load, or the player could undo back into the wrong game state.
+  if (_clearUndoStack) _clearUndoStack();
   await restoreFromSave(save, {
-    gotoScene:      _gotoScene,
-    runStatsScene:  _runStatsScene,
-    fetchTextFileFn: _fetchTextFile,
-    evalValueFn:     _evalValue,
+    runStatsScene:      _runStatsScene,
+    renderFromLog:      _renderFromLog,
+    renderChoices:      _renderChoices,
+    showInlineLevelUp:  _showInlineLevelUp,
+    showPageBreak:      _showPageBreak,
+    showInputPrompt:    _showInputPrompt,
+    runInterpreter:     _runInterpreter,
+    clearNarrative:     _clearNarrative,
+    applyTransition:    _applyTransition,
+    setChapterTitle:    _setChapterTitle,
+    parseAndCacheScene: _parseAndCacheScene,
+    fetchTextFileFn:    _fetchTextFile,
+    evalValueFn:        _evalValue,
   });
 }
 

@@ -25,11 +25,10 @@
 import {
   playerState, tempState, currentLines, ip, currentScene,
   _gotoJumped, awaitingChoice, pendingLevelUpDisplay,
-  _isRestoring,
   setCurrentScene, setCurrentLines, setIp, advanceIp,
   setGotoJumped, setAwaitingChoice, setDelayIndex, clearTempState,
   normalizeKey, setVar, declareTemp, patchPlayerState,
-  setPausedAtIp, clearPausedAtIp,
+  setPauseState, clearPauseState,
 } from './state.js';
 
 import { evalValue }            from './expression.js';
@@ -64,6 +63,7 @@ const cb = {
   showPageBreak:      null,   // (btnText, onContinue) → void
   runStatsScene:      null,
   fetchTextFile:      null,
+  getNarrativeLog:    null,   // () → log[] — passed to saveGameToSlot so auto-saves include the narrative log
 };
 
 export function registerCallbacks(fns) {
@@ -128,8 +128,6 @@ export function evaluateCondition(raw) {
     .replace(/^\*elseif\s*/, '')
     .replace(/^\*loop\s*/,   '')
     .trim();
-  // evalValue's recursive descent parser handles all paren forms correctly —
-  // (condition), (a) and (b), bare identifiers — so no stripping is needed.
   return !!evalValue(condition);
 }
 
@@ -160,13 +158,8 @@ export async function executeBlock(start, end, resumeAfter = end) {
 
 // ---------------------------------------------------------------------------
 // gotoScene — cross-scene navigation.
-//
-// isRestore=true is passed by restoreFromSave, which has already called
-// clearTempState() itself. Skipping the clear here avoids wiping any temp
-// vars that restoreFromSave may have set before calling us, and makes the
-// code match the comment that previously only described the intended behaviour.
 // ---------------------------------------------------------------------------
-export async function gotoScene(name, label = null, isRestore = false, savedIp = null) {
+export async function gotoScene(name, label = null) {
   let text;
   try {
     text = await cb.fetchTextFile(name);
@@ -174,7 +167,7 @@ export async function gotoScene(name, label = null, isRestore = false, savedIp =
     cb.showEngineError(`Could not load scene "${name}".\n${err.message}`);
     return;
   }
-  if (!isRestore) clearTempState();
+  clearTempState();
   setCurrentScene(name);
   setCurrentLines(parseLines(text));
   indexLabels(name, currentLines, _labelsCache);
@@ -184,35 +177,22 @@ export async function gotoScene(name, label = null, isRestore = false, savedIp =
   cb.applyTransition();
   cb.setChapterTitle(name.toUpperCase());
 
-  // Restore position: when loading a save, we can't jump directly to the
-  // saved ip (e.g. a *choice line) because the narrative text rendered by
-  // earlier lines would be missing — the screen would be blank except for
-  // choice buttons. Instead, find the nearest *label before savedIp and
-  // replay from there. This re-renders the text section leading up to the
-  // choice. State mutations between the label and savedIp re-fire, but
-  // playerState was already restored from the save so *set overwrites with
-  // the same values.
-  if (savedIp !== null && savedIp >= 0 && savedIp < currentLines.length) {
-    // Scan backward for the nearest *label
-    let replayFrom = 0;
-    for (let i = savedIp - 1; i >= 0; i--) {
-      const t = currentLines[i].trimmed;
-      if (t && t.startsWith('*label')) { replayFrom = i; break; }
-    }
-    setIp(replayFrom);
-  } else if (label) {
+  if (label) {
     const labels = _labelsCache.get(name) || {};
     setIp(labels[label] ?? 0);
   }
 
   // Clear any stale choice/pause state from a previous scene or session.
-  // Without this, loading a save while at a *choice breaks the interpreter
-  // loop; a stale _pausedAtIp would corrupt the auto-save ip below (KB3).
   setAwaitingChoice(null);
   setGotoJumped(false);
-  clearPausedAtIp();
-  saveGameToSlot('auto', label || null);
+  clearPauseState();
+
   await runInterpreter();
+
+  // Auto-save after runInterpreter so the narrative log is fully populated.
+  // Saving before runInterpreter would capture an empty log (clearNarrative
+  // was called above), producing a blank screen on load.
+  saveGameToSlot('auto', label || null, cb.getNarrativeLog ? cb.getNarrativeLog() : []);
 }
 
 // ---------------------------------------------------------------------------
@@ -288,9 +268,7 @@ registerCommand('*label',   () => { advanceIp(); });
 // *comment text — ignored
 registerCommand('*comment', () => { advanceIp(); });
 
-// *goto_scene sceneName  — MUST be registered before *goto (longer prefix first
-// is fine because isDirective does exact-word matching, but explicit ordering
-// is clearer and safer)
+// *goto_scene sceneName  — MUST be registered before *goto
 registerCommand('*goto_scene', async (t) => {
   await gotoScene(t.replace(/^\*goto_scene\s*/, '').trim());
 });
@@ -310,10 +288,7 @@ registerCommand('*goto', (t) => {
 
 // *system [text] / *system … *end_system
 registerCommand('*system', (t) => {
-  // t.trimEnd() guards against trailing whitespace on the opening *system line
-  // accidentally routing the block form to the inline path.
   if (t.trimEnd() === '*system') {
-    // Multi-line block
     const parsed = parseSystemBlock(ip, { currentLines });
     if (!parsed.ok) {
       cb.showEngineError(`Unclosed *system block in "${currentScene}". Add *end_system.`);
@@ -324,7 +299,6 @@ registerCommand('*system', (t) => {
     setIp(parsed.endIp);
     return;
   }
-  // Inline: *system "text" or *system text
   cb.addSystem(t.replace(/^\*system\s*/, '').trim().replace(/^"|"$/g, ''));
   advanceIp();
 });
@@ -337,14 +311,6 @@ registerCommand('*temp', (t) => {
 
 // *set key value
 registerCommand('*set', (t) => {
-  // During restore replay, skip arithmetic *set (e.g. *set xp +100) to
-  // prevent double-counting against the already-correct saved playerState.
-  // Absolute assignments (e.g. *set name "Alice") are idempotent and run
-  // normally — they write the same value that was saved.
-  if (_isRestoring) {
-    const m = t.match(/^\*set\s+[a-zA-Z_][\w]*\s+(.+)$/);
-    if (m && /^[+\-*/]\s*/.test(m[1].trim())) { advanceIp(); return; }
-  }
   setVar(t, evalValue);
   checkAndApplyLevelUp(cb.scheduleStatsRender);
   cb.scheduleStatsRender();
@@ -361,11 +327,8 @@ registerCommand('*flag', (t) => {
 // *save_point [label]
 registerCommand('*save_point', (t) => {
   const saveLabel = t.replace(/^\*save_point\s*/, '').trim() || null;
-  saveGameToSlot('auto', saveLabel);
-  // Skip the display during restore replay — the narrative HTML is already
-  // restored from the save payload so showing "PROGRESS SAVED" again would
-  // be a spurious duplicate message.
-  if (!_isRestoring) cb.addSystem('[ PROGRESS SAVED ]');
+  saveGameToSlot('auto', saveLabel, cb.getNarrativeLog ? cb.getNarrativeLog() : []);
+  cb.addSystem('[ PROGRESS SAVED ]');
   advanceIp();
 });
 
@@ -395,9 +358,6 @@ registerCommand('*lowercase', (t) => {
 
 // *add_item "Item Name"
 registerCommand('*add_item', (t) => {
-  // Skip during restore replay — inventory is already correct from the save
-  // payload; re-adding would create duplicate stacks.
-  if (_isRestoring) { advanceIp(); return; }
   const item = t.replace(/^\*add_item\s*/, '').trim().replace(/^"|"$/g, '');
   if (!Array.isArray(playerState.inventory)) playerState.inventory = [];
   addInventoryItem(item);
@@ -407,8 +367,6 @@ registerCommand('*add_item', (t) => {
 
 // *remove_item "Item Name"
 registerCommand('*remove_item', (t) => {
-  // Skip during restore replay — inventory is already correct from the save.
-  if (_isRestoring) { advanceIp(); return; }
   removeInventoryItem(t.replace(/^\*remove_item\s*/, '').trim().replace(/^"|"$/g, ''));
   cb.scheduleStatsRender();
   advanceIp();
@@ -440,9 +398,6 @@ registerCommand('*check_item', (t) => {
 
 // *grant_skill "key" — adds skill without SP cost
 registerCommand('*grant_skill', (t) => {
-  // Skip during restore replay — skills array is already correct in the save.
-  // grantSkill() is idempotent, but skipping is cleaner and consistent.
-  if (_isRestoring) { advanceIp(); return; }
   const key = t.replace(/^\*grant_skill\s*/, '').trim().replace(/^"|"$/g, '');
   grantSkill(key);
   cb.scheduleStatsRender();
@@ -451,8 +406,6 @@ registerCommand('*grant_skill', (t) => {
 
 // *revoke_skill "key" — removes a skill
 registerCommand('*revoke_skill', (t) => {
-  // Skip during restore replay — skills array is already correct in the save.
-  if (_isRestoring) { advanceIp(); return; }
   const key = t.replace(/^\*revoke_skill\s*/, '').trim().replace(/^"|"$/g, '');
   revokeSkill(key);
   cb.scheduleStatsRender();
@@ -486,9 +439,7 @@ registerCommand('*check_skill', (t) => {
 registerCommand('*journal', (t) => {
   const text = t.replace(/^\*journal\s*/, '').trim().replace(/^"|"$/g, '');
   if (text) {
-    // Skip during restore replay — journal is already in playerState from the
-    // save payload; re-adding would create duplicate entries.
-    if (!_isRestoring) addJournalEntry(text, 'entry');
+    addJournalEntry(text, 'entry');
     cb.scheduleStatsRender();
   }
   advanceIp();
@@ -498,14 +449,48 @@ registerCommand('*journal', (t) => {
 registerCommand('*achievement', (t) => {
   const text = t.replace(/^\*achievement\s*/, '').trim().replace(/^"|"$/g, '');
   if (text) {
-    // Skip journal write during restore — already in playerState from save.
-    // Still call addSystem so the achievement text appears in the restored
-    // narrative (addSystem is already guarded against double reward parsing).
-    if (!_isRestoring) addJournalEntry(text, 'achievement');
+    addJournalEntry(text, 'achievement');
     cb.addSystem(`◆ Achievement Unlocked: ${text}`);
     cb.scheduleStatsRender();
   }
   advanceIp();
+});
+
+// *page_break [text] — clears the screen and shows a "Continue" button.
+// If text is provided, the button shows that text (e.g. "The next day...").
+// Pauses the interpreter until the player clicks; resumes from the next line.
+registerCommand('*page_break', (t) => {
+  const btnText  = t.replace(/^\*page_break\s*/, '').trim().replace(/^"|"$/g, '') || 'Continue';
+  const resumeIp = ip + 1;
+
+  setPauseState({ type: 'page_break', btnText, resumeIp });
+  setIp(currentLines.length);
+
+  cb.showPageBreak(btnText, () => {
+    clearPauseState();
+    cb.clearNarrative();
+    cb.applyTransition();
+    setIp(resumeIp);
+    runInterpreter();
+  });
+});
+
+// *delay ms — pauses the interpreter for the given number of milliseconds.
+// Text before the delay renders normally; after the pause, execution continues.
+// On save/load restore, restoreFromSave sees type:'delay' and resumes
+// immediately — the elapsed time is not replayed.
+registerCommand('*delay', (t) => {
+  const ms       = Number(t.replace(/^\*delay\s*/, '').trim()) || 500;
+  const resumeIp = ip + 1;
+
+  setPauseState({ type: 'delay', ms, resumeIp });
+  setIp(currentLines.length);
+
+  setTimeout(() => {
+    clearPauseState();
+    setIp(resumeIp);
+    runInterpreter();
+  }, ms);
 });
 
 // *input varName "Prompt text" — inline text input that pauses the interpreter.
@@ -519,20 +504,15 @@ registerCommand('*input', (t) => {
     setIp(currentLines.length);
     return;
   }
-  const varName = normalizeKey(m[1]);
-  const prompt  = m[2];
+  const varName  = normalizeKey(m[1]);
+  const prompt   = m[2];
   const resumeIp = ip + 1;
 
-  // Record the real ip before jumping so buildSavePayload can use it (KB3).
-  setPausedAtIp(ip);
-  // Jump ip past end of scene to stop runInterpreter's loop.
-  // The onSubmit callback restores ip to resumeIp and re-enters the loop.
+  setPauseState({ type: 'input', varName, prompt, resumeIp });
   setIp(currentLines.length);
 
-  // Build the input UI via the callback system
   cb.showInputPrompt(varName, prompt, (value) => {
-    clearPausedAtIp();
-    // Store the value in tempState if it exists there, otherwise playerState
+    clearPauseState();
     if (Object.prototype.hasOwnProperty.call(tempState, varName)) {
       tempState[varName] = value;
     } else {
@@ -541,6 +521,20 @@ registerCommand('*input', (t) => {
     setIp(resumeIp);
     runInterpreter();
   });
+});
+
+// *choice
+registerCommand('*choice', (t, line) => {
+  const parsed = parseChoice(ip, line.indent, { currentLines, evalValue });
+  setAwaitingChoice({ end: parsed.end, choices: parsed.choices });
+  cb.renderChoices(parsed.choices);
+});
+
+// *ending
+registerCommand('*ending', () => {
+  cb.showEndingScreen('The End', 'Your path is complete.');
+  // Jump past end of scene to stop the interpreter loop — the game is over.
+  setIp(currentLines.length);
 });
 
 // *if / *elseif / *else  (full chain resolution)
@@ -585,52 +579,4 @@ registerCommand('*loop', async (t, line) => {
   }
   if (guard >= 100) console.warn(`[interpreter] *loop guard tripped in "${currentScene}"`);
   setIp(blockEnd);
-});
-
-// *page_break [text] — clears the screen and shows a "Continue" button.
-// If text is provided, the button shows that text (e.g. "The next day...").
-// Pauses the interpreter until the player clicks; resumes from the next line.
-registerCommand('*page_break', (t) => {
-  const btnText = t.replace(/^\*page_break\s*/, '').trim().replace(/^"|"$/g, '') || 'Continue';
-  const resumeIp = ip + 1;
-  // Record the real ip before jumping so buildSavePayload can use it (KB3).
-  setPausedAtIp(ip);
-  // Jump past end to stop the interpreter loop
-  setIp(currentLines.length);
-  cb.showPageBreak(btnText, () => {
-    clearPausedAtIp();
-    cb.clearNarrative();
-    cb.applyTransition();
-    setIp(resumeIp);
-    runInterpreter();
-  });
-});
-
-// *delay ms — pauses the interpreter for the given number of milliseconds.
-// Text before the delay renders normally; after the pause, execution continues.
-registerCommand('*delay', (t) => {
-  const ms = Number(t.replace(/^\*delay\s*/, '').trim()) || 500;
-  const resumeIp = ip + 1;
-  // Record the real ip before jumping so buildSavePayload can use it (KB3).
-  setPausedAtIp(ip);
-  setIp(currentLines.length);
-  setTimeout(() => {
-    clearPausedAtIp();
-    setIp(resumeIp);
-    runInterpreter();
-  }, ms);
-});
-
-// *choice
-registerCommand('*choice', (t, line) => {
-  const parsed = parseChoice(ip, line.indent, { currentLines, evalValue });
-  setAwaitingChoice({ end: parsed.end, choices: parsed.choices });
-  cb.renderChoices(parsed.choices);
-});
-
-// *ending
-registerCommand('*ending', () => {
-  cb.showEndingScreen('The End', 'Your path is complete.');
-  // Jump past end of scene to stop the interpreter loop — the game is over.
-  setIp(currentLines.length);
 });

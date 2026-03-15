@@ -29,7 +29,8 @@ import {
   patchPlayerState, parseStartup,
   setPlayerState, setTempState, setPendingStatPoints,
   setCurrentScene, setCurrentLines, setIp, setDelayIndex,
-  setAwaitingChoice, setPendingLevelUpDisplay, clearPausedAtIp,
+  setAwaitingChoice, setPendingLevelUpDisplay,
+  setChapterTitleState, clearPauseState,
 } from './engine/core/state.js';
 
 import { evalValue }       from './engine/core/expression.js';
@@ -52,6 +53,7 @@ import {
   init      as initNarrative,
   addParagraph, addSystem, clearNarrative, applyTransition,
   renderChoices, showInputPrompt, showPageBreak, setChoiceArea,
+  getNarrativeLog, renderFromLog, pushNarrativeLogEntry,
 } from './engine/ui/narrative.js';
 
 import {
@@ -173,6 +175,13 @@ function getEngineState() {
 
 // ---------------------------------------------------------------------------
 // Undo system — snapshots state on each choice, allows stepping back.
+//
+// Phase 2 rewrite: snapshots now store narrativeLog instead of narrativeHTML.
+// popUndo restores by calling renderFromLog() — no innerHTML clobber, no
+// interpreter re-run, no dead event listeners. This eliminates the entire
+// class of bugs caused by innerHTML replacement (detached DOM refs, killed
+// levelup-inline-block handlers, stale _choiceArea pointer in narrative.js).
+//
 // Limited to 10 entries. Each snapshot captures everything needed to
 // fully restore the game to the moment before a choice was made.
 // ---------------------------------------------------------------------------
@@ -180,14 +189,16 @@ const _undoStack = [];
 const UNDO_MAX = 10;
 
 function pushUndoSnapshot() {
+  // Deep-copy the narrative log at snapshot time so subsequent pushes don't
+  // mutate the stored array.
   _undoStack.push({
     playerState:      JSON.parse(JSON.stringify(playerState)),
     tempState:        JSON.parse(JSON.stringify(tempState)),
     pendingStatPoints,
     scene:            currentScene,
-    ip:               ip,
-    narrativeHTML:     dom.narrativeContent.innerHTML,
-    chapterTitle:      dom.chapterTitle.textContent,
+    ip,
+    narrativeLog:     JSON.parse(JSON.stringify(getNarrativeLog())),
+    chapterTitle:     dom.chapterTitle.textContent,
   });
   if (_undoStack.length > UNDO_MAX) _undoStack.shift();
   updateUndoBtn();
@@ -197,12 +208,13 @@ async function popUndo() {
   if (_undoStack.length === 0) return;
   const snap = _undoStack.pop();
 
+  // --- Restore game state ---
   setPlayerState(JSON.parse(JSON.stringify(snap.playerState)));
   setTempState(JSON.parse(JSON.stringify(snap.tempState)));
   setPendingStatPoints(snap.pendingStatPoints);
-
-  // Restore scene — need to re-parse lines so the interpreter can run
   setCurrentScene(snap.scene);
+
+  // Re-parse lines so the interpreter has a live currentLines array.
   const text = sceneCache.get(snap.scene.endsWith('.txt') ? snap.scene : `${snap.scene}.txt`);
   if (text) {
     setCurrentLines(parseLines(text));
@@ -211,33 +223,34 @@ async function popUndo() {
   setIp(snap.ip);
   setDelayIndex(0);
   setAwaitingChoice(null);
-  // Clear any stale pause position — the undo restores ip directly so
-  // _pausedAtIp from a prior *page_break/*delay/*input must not persist.
-  clearPausedAtIp();
 
-  // Restore the DOM exactly as it was.
-  dom.narrativeContent.innerHTML = snap.narrativeHTML;
-  dom.chapterTitle.textContent   = snap.chapterTitle;
+  // Clear any stale pause state — the snapshot was taken before a choice,
+  // so there is no active pause directive to resume.
+  clearPauseState();
 
-  // FIX 1: innerHTML replacement creates a new #choice-area element in the DOM.
-  // Both dom.choiceArea (engine.js) and _choiceArea (narrative.js) still point
-  // to the OLD, now-detached element. Any renderChoices() calls would append
-  // buttons to that invisible detached node. Re-acquire the live element.
+  // --- Restore chapter title ---
+  dom.chapterTitle.textContent = snap.chapterTitle;
+  setChapterTitleState(snap.chapterTitle);
+
+  // --- Restore narrative from log ---
+  // renderFromLog clears the DOM and repaints from the structured log with
+  // zero side effects — no applySystemRewards, no interpreter execution,
+  // no dead event listeners.
+  renderFromLog(snap.narrativeLog, { skipAnimations: true });
+
+  // renderFromLog rebuilds the DOM including a fresh #choice-area element,
+  // so both dom.choiceArea (engine.js) and the internal _choiceArea reference
+  // inside narrative.js must be re-pointed at the live element.
   dom.choiceArea = document.getElementById('choice-area');
   setChoiceArea(dom.choiceArea);
 
-  // The restored HTML may contain a .levelup-inline-block whose event handlers
-  // are dead (innerHTML replacement kills listeners). Remove it — the
-  // interpreter re-run below will call renderChoices → showInlineLevelUp to
-  // add a fresh block with live handlers if pendingStatPoints > 0 (KB2).
-  dom.narrativeContent.querySelectorAll('.levelup-inline-block').forEach(el => el.remove());
-
-  // If the undo snapshot had a pending level-up, re-arm the display flag so
-  // renderChoices (called by the *choice handler below) triggers showInlineLevelUp.
+  // If the snapshot had unspent level-up points, re-arm the display flag so
+  // renderChoices triggers showInlineLevelUp when choices are re-rendered.
   if (snap.pendingStatPoints > 0) setPendingLevelUpDisplay(true);
 
-  // Re-run the interpreter from the saved ip — this will hit the *choice
-  // and re-render the choice buttons with fresh click handlers
+  // Re-run the interpreter from the saved ip. It immediately hits the *choice
+  // directive and re-renders the choice buttons with fresh, live click handlers.
+  // The narrative text is already on screen from renderFromLog.
   await runInterpreter();
   runStatsScene();
   updateUndoBtn();
@@ -322,7 +335,7 @@ function wireUI() {
     btn.addEventListener('click', () => {
       const existing = loadSaveFromSlot(slot);
       if (existing && !confirm(`Overwrite Slot ${slot}?`)) return;
-      saveGameToSlot(slot);
+      saveGameToSlot(slot, null, getNarrativeLog());
       hideSaveMenu();
       showToast(`Saved to Slot ${slot}`);
       refreshAllSlotCards();
@@ -381,6 +394,10 @@ function wireUI() {
     });
     dom.saveBtn.classList.remove('hidden');
     document.getElementById('undo-btn')?.classList.remove('hidden');
+    // Clear any undo history from a previous session — the stack is module-level
+    // and persists across load/new-game flows within the same page load.
+    _undoStack.splice(0);
+    updateUndoBtn();
     await runStatsScene();
     await gotoScene(startup.sceneList[0] || 'prologue');
   });
@@ -466,6 +483,10 @@ async function boot() {
     fetchTextFile,
     scheduleStatsRender,
     trapFocus,
+    // Wire callback so level-up confirmation is recorded in the narrative log
+    onLevelUpConfirmed: (level) => {
+      pushNarrativeLogEntry({ type: 'levelup_confirmed', level });
+    },
   });
 
   initOverlays({
@@ -482,10 +503,25 @@ async function boot() {
     errorLastName:  dom.errorLastName,
     charBeginBtn:   dom.charBeginBtn,
     toast:          dom.toast,
-    gotoScene,
     runStatsScene,
     fetchTextFile,
     evalValue,
+    // Callbacks needed by the no-replay restoreFromSave
+    renderFromLog,
+    renderChoices,
+    showInlineLevelUp,
+    showPageBreak,
+    showInputPrompt,
+    runInterpreter,
+    clearNarrative,
+    applyTransition,
+    setChapterTitle: (t) => { dom.chapterTitle.textContent = t; setChapterTitleState(t); },
+    parseAndCacheScene: async (name) => {
+      const text = await fetchTextFile(name);
+      setCurrentLines(parseLines(text));
+      indexLabels(name, currentLines, labelsCache);
+    },
+    clearUndoStack: () => { _undoStack.splice(0); updateUndoBtn(); },
   });
 
   // 3. Register interpreter callbacks — must happen after initNarrative/Panels
@@ -502,9 +538,10 @@ async function boot() {
     showInputPrompt,
     showPageBreak,
     scheduleStatsRender,
-    setChapterTitle: (t) => { dom.chapterTitle.textContent = t; },
+    setChapterTitle: (t) => { dom.chapterTitle.textContent = t; setChapterTitleState(t); },
     runStatsScene,
     fetchTextFile,
+    getNarrativeLog,   // lets gotoScene and *save_point pass the log to auto-save
   });
 
   // 4. Wire all UI event listeners
