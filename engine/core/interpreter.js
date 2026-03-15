@@ -40,16 +40,32 @@
 //   FIX #10 (sweep 2): *loop guard raised from 100 → 10,000 iterations so
 //     legitimate high-count loops (e.g. procedural generation) don't hit the
 //     guard. The error message is still surfaced in-game at the limit.
+//
+//   FIX #S1 (sweep 3): *create_stat handler replaced dynamic import() with
+//     the already-available static statRegistry / setStatRegistry imports.
+//     The dynamic import was async and raced with advanceIp(), meaning
+//     statRegistry could be stale when level-up allocation ran.
+//
+//   FIX #S2 (sweep 3): gotoScene no longer calls cb.setChapterTitle() with
+//     the raw uppercased filename before scene execution. The *title directive
+//     inside the scene now sets the title exclusively. A fallback sets the
+//     scene name only after runInterpreter() finishes if no *title ran.
+//
+//   FIX #S3 (sweep 3): *ending now parses optional "Title" "Body" arguments
+//     from the directive line and passes them to showEndingScreen, rather than
+//     always showing the hardcoded "The End" / "Your path is complete." strings.
 // ---------------------------------------------------------------------------
 
 import {
   playerState, tempState, currentLines, ip, currentScene,
   _gotoJumped, awaitingChoice, pendingLevelUpDisplay,
+  statRegistry, setStatRegistry,
   setCurrentScene, setCurrentLines, setIp, advanceIp,
   setGotoJumped, setAwaitingChoice, setDelayIndex, clearTempState,
   normalizeKey, setVar, setStatClamped, declareTemp, patchPlayerState,
   setPauseState, clearPauseState, pauseState,
   sessionState, patchSessionState,
+  chapterTitle, setChapterTitleState,
 } from './state.js';
 
 import { evalValue }            from './expression.js';
@@ -172,6 +188,13 @@ export async function executeBlock(start, end, resumeAfter = end) {
 //
 // Implementation: runInterpreter now writes the auto-save after it stops.
 // gotoScene no longer calls saveGameToSlot directly.
+//
+// FIX #S2: gotoScene no longer calls cb.setChapterTitle() with the raw
+// uppercased filename before the scene executes. The *title directive in
+// the scene file sets the title. After runInterpreter() finishes, if no
+// *title ran (i.e. chapterTitle is still the scene name or is blank), a
+// fallback sets the uppercased scene name — but only then, avoiding the
+// flash of an unpolished filename at scene load time.
 // ---------------------------------------------------------------------------
 export async function gotoScene(name, label = null) {
   let text;
@@ -181,6 +204,9 @@ export async function gotoScene(name, label = null) {
     cb.showEngineError(`Could not load scene "${name}".\n${err.message}`);
     return;
   }
+
+  const prevChapterTitle = chapterTitle;
+
   clearTempState();
   setCurrentScene(name);
   setCurrentLines(parseLines(text));
@@ -189,7 +215,10 @@ export async function gotoScene(name, label = null) {
   setDelayIndex(0);
   cb.clearNarrative();
   cb.applyTransition();
-  cb.setChapterTitle(name.toUpperCase());
+
+  // FIX #S2: Do NOT pre-set the title to the filename here. Let *title in the
+  // scene set it. We'll fall back to the uppercased name after execution only
+  // if the scene contains no *title directive.
 
   if (label) {
     const labels = _labelsCache.get(name) || {};
@@ -202,6 +231,15 @@ export async function gotoScene(name, label = null) {
   clearPauseState();
 
   await runInterpreter();
+
+  // FIX #S2: fallback title — only set if the scene didn't contain a *title
+  // directive (i.e. the chapterTitle hasn't changed from what it was before
+  // runInterpreter ran, which means no *title executed).
+  if (chapterTitle === prevChapterTitle) {
+    const fallback = name.replace(/\.txt$/i, '').toUpperCase();
+    cb.setChapterTitle(fallback);
+  }
+
   // NOTE: auto-save is now written inside runInterpreter when it stops,
   // not here. See BUG-02 fix comment above.
 }
@@ -349,19 +387,24 @@ registerCommand('*create', (t) => {
 });
 
 // *create_stat key "Label" defaultValue
+//
+// FIX #S1: Previously used a dynamic import('../core/state.js').then(...) to
+// update statRegistry. This created an async microtask that raced with the
+// synchronous advanceIp() call that followed — statRegistry could be stale
+// when getAllocatableStatKeys() ran during level-up. Since state.js is already
+// statically imported at the top of this file, we use those imports directly,
+// making registration fully synchronous.
 registerCommand('*create_stat', (t) => {
   const m = t.match(/^\*create_stat\s+([a-zA-Z_][\w]*)\s+"([^"]+)"\s+(.+)$/);
   if (!m) { advanceIp(); return; }
   const [, rawKey, label, rhs] = m;
-  const key = normalizeKey(rawKey);
+  const key      = normalizeKey(rawKey);
   const defaultVal = evalValue(rhs);
   playerState[key] = defaultVal;
-  // Register so the stats panel knows this is an allocatable stat
-  import('../core/state.js').then(({ statRegistry, setStatRegistry }) => {
-    if (!statRegistry.find(e => e.key === key)) {
-      setStatRegistry([...statRegistry, { key, label, defaultVal }]);
-    }
-  });
+  // FIX #S1: synchronous registration via static import — no race condition.
+  if (!statRegistry.find(e => e.key === key)) {
+    setStatRegistry([...statRegistry, { key, label, defaultVal }]);
+  }
   advanceIp();
 });
 
@@ -462,7 +505,7 @@ registerCommand('*page_break', (t) => {
   const btnText  = t.replace(/^\*page_break\s*/, '').trim() || 'Continue';
   const resumeIp = ip + 1;
 
-  setPauseState({ type: 'page_break', resumeIp });
+  setPauseState({ type: 'page_break', btnText, resumeIp });
   setIp(currentLines.length);
 
   cb.showPageBreak(btnText, () => {
@@ -549,9 +592,19 @@ registerCommand('*choice', (t, line) => {
   cb.renderChoices(parsed.choices);
 });
 
-// *ending
-registerCommand('*ending', () => {
-  cb.showEndingScreen('The End', 'Your path is complete.');
+// *ending ["Title"] ["Body text"]
+//
+// FIX #S3: Previously always showed hardcoded "The End" / "Your path is
+// complete." regardless of what was written after *ending in the scene file.
+// Now parses up to two quoted string arguments:
+//   *ending                           → defaults
+//   *ending "A Bitter Conclusion"     → custom title, default body
+//   *ending "Title" "Body text here"  → both custom
+registerCommand('*ending', (t) => {
+  const args    = [...t.matchAll(/"([^"]+)"/g)].map(m => m[1]);
+  const title   = args[0] ?? 'The End';
+  const content = args[1] ?? 'Your path is complete.';
+  cb.showEndingScreen(title, content);
   // Jump past end of scene to stop the interpreter loop — the game is over.
   setIp(currentLines.length);
 });
