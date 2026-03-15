@@ -589,7 +589,7 @@ async function boot() {
     await parseSkills(fetchTextFile);
     await parseItems(fetchTextFile);
 
-    const title = playerState.game_title || 'System Awakening';
+    const title = playerState.game_title || '';
     if (dom.gameTitle)   dom.gameTitle.textContent = title;
     if (dom.splashTitle) dom.splashTitle.textContent = title;
     document.title = title;
