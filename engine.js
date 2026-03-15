@@ -31,7 +31,8 @@ import {
   setPlayerState, setTempState, setPendingStatPoints,
   setCurrentScene, setCurrentLines, setIp, setDelayIndex,
   setAwaitingChoice, setPendingLevelUpDisplay,
-  setChapterTitleState, clearPauseState, clearSessionState,  // ENH-08
+  setChapterTitleState, clearPauseState,
+  sessionState, clearSessionState,  // ENH-08: sessionState needed by pushUndoSnapshot/popUndo
 } from './engine/core/state.js';
 
 import { evalValue }       from './engine/core/expression.js';
