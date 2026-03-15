@@ -334,7 +334,16 @@ export function showInlineLevelUp() {
       if (_onLevelUpConfirmed) _onLevelUpConfirmed(playerState.level);
 
       // Re-enable choices now that the level-up is resolved
-      _choiceArea.querySelectorAll('.choice-btn').forEach(b => { b.disabled = false; b.classList.remove('choice-btn--disabled'); });
+      // FIX BUG-6 (sweep 5): Only re-enable choice buttons that were
+      // temporarily disabled for the level-up. Buttons with
+      // data-unselectable="true" were disabled by *selectable_if (false)
+      // and must stay locked.
+      _choiceArea.querySelectorAll('.choice-btn').forEach(b => {
+        if (b.dataset.unselectable !== 'true') {
+          b.disabled = false;
+          b.classList.remove('choice-btn--disabled');
+        }
+      });
     });
   };
 
