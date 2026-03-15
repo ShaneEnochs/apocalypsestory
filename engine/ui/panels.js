@@ -133,6 +133,11 @@ export async function runStatsScene() {
       // FIX #5: escape both the label and the value. Label is author-controlled;
       // value can be player-controlled (e.g. first_name set via *input).
       html += `<div class="status-row"><span class="status-label">${ic ? ic + ' ' : ''}${escapeHtml(e.label)}</span><span class="status-value ${cc}">${escapeHtml(rawVal)}</span></div>`;
+
+      // Insert Level Up button directly after the "To Next Level" row
+      if (e.key === 'essence_to_next' && canLevelUp() && !levelUpInProgress) {
+        html += `<div class="status-levelup-row"><button class="status-levelup-btn" id="status-levelup-btn">⬡ Level Up Available</button></div>`;
+      }
     }
     if (e.type === 'inventory') {
       if (inGroup) { html += `</div>`; inGroup = false; }
@@ -185,11 +190,6 @@ export async function runStatsScene() {
     }
   });
   if (inGroup) html += `</div>`;
-
-  // Level Up button — shown when the player can afford a level-up
-  if (canLevelUp() && !levelUpInProgress) {
-    html += `<div class="status-section status-levelup-section"><button class="status-levelup-btn" id="status-levelup-btn">⬡ Level Up</button></div>`;
-  }
 
   _statusPanel.innerHTML = html;
 
@@ -298,12 +298,17 @@ export function showLevelUpModal() {
         if (alloc[k]) playerState[k] = Number(playerState[k] || 0) + alloc[k];
       });
 
-      setLevelUpInProgress(false);
-      hideLevelUpModal();
-      _scheduleStats();
-
       if (_onLevelUpConfirmed) _onLevelUpConfirmed(newLevel);
       _showToast(`Reached Level ${newLevel}`);
+
+      // Check if another level-up is available
+      if (canLevelUp()) {
+        showLevelAgainPrompt(box, newLevel);
+      } else {
+        setLevelUpInProgress(false);
+        hideLevelUpModal();
+        _scheduleStats();
+      }
     });
   }
 
@@ -324,6 +329,49 @@ export function showLevelUpModal() {
   requestAnimationFrame(() => {
     const firstBtn = box.querySelector('.alloc-btn:not(:disabled)');
     if (firstBtn) firstBtn.focus({ preventScroll: true });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// showLevelAgainPrompt — shown inside the modal after confirm when
+// the player can afford another level-up. Offers Yes / No.
+// ---------------------------------------------------------------------------
+function showLevelAgainPrompt(box, justReachedLevel) {
+  box.innerHTML = `
+    <div class="levelup-modal-header">
+      <span class="system-block-label">[ LEVEL UP ]</span>
+      <div class="levelup-modal-title">
+        <strong>Level ${justReachedLevel}</strong> reached
+      </div>
+      <div class="levelup-modal-subtitle levelup-again-prompt">
+        You have enough Essence to level up again. Continue?
+      </div>
+    </div>
+    <div class="levelup-modal-footer levelup-again-footer">
+      <button class="levelup-again-btn levelup-again-btn--yes" id="levelup-again-yes">Yes, Level Up</button>
+      <button class="levelup-again-btn levelup-again-btn--no" id="levelup-again-no">No, Done</button>
+    </div>`;
+
+  box.querySelector('#levelup-again-yes')?.addEventListener('click', () => {
+    // Close current modal state, then immediately open a new level-up
+    setLevelUpInProgress(false);
+    hideLevelUpModal();
+    _scheduleStats();
+    // Small delay so the DOM resets before the new modal opens
+    requestAnimationFrame(() => {
+      showLevelUpModal();
+    });
+  });
+
+  box.querySelector('#levelup-again-no')?.addEventListener('click', () => {
+    setLevelUpInProgress(false);
+    hideLevelUpModal();
+    _scheduleStats();
+  });
+
+  // Focus the Yes button
+  requestAnimationFrame(() => {
+    box.querySelector('#levelup-again-yes')?.focus({ preventScroll: true });
   });
 }
 

@@ -1126,33 +1126,44 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 .levelup-inline-block .stat-alloc-item.selected { border-color: var(--green); background: rgba(76, 220, 138, 0.08); }
 
 /* --- Status panel Level Up button --- */
-.status-levelup-section {
-  text-align: center;
-  padding: 8px 0 4px;
+.status-levelup-row {
+  margin-top: 10px;
+  margin-bottom: 2px;
 }
 
 .status-levelup-btn {
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-2xs);
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
-  color: var(--bg-deep);
-  background: var(--green);
-  border: none;
-  padding: 10px 28px;
+  color: var(--green);
+  background: transparent;
+  border: 1px solid rgba(76, 220, 138, 0.35);
+  padding: 7px 0;
   cursor: pointer;
   transition: all var(--transition-fast);
   width: 100%;
+  position: relative;
 }
 
 .status-levelup-btn:hover {
-  background: #fff;
-  box-shadow: 0 0 20px var(--green-glow);
+  color: #fff;
+  border-color: var(--green);
+  background: rgba(76, 220, 138, 0.08);
+  box-shadow: 0 0 12px rgba(76, 220, 138, 0.15);
 }
 
 .status-levelup-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
+
+/* Subtle pulse animation to draw attention */
+@keyframes levelupPulse {
+  0%, 100% { border-color: rgba(76, 220, 138, 0.35); }
+  50%      { border-color: rgba(76, 220, 138, 0.6); }
+}
+.status-levelup-btn { animation: levelupPulse 2.5s ease-in-out infinite; }
+.status-levelup-btn:hover { animation: none; }
 
 /* --- Level-up modal overlay --- */
 #levelup-overlay {
@@ -1192,6 +1203,51 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   margin-top: 20px;
   display: flex;
   justify-content: center;
+}
+
+/* --- Level-again prompt (Yes / No after confirm) --- */
+.levelup-again-prompt {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  margin-top: 12px;
+  line-height: 1.5;
+}
+
+.levelup-again-footer {
+  gap: 12px;
+}
+
+.levelup-again-btn {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  letter-spacing: var(--ls-normal);
+  text-transform: uppercase;
+  padding: 8px 24px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+}
+
+.levelup-again-btn--yes {
+  color: var(--bg-deep);
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.levelup-again-btn--yes:hover {
+  background: #fff;
+  box-shadow: 0 0 16px var(--green-glow);
+}
+
+.levelup-again-btn--no {
+  color: var(--text-dim);
+  background: transparent;
+  border-color: var(--border-dim);
+}
+
+.levelup-again-btn--no:hover {
+  color: var(--text-primary);
+  border-color: var(--text-dim);
 }
 
 
@@ -1729,6 +1785,8 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   .levelup-modal-box     { max-width: 100%; padding: 20px 16px 24px; }
   .levelup-modal-title   { font-size: var(--text-base); }
   .levelup-confirm-btn   { font-size: var(--text-2xs); padding: 7px 16px; }
+  .levelup-again-btn     { font-size: var(--text-2xs); padding: 7px 16px; }
+  .levelup-again-footer  { flex-wrap: wrap; }
 
   /* Skill browser */
   .skill-browser-card-top     { flex-wrap: wrap; gap: 8px; }
