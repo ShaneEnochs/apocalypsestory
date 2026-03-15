@@ -331,7 +331,7 @@ export function renderChoices(choices) {
         : (playerState[key] !== undefined ? playerState[key] : null);
       const met = val !== null && Number(val) >= requirement;
       const badge = document.createElement('span');
-      badge.className = `choice-stat-badge ${met ? 'choice-stat-badge--met' : 'choice-stat-badge--unmet'}`;
+      badge.className = `stat-requirement-badge ${met ? 'stat-req--met' : 'stat-req--unmet'}`;
       badge.textContent = `${label} ${requirement}`;
       btn.appendChild(badge);
     }
@@ -373,10 +373,25 @@ export function renderChoices(choices) {
         // interpreter.js.
         const choiceBlockEnd = awaitingChoice?.end ?? choice.end;
         const savedIp = awaitingChoice?._savedIp ?? choiceBlockEnd;
+        console.log('[narrative] CHOICE CLICK DEBUG:', {
+          'choice.start': choice.start,
+          'choice.end': choice.end,
+          'awaitingChoice': awaitingChoice ? { end: awaitingChoice.end, _savedIp: awaitingChoice._savedIp } : null,
+          'choiceBlockEnd': choiceBlockEnd,
+          'savedIp': savedIp,
+          '_executeBlock type': typeof _executeBlock,
+          '_runInterpreter type': typeof _runInterpreter,
+        });
         setAwaitingChoice(null);
 
         _executeBlock(choice.start, choice.end, savedIp)
-          .then(() => _runInterpreter())
+          .then(() => {
+            console.log('[narrative] executeBlock finished, calling runInterpreter');
+            return _runInterpreter();
+          })
+          .then(() => {
+            console.log('[narrative] runInterpreter finished');
+          })
           .catch(err => console.error('[narrative] choice execution error:', err));
       });
     }
