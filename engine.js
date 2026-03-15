@@ -29,7 +29,7 @@ import {
   patchPlayerState, parseStartup,
   setPlayerState, setTempState, setPendingStatPoints,
   setCurrentScene, setCurrentLines, setIp, setDelayIndex,
-  setAwaitingChoice, setPendingLevelUpDisplay,
+  setAwaitingChoice, setPendingLevelUpDisplay, clearPausedAtIp,
 } from './engine/core/state.js';
 
 import { evalValue }       from './engine/core/expression.js';
@@ -51,7 +51,7 @@ import { parseSkills } from './engine/systems/skills.js';
 import {
   init      as initNarrative,
   addParagraph, addSystem, clearNarrative, applyTransition,
-  renderChoices, showInputPrompt, showPageBreak,
+  renderChoices, showInputPrompt, showPageBreak, setChoiceArea,
 } from './engine/ui/narrative.js';
 
 import {
@@ -152,7 +152,14 @@ function showEngineError(message) {
   div.className = 'system-block';
   div.style.borderLeftColor = 'var(--red)';
   div.style.color = 'var(--red)';
-  div.innerHTML = `<span class="system-block-label">[ ENGINE ERROR ]</span><span class="system-block-text">${message}\n\nUse the Restart button to reload.</span>`;
+  const label = document.createElement('span');
+  label.className = 'system-block-label';
+  label.textContent = '[ ENGINE ERROR ]';
+  const text = document.createElement('span');
+  text.className = 'system-block-text';
+  text.textContent = `${message}\n\nUse the Restart button to reload.`;
+  div.appendChild(label);
+  div.appendChild(text);
   dom.narrativeContent.insertBefore(div, dom.choiceArea);
   dom.chapterTitle.textContent = 'ERROR';
 }
@@ -204,10 +211,20 @@ async function popUndo() {
   setIp(snap.ip);
   setDelayIndex(0);
   setAwaitingChoice(null);
+  // Clear any stale pause position — the undo restores ip directly so
+  // _pausedAtIp from a prior *page_break/*delay/*input must not persist.
+  clearPausedAtIp();
 
-  // Restore the DOM exactly as it was
+  // Restore the DOM exactly as it was.
   dom.narrativeContent.innerHTML = snap.narrativeHTML;
   dom.chapterTitle.textContent   = snap.chapterTitle;
+
+  // FIX 1: innerHTML replacement creates a new #choice-area element in the DOM.
+  // Both dom.choiceArea (engine.js) and _choiceArea (narrative.js) still point
+  // to the OLD, now-detached element. Any renderChoices() calls would append
+  // buttons to that invisible detached node. Re-acquire the live element.
+  dom.choiceArea = document.getElementById('choice-area');
+  setChoiceArea(dom.choiceArea);
 
   // The restored HTML may contain a .levelup-inline-block whose event handlers
   // are dead (innerHTML replacement kills listeners). Remove it — the

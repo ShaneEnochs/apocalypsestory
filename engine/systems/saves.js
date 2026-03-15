@@ -113,7 +113,16 @@ export async function restoreFromSave(save, { gotoScene, runStatsScene, fetchTex
   // their defaults even when loading a save that predates them.
   await parseStartup(fetchTextFileFn, evalValueFn);
 
-  setPlayerState({ ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) });
+  // Merge saved state over fresh defaults. Filter to keys that exist after the
+  // fresh parseStartup so that variables removed from startup.txt in a newer
+  // version are actually dropped rather than re-introduced by the old save.
+  // New keys added to startup.txt retain their fresh defaults automatically.
+  const freshKeys    = new Set(Object.keys(playerState));
+  const savedFiltered = {};
+  for (const [k, v] of Object.entries(save.playerState)) {
+    if (freshKeys.has(k)) savedFiltered[k] = v;
+  }
+  setPlayerState({ ...playerState, ...JSON.parse(JSON.stringify(savedFiltered)) });
   const savedPoints = save.pendingStatPoints ?? 0;
   setPendingStatPoints(savedPoints);
   // If points were unspent when the save was made, arm the display flag so

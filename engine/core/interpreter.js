@@ -232,7 +232,10 @@ export async function runInterpreter() {
 // Command registry — directive → handler
 //
 // Handlers receive (t, line) where t = line.trimmed, line = full line object.
-// Registration order does not matter; isDirective() prevents prefix clashes.
+// Registration order matters for prefix overlaps — Map iterates in insertion
+// order and the first match wins. isDirective() does exact-word matching so
+// *goto won't match *goto_scene, but register longer variants first anyway
+// for clarity (see *goto_scene before *goto below).
 // ---------------------------------------------------------------------------
 const commands = new Map();
 
@@ -437,6 +440,9 @@ registerCommand('*check_item', (t) => {
 
 // *grant_skill "key" — adds skill without SP cost
 registerCommand('*grant_skill', (t) => {
+  // Skip during restore replay — skills array is already correct in the save.
+  // grantSkill() is idempotent, but skipping is cleaner and consistent.
+  if (_isRestoring) { advanceIp(); return; }
   const key = t.replace(/^\*grant_skill\s*/, '').trim().replace(/^"|"$/g, '');
   grantSkill(key);
   cb.scheduleStatsRender();
@@ -445,6 +451,8 @@ registerCommand('*grant_skill', (t) => {
 
 // *revoke_skill "key" — removes a skill
 registerCommand('*revoke_skill', (t) => {
+  // Skip during restore replay — skills array is already correct in the save.
+  if (_isRestoring) { advanceIp(); return; }
   const key = t.replace(/^\*revoke_skill\s*/, '').trim().replace(/^"|"$/g, '');
   revokeSkill(key);
   cb.scheduleStatsRender();
@@ -568,6 +576,11 @@ registerCommand('*loop', async (t, line) => {
   while (evaluateCondition(t) && guard < 100) {
     await executeBlock(blockStart, blockEnd);
     if (awaitingChoice) return;
+    // If a *goto inside the loop body relocated ip, honour it and exit the loop.
+    // Without this check, executeBlock returns early (ip already set by *goto),
+    // but the while loop re-evaluates the condition and calls executeBlock again,
+    // silently discarding the goto destination.
+    if (_gotoJumped) { setGotoJumped(false); return; }
     guard += 1;
   }
   if (guard >= 100) console.warn(`[interpreter] *loop guard tripped in "${currentScene}"`);
