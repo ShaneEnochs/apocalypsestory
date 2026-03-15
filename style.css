@@ -383,22 +383,11 @@ body {
 .narrative-paragraph {
   margin-bottom: 1.2em;
   color: var(--text-primary);
-  opacity: 0;
-  transform: translateY(8px);
-  animation: fadeSlideIn 0.4s ease forwards;
 }
 
 .narrative-paragraph:last-child { margin-bottom: 0; }
 .narrative-paragraph em         { color: var(--text-primary); font-style: italic; }
 .narrative-paragraph strong     { color: var(--cyan); font-weight: 600; }
-
-/* Scene transitions */
-#narrative-panel.transitioning #narrative-content,
-#narrative-panel.transitioning #choice-area {
-  opacity: 0;
-  transform: translateY(-6px);
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
 
 
 /* ============================================================
@@ -417,8 +406,6 @@ body {
   padding: 12px 16px;
   margin: 1.4em 0;
   position: relative;
-  opacity: 0;
-  animation: systemFlicker 0.5s ease forwards;
 }
 
 .system-block-label {
@@ -433,17 +420,6 @@ body {
 .system-block-text {
   display: block;
   white-space: pre-wrap;
-}
-
-.system-block::after {
-  content: '';
-  position: absolute;
-  top: 0; left: -100%;
-  width: 60%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, var(--cyan-glow), transparent);
-  animation: scanline 2s ease 0.3s 1 forwards;
-  clip-path: inset(0);
 }
 
 /* XP variant */
@@ -481,9 +457,6 @@ body {
   position: relative;
   overflow: hidden;
   transition: all var(--transition-fast);
-  opacity: 0;
-  transform: translateX(-8px);
-  animation: choiceSlideIn 0.3s ease forwards;
 }
 
 .choice-btn::before {
@@ -641,7 +614,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 /* Tag list (inventory, etc.) */
 .tag-list    { list-style: none; display: flex; flex-direction: column; gap: 5px; }
-.tag-list li { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-primary); padding: 4px 8px; border: 1px solid var(--border-dim); background: var(--bg-deep); letter-spacing: var(--ls-tight); animation: tagAppear 0.3s ease forwards; }
+.tag-list li { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-primary); padding: 4px 8px; border: 1px solid var(--border-dim); background: var(--bg-deep); letter-spacing: var(--ls-tight); }
 .tag-empty   { color: var(--text-faint); border-color: transparent; background: transparent; }
 
 
@@ -658,8 +631,6 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   align-items: center;
   justify-content: center;
   z-index: 100;
-  opacity: 0;
-  animation: overlayIn 0.4s ease forwards;
 }
 
 .overlay-box {
@@ -986,8 +957,6 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   border: 1px solid rgba(240, 165, 0, 0.3);
   border-left: 2px solid var(--amber);
   background: linear-gradient(135deg, rgba(240, 165, 0, 0.05) 0%, transparent 60%);
-  opacity: 0;
-  animation: fadeSlideIn 0.6s ease 0.2s forwards;
 }
 
 .ending-inline-label {
@@ -1082,19 +1051,6 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   padding: 16px 16px 20px;
   margin: 1.4em 0;
   position: relative;
-  opacity: 0;
-  animation: levelupReveal 0.7s ease forwards;
-}
-
-.levelup-inline-block::after {
-  content: '';
-  position: absolute;
-  top: 0; left: -100%;
-  width: 60%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(76, 220, 138, 0.1), transparent);
-  animation: scanline 2s ease 0.4s 1 forwards;
-  clip-path: inset(0);
 }
 
 .levelup-inline-header          { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; color: var(--green); }
@@ -1163,8 +1119,6 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   letter-spacing: var(--ls-normal);
   color: var(--green);
   z-index: 5;
-  opacity: 0;
-  animation: fadeSlideIn 0.4s ease 0.15s forwards;
   pointer-events: none;
 }
 
@@ -1195,14 +1149,12 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   border: none;
   background: transparent;
   letter-spacing: unset;
-  animation: none;
 }
 
 .skill-accordion {
   border: 1px solid var(--border-dim);
   background: var(--bg-deep);
   overflow: hidden;
-  animation: tagAppear 0.3s ease forwards;
 }
 
 .skill-accordion-btn {
@@ -1423,8 +1375,6 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   padding: 14px 16px;
   margin: 1.4em 0;
   position: relative;
-  opacity: 0;
-  animation: systemFlicker 0.5s ease forwards;
 }
 
 .input-prompt-label {
@@ -1476,7 +1426,6 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   border-left-color: var(--border-dim);
   border-top-color: transparent;
   border-bottom-color: transparent;
-  animation: none;
 }
 
 
@@ -1502,7 +1451,6 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   background: var(--bg-deep);
   letter-spacing: 0.04em;
   line-height: 1.5;
-  animation: tagAppear 0.3s ease forwards;
 }
 
 .journal-entry--achievement {
@@ -1635,36 +1583,14 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 /* ============================================================
    23. ANIMATIONS
+   Narrative stagger animations (fadeSlideIn, choiceSlideIn,
+   systemFlicker, scanline, levelupReveal, tagAppear, overlayIn)
+   have been removed. All narrative elements render at full
+   opacity immediately. The following are retained for UI
+   feedback only and do not affect game state or rendering.
    ============================================================ */
 
-@keyframes fadeSlideIn   { to { opacity: 1; transform: translateY(0); } }
-@keyframes choiceSlideIn { to { opacity: 1; transform: translateX(0); } }
-@keyframes tagAppear     { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
-@keyframes overlayIn     { from { opacity: 0; } to { opacity: 1; } }
-@keyframes statPulse     { 0% { transform: scale(1); } 50% { transform: scale(1.15); color: var(--green); } 100% { transform: scale(1); } }
-
-@keyframes systemFlicker {
-  0%  { opacity: 0; }
-  20% { opacity: 0.8; }
-  40% { opacity: 0.4; }
-  60% { opacity: 0.9; }
-  80% { opacity: 0.6; }
-  100% { opacity: 1; }
-}
-
-@keyframes scanline {
-  0%   { left: -60%; }
-  100% { left: 160%; }
-}
-
-@keyframes levelupReveal {
-  0%   { opacity: 0; transform: translateY(6px); }
-  30%  { opacity: 0.9; transform: translateY(0); }
-  50%  { opacity: 0.5; }
-  70%  { opacity: 1; }
-  85%  { opacity: 0.75; }
-  100% { opacity: 1; transform: translateY(0); }
-}
+@keyframes statPulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); color: var(--green); } 100% { transform: scale(1); } }
 
 @keyframes toastIn  { to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 @keyframes toastOut { to { opacity: 0; transform: translateX(-50%) translateY(8px); } }
@@ -1674,11 +1600,6 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   25%  { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-glow-md); }
   70%  { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-glow-md); }
   100% { border-color: var(--border-glow); box-shadow: none; }
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .overlay { opacity: 1; animation: none; }
 }
 
 
