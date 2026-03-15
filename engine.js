@@ -202,6 +202,8 @@ function pushUndoSnapshot() {
   _undoStack.push({
     playerState:      JSON.parse(JSON.stringify(playerState)),
     tempState:        JSON.parse(JSON.stringify(tempState)),
+    // FIX #13: include sessionState so popUndo can restore session-scoped flags
+    sessionState:     JSON.parse(JSON.stringify(sessionState)),
     pendingStatPoints,
     scene:            currentScene,
     ip,
@@ -215,13 +217,26 @@ function pushUndoSnapshot() {
 async function popUndo() {
   if (_undoStack.length === 0) return;
   const snap = _undoStack.pop();
-
+ 
   // --- Restore game state ---
   setPlayerState(JSON.parse(JSON.stringify(snap.playerState)));
   setTempState(JSON.parse(JSON.stringify(snap.tempState)));
+  // FIX #13: restore sessionState from snapshot.
+  // Graceful fallback for old snapshots without sessionState: restore to {}.
+  // An empty session layer is preferable to a stale one left over from after
+  // the snapshot point.
+  if (snap.sessionState !== undefined) {
+    // clearSessionState() + manual repopulate keeps the same live object
+    // reference that expression.js holds (avoids any stale-reference bugs).
+    clearSessionState();
+    Object.assign(sessionState, JSON.parse(JSON.stringify(snap.sessionState)));
+  } else {
+    // Old snapshot — clear session state to avoid stale flags
+    clearSessionState();
+  }
   setPendingStatPoints(snap.pendingStatPoints);
   setCurrentScene(snap.scene);
-
+ 
   // Re-parse lines so the interpreter has a live currentLines array.
   const text = sceneCache.get(snap.scene.endsWith('.txt') ? snap.scene : `${snap.scene}.txt`);
   if (text) {
@@ -231,31 +246,31 @@ async function popUndo() {
   setIp(snap.ip);
   setDelayIndex(0);
   setAwaitingChoice(null);
-
+ 
   // Clear any stale pause state — the snapshot was taken before a choice,
   // so there is no active pause directive to resume.
   clearPauseState();
-
+ 
   // --- Restore chapter title ---
   dom.chapterTitle.textContent = snap.chapterTitle;
   setChapterTitleState(snap.chapterTitle);
-
+ 
   // --- Restore narrative from log ---
   // renderFromLog clears the DOM and repaints from the structured log with
   // zero side effects — no applySystemRewards, no interpreter execution,
   // no dead event listeners.
   renderFromLog(snap.narrativeLog, { skipAnimations: true });
-
+ 
   // renderFromLog rebuilds the DOM including a fresh #choice-area element,
   // so both dom.choiceArea (engine.js) and the internal _choiceArea reference
   // inside narrative.js must be re-pointed at the live element.
   dom.choiceArea = document.getElementById('choice-area');
   setChoiceArea(dom.choiceArea);
-
+ 
   // If the snapshot had unspent level-up points, re-arm the display flag so
   // renderChoices triggers showInlineLevelUp when choices are re-rendered.
   if (snap.pendingStatPoints > 0) setPendingLevelUpDisplay(true);
-
+ 
   // Re-run the interpreter from the saved ip. It immediately hits the *choice
   // directive and re-renders the choice buttons with fresh, live click handlers.
   // The narrative text is already on screen from renderFromLog.
