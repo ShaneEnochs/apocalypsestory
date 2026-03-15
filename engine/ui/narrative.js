@@ -16,11 +16,16 @@
 // ---------------------------------------------------------------------------
 
 import {
-  playerState, tempState,
-  pendingLevelUpDisplay, pendingStatPoints,
-  delayIndex, setDelayIndex, advanceDelayIndex,
-  normalizeKey,
-} from '../core/state.js';
+  playerState, tempState, statRegistry, startup,
+  currentScene, currentLines, ip, pendingStatPoints,
+  awaitingChoice, delayIndex, pauseState,
+  patchPlayerState, parseStartup,
+  setPlayerState, setTempState, setPendingStatPoints,
+  setCurrentScene, setCurrentLines, setIp, setDelayIndex,
+  setAwaitingChoice, setPendingLevelUpDisplay,
+  setChapterTitleState, clearPauseState,
+  sessionState, clearSessionState,  // ENH-08: sessionState needed by pushUndoSnapshot/popUndo
+} from './engine/core/state.js';
 
 import { applySystemRewards } from '../systems/leveling.js';
 
