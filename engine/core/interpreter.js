@@ -61,7 +61,7 @@ import {
   _gotoJumped, awaitingChoice, pendingLevelUpDisplay,
   statRegistry, setStatRegistry,
   setCurrentScene, setCurrentLines, setIp, advanceIp,
-  setGotoJumped, setAwaitingChoice, setDelayIndex, clearTempState,
+  setGotoJumped, setAwaitingChoice, clearTempState,
   normalizeKey, setVar, setStatClamped, declareTemp, patchPlayerState,
   setPauseState, clearPauseState, pauseState,
   sessionState, patchSessionState,
@@ -212,7 +212,6 @@ export async function gotoScene(name, label = null) {
   setCurrentLines(parseLines(text));
   indexLabels(name, currentLines, _labelsCache);
   setIp(0);
-  setDelayIndex(0);
   cb.clearNarrative();
   cb.applyTransition();
 
