@@ -12,9 +12,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
 
-<link rel="stylesheet" href="style.css?v=9"/>
-<link rel="stylesheet" href="skill_styles.css?v=9"/>
-<script type="module" src="engine.js?v=9"></script>
+<!-- Single unified stylesheet (skill_styles.css merged in) -->
+<link rel="stylesheet" href="style.css?v=10"/>
+<script type="module" src="engine.js?v=10"></script>
 </head>
 <body>
 
@@ -22,7 +22,7 @@
 <header id="game-header">
   <div id="header-top">
     <div id="game-title">System Awakening</div>
-    <div style="display:flex;align-items:center;gap:10px;">
+    <div class="header-actions">
       <button id="undo-btn" class="header-btn hidden" title="Undo last choice" disabled>↩ Undo</button>
       <button id="save-btn" class="header-btn hidden" title="Save / Load game">Save·Load</button>
       <button id="status-toggle" aria-label="Toggle status panel">Status</button>
@@ -180,7 +180,7 @@
         </div>
       </div>
     </div>
-    <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end;">
+    <div class="save-menu-footer">
       <button id="ingame-restart-btn" class="overlay-btn overlay-btn--danger">↺ Restart</button>
       <button id="save-menu-close" class="overlay-btn overlay-btn--secondary">Cancel</button>
     </div>
@@ -199,35 +199,31 @@
     <div class="char-field-group">
       <label class="char-label" for="input-first-name">First Name</label>
       <div class="char-input-wrap">
-        <input id="input-first-name" class="char-input" type="text"
-               autocomplete="off" spellcheck="false"
-               maxlength="14" placeholder="Enter first name"/>
-        <span class="char-counter" id="counter-first">14</span>
+        <input id="input-first-name" class="char-input" type="text" maxlength="14" autocomplete="off" spellcheck="false" placeholder="Kael"/>
+        <span class="char-counter" id="counter-first">0/14</span>
       </div>
-      <span class="char-error hidden" id="error-first-name" role="alert" aria-live="polite"></span>
+      <span class="char-error" id="error-first-name"></span>
     </div>
 
     <div class="char-field-group">
       <label class="char-label" for="input-last-name">Last Name</label>
       <div class="char-input-wrap">
-        <input id="input-last-name" class="char-input" type="text"
-               autocomplete="off" spellcheck="false"
-               maxlength="14" placeholder="Enter last name"/>
-        <span class="char-counter" id="counter-last">14</span>
+        <input id="input-last-name" class="char-input" type="text" maxlength="14" autocomplete="off" spellcheck="false" placeholder="Ashborne"/>
+        <span class="char-counter" id="counter-last">0/14</span>
       </div>
-      <span class="char-error hidden" id="error-last-name" role="alert" aria-live="polite"></span>
+      <span class="char-error" id="error-last-name"></span>
     </div>
 
     <div class="char-field-group">
-      <span class="char-label">Pronouns</span>
-      <div class="pronoun-cards" role="radiogroup" aria-label="Pronouns">
-        <button class="pronoun-card" data-pronouns="he/him" data-subject="he" data-object="him" data-possessive="his" data-reflexive="himself" role="radio" aria-checked="false" tabindex="0">
+      <label class="char-label">Pronouns</label>
+      <div class="pronoun-cards" role="radiogroup" aria-label="Pronoun selection">
+        <button class="pronoun-card selected" data-pronouns="he/him" data-subject="he" data-object="him" data-possessive="his" data-reflexive="himself" role="radio" aria-checked="false" tabindex="0">
           he / him
         </button>
         <button class="pronoun-card" data-pronouns="she/her" data-subject="she" data-object="her" data-possessive="her" data-reflexive="herself" role="radio" aria-checked="false" tabindex="-1">
           she / her
         </button>
-        <button class="pronoun-card selected" data-pronouns="they/them" data-subject="they" data-object="them" data-possessive="their" data-reflexive="themself" role="radio" aria-checked="true" tabindex="-1">
+        <button class="pronoun-card" data-pronouns="they/them" data-subject="they" data-object="them" data-possessive="their" data-reflexive="themself" role="radio" aria-checked="true" tabindex="-1">
           they / them
         </button>
         <button class="pronoun-card" data-pronouns="xe/xem" data-subject="xe" data-object="xem" data-possessive="xyr" data-reflexive="xemself" role="radio" aria-checked="false" tabindex="-1">
@@ -267,4 +263,4 @@
 <div id="debug-overlay" class="hidden"></div>
 
 </body>
-</html> 
+</html>
