@@ -70,10 +70,11 @@ let _onBeforeChoice    = null;
 // circular import (narrative.js → interpreter.js → [via callbacks] → narrative.js).
 let _executeBlock      = null;
 let _runInterpreter    = null;
+let _debugLog          = null;   // optional: (tag, detail) → void
 
 export function init({ narrativeContent, choiceArea, narrativePanel,
                        onShowLevelUp, scheduleStatsRender, onBeforeChoice,
-                       executeBlock, runInterpreter }) {
+                       executeBlock, runInterpreter, debugLog }) {
   _narrativeContent = narrativeContent;
   _choiceArea       = choiceArea;
   _narrativePanel   = narrativePanel;
@@ -82,6 +83,7 @@ export function init({ narrativeContent, choiceArea, narrativePanel,
   _onBeforeChoice   = onBeforeChoice   || (() => {});
   _executeBlock     = executeBlock     || null;
   _runInterpreter   = runInterpreter   || null;
+  _debugLog         = debugLog         || null;
 }
 
 export function setChoiceArea(el) { _choiceArea = el; }
@@ -287,38 +289,53 @@ export function renderChoices(choices) {
     } else {
       btn.addEventListener('click', () => {
         // BUG K: ignore any click after the first in this choice round
-        if (choiceMade) return;
+        if (choiceMade) {
+          if (_debugLog) _debugLog('CHOICE BLOCKED', `choiceMade already true — btn="${choice.text.slice(0,30)}"`);
+          return;
+        }
         choiceMade = true;
+        if (_debugLog) _debugLog('CHOICE CLICKED', `"${choice.text.slice(0,40)}" start=${choice.start} end=${choice.end}`);
 
         _onBeforeChoice();
-        btn.disabled = true;
-        _choiceArea.querySelectorAll('.choice-btn').forEach(b => { b.disabled = true; });
 
-        // FIX Main + A + B (sweep 4):
+        // FIX: Clear the narrative immediately when a choice is made, before
+        // executeBlock runs. This prevents two bugs:
         //
-        // Main/B: awaitingChoice is still set from the *choice handler that
-        // rendered these buttons. We MUST clear it before calling executeBlock,
-        // otherwise executeBlock's inner loop sees the truthy awaitingChoice on
-        // the very first iteration and bails immediately — the choice body
-        // never executes and the game freezes.
+        // BUG-CHOICE-1 (page expansion): A *goto inside a choice body jumps to
+        //   a label within the same scene. executeBlock returns early (via
+        //   _gotoJumped), then runInterpreter continues from the label — but
+        //   without clearNarrative, the new paragraphs were appended below the
+        //   existing choice buttons, expanding the page rather than replacing it.
+        //   *goto_scene calls clearNarrative itself; *goto does not.
         //
-        // A: The correct resume IP after the choice body finishes is the end of
-        // the entire *choice block (awaitingChoice.end), NOT choice.end (which
-        // is only the end of this individual option's body). For nested choices
-        // inside *if blocks, _savedIp was stashed by executeBlock on the
-        // awaitingChoice object — capture it before clearing.
+        // BUG-CHOICE-2 (second button does nothing): After bug 1, the old buttons
+        //   remained in the DOM. Clicking a second button hit the choiceMade guard
+        //   (still true from the first click's closure) and silently returned.
+        //   Clearing the DOM immediately removes all buttons, so there is nothing
+        //   left to click a second time.
         //
-        // B: awaitingChoice and setAwaitingChoice are imported directly from
-        // state.js (no circular import). executeBlock and runInterpreter are
-        // received via init() callbacks to avoid circular imports with
-        // interpreter.js.
+        // Note: *goto_scene and *goto_scene inside deeper choice bodies both call
+        //   clearNarrative themselves before rendering new content, so calling it
+        //   here is safe — a double-clear is a no-op (log resets to []).
+        clearNarrative();
+
         const choiceBlockEnd = awaitingChoice?.end ?? choice.end;
         const savedIp = awaitingChoice?._savedIp ?? choiceBlockEnd;
+        if (_debugLog) _debugLog('CHOICE EXEC', `choiceBlockEnd=${choiceBlockEnd} savedIp=${savedIp} awaitingChoice.end=${awaitingChoice?.end} _savedIp=${awaitingChoice?._savedIp}`);
         setAwaitingChoice(null);
 
         _executeBlock(choice.start, choice.end, savedIp)
-          .then(() => _runInterpreter())
-          .catch(err => console.error('[narrative] choice execution error:', err));
+          .then(() => {
+            if (_debugLog) _debugLog('EXEC DONE', `ip now=${window._dbgIp?.() ?? '?'} — calling runInterpreter`);
+            return _runInterpreter();
+          })
+          .then(() => {
+            if (_debugLog) _debugLog('RUN DONE', `interpreter finished`);
+          })
+          .catch(err => {
+            if (_debugLog) _debugLog('CHOICE ERROR', err.message);
+            console.error('[narrative] choice execution error:', err);
+          });
       });
     }
 
