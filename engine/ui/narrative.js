@@ -23,20 +23,20 @@
 //   - executeBlock and runInterpreter are received via init() callbacks
 //     to avoid a circular import with interpreter.js.
 //
-// BUG F fix (sweep 6): animationDelay now uses idx * 80ms only, not
-//   (delayIndex + idx) * 80ms. After a long passage the old formula
-//   buried buttons 1+ seconds into the future.
 // BUG J fix (sweep 6): choice container gets role="group" + aria-label;
 //   disabled buttons get aria-disabled="true"; first enabled button
 //   receives focus after render via requestAnimationFrame.
 // BUG K fix (sweep 6): choiceMade guard prevents double-click / rapid-tap
 //   race on touch devices.
+// ANIM removal: all animationDelay stagger logic removed from addParagraph,
+//   addSystem, showInputPrompt, renderChoices, and renderFromLog. The
+//   delayIndex counter in state.js has also been removed. applyTransition
+//   is now a no-op. All narrative elements render at full opacity immediately.
 // ---------------------------------------------------------------------------
 
 import {
   playerState, tempState,
   pendingLevelUpDisplay, pendingStatPoints,
-  delayIndex, setDelayIndex, advanceDelayIndex,
   normalizeKey,
   awaitingChoice, setAwaitingChoice,
 } from '../core/state.js';
@@ -166,9 +166,7 @@ function formatText(text) {
 export function addParagraph(text, cls = 'narrative-paragraph') {
   const p = document.createElement('p');
   p.className = cls;
-  p.style.animationDelay = `${delayIndex * 80}ms`;
   p.innerHTML = formatText(text);
-  advanceDelayIndex();
   _narrativeContent.insertBefore(p, _choiceArea);
 
   // Log the raw text (before formatText) so renderFromLog can re-resolve
@@ -186,8 +184,6 @@ export function addSystem(text) {
   const isXP      = /XP\s+gained|bonus\s+XP|\+\d+\s+XP/i.test(text);
   const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(text);
   div.className = `system-block${isXP ? ' xp-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
-  div.style.animationDelay = `${delayIndex * 80}ms`;
-  advanceDelayIndex();
 
   const formatted = formatText(text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
   div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
@@ -208,7 +204,6 @@ export function clearNarrative() {
     if (el !== _choiceArea) el.remove();
   }
   _choiceArea.innerHTML = '';
-  setDelayIndex(0);
   // Reset scroll position so new content starts at the top
   _narrativeContent.scrollTop = 0;
 
@@ -217,11 +212,13 @@ export function clearNarrative() {
 }
 
 // ---------------------------------------------------------------------------
-// applyTransition — brief fade/slide class on the narrative panel
+// applyTransition — formerly added a CSS 'transitioning' class for a
+// fade/slide effect. Removed: the setTimeout race was a source of bugs
+// where new content rendered while the panel was still opacity:0.
+// Kept as a no-op so all call sites remain valid without changes.
 // ---------------------------------------------------------------------------
 export function applyTransition() {
-  _narrativePanel.classList.add('transitioning');
-  setTimeout(() => _narrativePanel.classList.remove('transitioning'), 220);
+  // intentionally empty
 }
 
 // ---------------------------------------------------------------------------
@@ -230,9 +227,6 @@ export function applyTransition() {
 // Called by the interpreter (via the cb.renderChoices callback registered
 // in engine.js). Disables choices while a level-up is pending.
 //
-// BUG F fix: animationDelay uses idx * 80ms, not (delayIndex + idx) * 80ms.
-//   Previously, after a long passage (high delayIndex), buttons were
-//   invisible for 1+ seconds before sliding in.
 // BUG J fix: choice container gets role="group" + aria-label; permanently-
 //   and temporarily-disabled buttons get aria-disabled="true"; first enabled
 //   button receives focus after render via requestAnimationFrame.
@@ -254,12 +248,9 @@ export function renderChoices(choices) {
   // clicks/taps in this choice round are silently dropped.
   let choiceMade = false;
 
-  choices.forEach((choice, idx) => {
+  choices.forEach((choice) => {
     const btn = document.createElement('button');
     btn.className = 'choice-btn';
-    // BUG F: use idx alone so buttons always slide in immediately,
-    // regardless of how many paragraphs preceded them.
-    btn.style.animationDelay = `${idx * 80}ms`;
     btn.innerHTML = `<span>${formatText(choice.text)}</span>`;
 
     // ENH-09: Render inline stat requirement badge if the choice has one.
@@ -375,8 +366,6 @@ export function showInputPrompt(varName, prompt, onSubmit) {
 
   const wrapper = document.createElement('div');
   wrapper.className = 'input-prompt-block';
-  wrapper.style.animationDelay = `${delayIndex * 80}ms`;
-  advanceDelayIndex();
   wrapper.innerHTML = `
     <span class="system-block-label">[ INPUT ]</span>
     <label class="input-prompt-label">${formatText(prompt)}</label>
@@ -422,14 +411,15 @@ export function showInputPrompt(varName, prompt, onSubmit) {
 // ---------------------------------------------------------------------------
 // renderFromLog — paints the DOM from a log array with zero side effects.
 //
-// This is the heart of the new save/load and undo approach: instead of
+// This is the heart of the save/load and undo approach: instead of
 // re-executing scene code, we replay the visible record of what was shown.
 // No rewards are re-applied, no interpreter runs, no state changes occur.
 //
-// opts.skipAnimations (default true): renders elements without CSS animation
-// delay so the screen fills instantly on restore.
+// The skipAnimations option is retained for API compatibility but is now a
+// no-op — all elements render at full opacity immediately since CSS
+// animation-based staggering has been removed.
 // ---------------------------------------------------------------------------
-export function renderFromLog(log, { skipAnimations = true } = {}) {
+export function renderFromLog(log, { skipAnimations = true } = {}) {  // eslint-disable-line no-unused-vars
   // Clear DOM — but do NOT touch _narrativeLog here; we're about to adopt
   // the incoming log as the new current log at the end of this function.
   for (const el of [..._narrativeContent.children]) {
@@ -438,24 +428,14 @@ export function renderFromLog(log, { skipAnimations = true } = {}) {
   _choiceArea.innerHTML = '';
   _narrativeContent.scrollTop = 0;
 
-  if (skipAnimations) setDelayIndex(0);
-
   for (const entry of log) {
     switch (entry.type) {
 
       case 'paragraph': {
         const p = document.createElement('p');
         p.className = 'narrative-paragraph';
-        if (skipAnimations) {
-          p.style.opacity   = '1';
-          p.style.transform = 'none';
-          p.style.animation = 'none';
-        } else {
-          p.style.animationDelay = `${delayIndex * 80}ms`;
-        }
         p.innerHTML = formatText(entry.text);
         _narrativeContent.insertBefore(p, _choiceArea);
-        if (!skipAnimations) advanceDelayIndex();
         break;
       }
 
@@ -464,27 +444,15 @@ export function renderFromLog(log, { skipAnimations = true } = {}) {
         const isXP      = /XP\s+gained|bonus\s+XP|\+\d+\s+XP/i.test(entry.text);
         const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(entry.text);
         div.className = `system-block${isXP ? ' xp-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
-        if (skipAnimations) {
-          div.style.opacity   = '1';
-          div.style.transform = 'none';
-          div.style.animation = 'none';
-        } else {
-          div.style.animationDelay = `${delayIndex * 80}ms`;
-        }
         const formatted = formatText(entry.text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
         div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
         _narrativeContent.insertBefore(div, _choiceArea);
-        if (!skipAnimations) advanceDelayIndex();
         break;
       }
 
       case 'input': {
         const wrapper = document.createElement('div');
         wrapper.className = 'input-prompt-block input-prompt-block--submitted';
-        if (skipAnimations) {
-          wrapper.style.opacity   = '1';
-          wrapper.style.animation = 'none';
-        }
         const safe = escapeHtml(entry.value ?? '—');
         wrapper.innerHTML = `
           <span class="system-block-label">[ INPUT ]</span>
@@ -497,10 +465,7 @@ export function renderFromLog(log, { skipAnimations = true } = {}) {
       case 'levelup_confirmed': {
         const block = document.createElement('div');
         block.className = 'system-block levelup-block levelup-inline-block levelup-inline-block--confirmed';
-        if (skipAnimations) {
-          block.style.opacity   = '0.55';
-          block.style.animation = 'none';
-        }
+        block.style.opacity = '0.55';
         block.innerHTML = `<span class="system-block-label">[ LEVEL UP ]</span><span class="system-block-text levelup-confirmed-text">Level ${entry.level} reached — stats allocated.</span>`;
         _narrativeContent.insertBefore(block, _choiceArea);
         break;
