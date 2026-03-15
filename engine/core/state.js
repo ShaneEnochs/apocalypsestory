@@ -50,8 +50,7 @@ export let _pendingLevelUpCount  = 0;
 // ---------------------------------------------------------------------------
 // Rendering
 // ---------------------------------------------------------------------------
-// delayIndex drives the staggered animation-delay on paragraphs / system blocks.
-export let delayIndex = 0;
+// (delayIndex removed — staggered animation-delay system eliminated)
 
 // ---------------------------------------------------------------------------
 // Startup metadata
@@ -108,8 +107,7 @@ export function setPendingLevelUpDisplay(v) { pendingLevelUpDisplay = v; }
 export function setPendingLevelUpCount(n)   { _pendingLevelUpCount = n; }
 export function addPendingLevelUpCount(n)   { _pendingLevelUpCount += n; }
 
-export function setDelayIndex(n)            { delayIndex = n; }
-export function advanceDelayIndex()         { delayIndex += 1; }
+// setDelayIndex / advanceDelayIndex removed — animation stagger system eliminated
 
 // ---------------------------------------------------------------------------
 // clearTempState — called by gotoScene on cross-scene navigation
