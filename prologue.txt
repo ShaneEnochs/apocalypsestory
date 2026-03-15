@@ -28,7 +28,7 @@
 
 *label opening
 
-Huge Update
+Experience Update
 The world ended on a Tuesday.
 
 Not with a bang — or rather, not *only* with a bang. It ended in layers, the way a person dies: first the small things, then the large ones, then the thing that held all the other things together.
@@ -36,7 +36,7 @@ Not with a bang — or rather, not *only* with a bang. It ended in layers, the w
 The System arrived eight years ago. A notification that appeared in every human mind simultaneously, in every language, in the precise dialect each person would understand best.
 
 *system 
-SYSTEM INITIALIZATION COMPLETE. 
+System Initialization Complete. 
 Congratulations! Your world has been inducted to the Multiverse.
 *end_system
 
@@ -52,7 +52,7 @@ The monsters came three days later.
 
 *title Eight Years Later
 
-*system XP gained: +1270
+*system XP gained: +15
 
 Eight years of that. Eight years of dungeons and raids and watching people you loved turn into numbers on a screen — their health bars dropping, their names greying out, their entries in the party list blinking once and then going dark forever.
 
