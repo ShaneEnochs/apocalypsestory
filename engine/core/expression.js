@@ -216,7 +216,11 @@ function makeParser(tokens) {
       if (Object.prototype.hasOwnProperty.call(tempState,    key)) return tempState[key];
       if (Object.prototype.hasOwnProperty.call(sessionState, key)) return sessionState[key]; // ENH-08
       if (Object.prototype.hasOwnProperty.call(playerState,  key)) return playerState[key];
-      return tok.value; // unknown ident → string fallback
+      // FIX H (sweep 4): Return 0 (falsy) for unknown identifiers instead of
+      // the raw string (which was truthy, causing *if conditions with typos to
+      // silently evaluate to true — the same "fail open" class of bug as FIX #7).
+      console.warn(`[expression] Unknown variable "${tok.value}" — returning 0. Check for typos in scene files.`);
+      return 0;
     }
 
     throw new Error(`[expression] Unexpected token ${tok.type}`);
