@@ -163,7 +163,7 @@ export async function executeBlock(start, end, resumeAfter = end) {
 // vars that restoreFromSave may have set before calling us, and makes the
 // code match the comment that previously only described the intended behaviour.
 // ---------------------------------------------------------------------------
-export async function gotoScene(name, label = null, isRestore = false) {
+export async function gotoScene(name, label = null, isRestore = false, savedIp = null) {
   let text;
   try {
     text = await cb.fetchTextFile(name);
@@ -180,10 +180,15 @@ export async function gotoScene(name, label = null, isRestore = false) {
   cb.clearNarrative();
   cb.applyTransition();
   cb.setChapterTitle(name.toUpperCase());
-  if (label) {
+
+  // Restore position: savedIp (exact line) takes priority over label (named jump)
+  if (savedIp !== null && savedIp >= 0 && savedIp < currentLines.length) {
+    setIp(savedIp);
+  } else if (label) {
     const labels = _labelsCache.get(name) || {};
     setIp(labels[label] ?? 0);
   }
+
   // Clear any stale choice state from a previous scene or session.
   // Without this, loading a save while at a *choice breaks the interpreter
   // loop — it immediately hits `if (awaitingChoice) break` and stops.
