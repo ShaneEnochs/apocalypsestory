@@ -11,7 +11,7 @@
 *comment --- Level / XP progress ---
 *create level 1
 *create xp 0
-*create xp_to_next 1000
+*create xp_to_next 10
 
 *comment --- Level-up configuration ---
 *comment xp_up_mult:       multiplier applied to xp_to_next on each level-up
@@ -29,15 +29,17 @@
 
 *comment --- Vitals (plain *create; shown in stats panel but not allocatable) ---
 *create health "Healthy"
-*create mana 10000
-*create max_mana 10000
+*create mana 50
+*create max_mana 50
 
 *comment --- Allocatable stats (registered via *create_stat) ---
 *comment Format: *create_stat key "Human-Readable Label" defaultValue
-*create_stat body "Body" 10
-*create_stat mind "Mind" 10
-*create_stat spirit "Spirit" 10
-*create_stat social "Social" 10
+*create_stat strength "Strength" 1
+*create_stat fortitude "Fortitude" 1
+*create_stat agility "Agility" 1
+*create_stat precision "Precision" 1
+*create_stat mind "Mind" 1
+*create_stat magic_power "Magic Power" 1
 
 *comment --- Misc ---
 *create loop_counter 0
