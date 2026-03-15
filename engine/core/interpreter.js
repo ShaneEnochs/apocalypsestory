@@ -25,6 +25,7 @@
 import {
   playerState, tempState, currentLines, ip, currentScene,
   _gotoJumped, awaitingChoice, pendingLevelUpDisplay,
+  _isRestoring,
   setCurrentScene, setCurrentLines, setIp, advanceIp,
   setGotoJumped, setAwaitingChoice, setDelayIndex, clearTempState,
   normalizeKey, setVar, declareTemp, patchPlayerState,
@@ -204,11 +205,12 @@ export async function gotoScene(name, label = null, isRestore = false, savedIp =
     setIp(labels[label] ?? 0);
   }
 
-  // Clear any stale choice state from a previous scene or session.
+  // Clear any stale choice/pause state from a previous scene or session.
   // Without this, loading a save while at a *choice breaks the interpreter
-  // loop — it immediately hits `if (awaitingChoice) break` and stops.
+  // loop; a stale _pausedAtIp would corrupt the auto-save ip below (KB3).
   setAwaitingChoice(null);
   setGotoJumped(false);
+  clearPausedAtIp();
   saveGameToSlot('auto', label || null);
   await runInterpreter();
 }
@@ -230,7 +232,10 @@ export async function runInterpreter() {
 // Command registry — directive → handler
 //
 // Handlers receive (t, line) where t = line.trimmed, line = full line object.
-// Registration order does not matter; isDirective() prevents prefix clashes.
+// Registration order matters for prefix overlaps — Map iterates in insertion
+// order and the first match wins. isDirective() does exact-word matching so
+// *goto won't match *goto_scene, but register longer variants first anyway
+// for clarity (see *goto_scene before *goto below).
 // ---------------------------------------------------------------------------
 const commands = new Map();
 
@@ -332,6 +337,14 @@ registerCommand('*temp', (t) => {
 
 // *set key value
 registerCommand('*set', (t) => {
+  // During restore replay, skip arithmetic *set (e.g. *set xp +100) to
+  // prevent double-counting against the already-correct saved playerState.
+  // Absolute assignments (e.g. *set name "Alice") are idempotent and run
+  // normally — they write the same value that was saved.
+  if (_isRestoring) {
+    const m = t.match(/^\*set\s+[a-zA-Z_][\w]*\s+(.+)$/);
+    if (m && /^[+\-*/]\s*/.test(m[1].trim())) { advanceIp(); return; }
+  }
   setVar(t, evalValue);
   checkAndApplyLevelUp(cb.scheduleStatsRender);
   cb.scheduleStatsRender();
@@ -349,7 +362,10 @@ registerCommand('*flag', (t) => {
 registerCommand('*save_point', (t) => {
   const saveLabel = t.replace(/^\*save_point\s*/, '').trim() || null;
   saveGameToSlot('auto', saveLabel);
-  cb.addSystem('[ PROGRESS SAVED ]');
+  // Skip the display during restore replay — the narrative HTML is already
+  // restored from the save payload so showing "PROGRESS SAVED" again would
+  // be a spurious duplicate message.
+  if (!_isRestoring) cb.addSystem('[ PROGRESS SAVED ]');
   advanceIp();
 });
 
@@ -379,6 +395,9 @@ registerCommand('*lowercase', (t) => {
 
 // *add_item "Item Name"
 registerCommand('*add_item', (t) => {
+  // Skip during restore replay — inventory is already correct from the save
+  // payload; re-adding would create duplicate stacks.
+  if (_isRestoring) { advanceIp(); return; }
   const item = t.replace(/^\*add_item\s*/, '').trim().replace(/^"|"$/g, '');
   if (!Array.isArray(playerState.inventory)) playerState.inventory = [];
   addInventoryItem(item);
@@ -388,6 +407,8 @@ registerCommand('*add_item', (t) => {
 
 // *remove_item "Item Name"
 registerCommand('*remove_item', (t) => {
+  // Skip during restore replay — inventory is already correct from the save.
+  if (_isRestoring) { advanceIp(); return; }
   removeInventoryItem(t.replace(/^\*remove_item\s*/, '').trim().replace(/^"|"$/g, ''));
   cb.scheduleStatsRender();
   advanceIp();
@@ -419,6 +440,9 @@ registerCommand('*check_item', (t) => {
 
 // *grant_skill "key" — adds skill without SP cost
 registerCommand('*grant_skill', (t) => {
+  // Skip during restore replay — skills array is already correct in the save.
+  // grantSkill() is idempotent, but skipping is cleaner and consistent.
+  if (_isRestoring) { advanceIp(); return; }
   const key = t.replace(/^\*grant_skill\s*/, '').trim().replace(/^"|"$/g, '');
   grantSkill(key);
   cb.scheduleStatsRender();
@@ -427,6 +451,8 @@ registerCommand('*grant_skill', (t) => {
 
 // *revoke_skill "key" — removes a skill
 registerCommand('*revoke_skill', (t) => {
+  // Skip during restore replay — skills array is already correct in the save.
+  if (_isRestoring) { advanceIp(); return; }
   const key = t.replace(/^\*revoke_skill\s*/, '').trim().replace(/^"|"$/g, '');
   revokeSkill(key);
   cb.scheduleStatsRender();
@@ -460,7 +486,9 @@ registerCommand('*check_skill', (t) => {
 registerCommand('*journal', (t) => {
   const text = t.replace(/^\*journal\s*/, '').trim().replace(/^"|"$/g, '');
   if (text) {
-    addJournalEntry(text, 'entry');
+    // Skip during restore replay — journal is already in playerState from the
+    // save payload; re-adding would create duplicate entries.
+    if (!_isRestoring) addJournalEntry(text, 'entry');
     cb.scheduleStatsRender();
   }
   advanceIp();
@@ -470,7 +498,10 @@ registerCommand('*journal', (t) => {
 registerCommand('*achievement', (t) => {
   const text = t.replace(/^\*achievement\s*/, '').trim().replace(/^"|"$/g, '');
   if (text) {
-    addJournalEntry(text, 'achievement');
+    // Skip journal write during restore — already in playerState from save.
+    // Still call addSystem so the achievement text appears in the restored
+    // narrative (addSystem is already guarded against double reward parsing).
+    if (!_isRestoring) addJournalEntry(text, 'achievement');
     cb.addSystem(`◆ Achievement Unlocked: ${text}`);
     cb.scheduleStatsRender();
   }
@@ -545,6 +576,11 @@ registerCommand('*loop', async (t, line) => {
   while (evaluateCondition(t) && guard < 100) {
     await executeBlock(blockStart, blockEnd);
     if (awaitingChoice) return;
+    // If a *goto inside the loop body relocated ip, honour it and exit the loop.
+    // Without this check, executeBlock returns early (ip already set by *goto),
+    // but the while loop re-evaluates the condition and calls executeBlock again,
+    // silently discarding the goto destination.
+    if (_gotoJumped) { setGotoJumped(false); return; }
     guard += 1;
   }
   if (guard >= 100) console.warn(`[interpreter] *loop guard tripped in "${currentScene}"`);

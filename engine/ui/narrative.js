@@ -49,6 +49,10 @@ export function init({ narrativeContent, choiceArea, narrativePanel,
   _onBeforeChoice   = onBeforeChoice || null;
 }
 
+// setChoiceArea — called by popUndo after innerHTML replacement to re-point
+// _choiceArea at the live DOM element (innerHTML kills the old reference).
+export function setChoiceArea(el) { _choiceArea = el; }
+
 // ---------------------------------------------------------------------------
 // Pronoun resolution
 // ---------------------------------------------------------------------------

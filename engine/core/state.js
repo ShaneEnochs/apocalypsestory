@@ -129,6 +129,7 @@ export function setVar(command, evalValueFn) {
 
   if (!inTemp && !inPlayer) {
     console.warn(`[state] *set on undeclared variable "${key}" — did you mean *create or *temp?`);
+    return; // Don't silently create garbage keys in persistent state
   }
 
   // Arithmetic shorthand — validate result is finite before committing (sweep 2 fix #11).

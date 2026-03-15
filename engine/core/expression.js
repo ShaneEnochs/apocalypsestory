@@ -53,18 +53,12 @@ function tokenise(src) {
       continue;
     }
 
-    // Number
-    if (/[0-9]/.test(src[i]) || (src[i] === '-' && /[0-9]/.test(src[i + 1] || ''))) {
-      // Only treat leading '-' as part of the number if there's no preceding
-      // token that could produce a value (i.e. this is unary minus at start).
-      const isUnary = src[i] === '-' && tokens.length === 0;
-      if (src[i] === '-' && !isUnary) {
-        tokens.push({ type: TT.MINUS, value: '-' });
-        i++;
-        continue;
-      }
+    // Number — digits only. Unary minus is handled uniformly by parseUnary()
+    // so '-' is always emitted as a MINUS token; the old special-case of
+    // absorbing a leading '-' into the number literal was redundant and
+    // caused '-' after a value token (e.g. "3 - -5") to be mis-tokenised.
+    if (/[0-9]/.test(src[i])) {
       let j = i;
-      if (src[j] === '-') j++;
       while (j < src.length && /[0-9.]/.test(src[j])) j++;
       tokens.push({ type: TT.NUM, value: Number(src.slice(i, j)) });
       i = j;
@@ -185,7 +179,12 @@ function makeParser(tokens) {
     while (peek().type === TT.STAR || peek().type === TT.SLASH) {
       const op = advance().type;
       const right = parseUnary();
-      left = op === TT.STAR ? left * right : left / right;
+      if (op === TT.SLASH && right === 0) {
+        console.warn('[expression] Division by zero — returning 0');
+        left = 0;
+      } else {
+        left = op === TT.STAR ? left * right : left / right;
+      }
     }
     return left;
   }

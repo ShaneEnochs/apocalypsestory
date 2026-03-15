@@ -25,6 +25,7 @@
 *create skill_points 0
 *create skills []
 *create journal []
+*create inventory []
 
 *comment --- Vitals (plain *create; shown in stats panel but not allocatable) ---
 *create health "Healthy"
