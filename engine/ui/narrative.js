@@ -20,7 +20,10 @@ import {
   pendingLevelUpDisplay, pendingStatPoints,
   delayIndex, setDelayIndex, advanceDelayIndex,
   normalizeKey,
+  awaitingChoice, setAwaitingChoice,
 } from '../core/state.js';
+
+import { executeBlock, runInterpreter } from '../core/interpreter.js';
 
 import { applySystemRewards } from '../systems/leveling.js';
 
@@ -326,18 +329,31 @@ export function renderChoices(choices) {
         _onBeforeChoice();
         btn.disabled = true;
         _choiceArea.querySelectorAll('.choice-btn').forEach(b => { b.disabled = true; });
-        // FIX: actually execute the chosen option's block and resume the interpreter.
-        // Previously this import resolved but the .then() body was empty (just a
-        // comment), so clicking a choice button did nothing — the game froze.
-        // _savedIp is the ip to resume at after the choice block completes;
-        // it is stashed on awaitingChoice by executeBlock when a *choice is
-        // encountered mid-block, or falls back to choice.end for top-level choices.
-        import('../core/interpreter.js').then(({ executeBlock, runInterpreter, awaitingChoice: ac }) => {
-          const savedIp = ac?._savedIp ?? choice.end;
-          executeBlock(choice.start, choice.end, savedIp)
-            .then(() => runInterpreter())
-            .catch(err => console.error('[narrative] choice execution error:', err));
-        });
+
+        // FIX Main + A + B (sweep 4):
+        //
+        // Main/B: awaitingChoice is still set from the *choice handler that
+        // rendered these buttons. We MUST clear it before calling executeBlock,
+        // otherwise executeBlock's inner loop sees the truthy awaitingChoice on
+        // the very first iteration and bails immediately — the choice body
+        // never executes and the game freezes.
+        //
+        // A: The correct resume IP after the choice body finishes is the end of
+        // the entire *choice block (awaitingChoice.end), NOT choice.end (which
+        // is only the end of this individual option's body). For nested choices
+        // inside *if blocks, _savedIp was stashed by executeBlock on the
+        // awaitingChoice object — capture it before clearing.
+        //
+        // B: Read awaitingChoice directly from state.js (static import) instead
+        // of via a fragile dynamic import() of interpreter.js. executeBlock and
+        // runInterpreter are also statically imported now.
+        const choiceBlockEnd = awaitingChoice?.end ?? choice.end;
+        const savedIp = awaitingChoice?._savedIp ?? choiceBlockEnd;
+        setAwaitingChoice(null);
+
+        executeBlock(choice.start, choice.end, savedIp)
+          .then(() => runInterpreter())
+          .catch(err => console.error('[narrative] choice execution error:', err));
       });
     }
 
