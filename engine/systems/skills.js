@@ -2,10 +2,10 @@
 // systems/skills.js — Skill registry and management
 //
 // Owns the skill data model: parsing skills.txt into a registry, checking
-// ownership, granting/revoking skills, and purchasing with skill points.
+// ownership, granting/revoking skills, and purchasing with Essence.
 //
 // playerState.skills is an array of skill key strings.
-// playerState.skill_points is the accumulated SP currency.
+// Skills are purchased with Essence (playerState.essence).
 // skillRegistry is the ordered list of all defined skills parsed from skills.txt.
 //
 // Dependency graph (one-directional):
@@ -16,7 +16,7 @@ import { playerState, normalizeKey } from '../core/state.js';
 
 // ---------------------------------------------------------------------------
 // Skill registry — populated by parseSkills from skills.txt
-// [{ key, label, spCost, description }]
+// [{ key, label, essenceCost, description }]
 // ---------------------------------------------------------------------------
 export let skillRegistry = [];
 
@@ -25,7 +25,7 @@ export let skillRegistry = [];
 // populates skillRegistry.
 //
 // Format in skills.txt:
-//   *skill key "Label" sp_cost
+//   *skill key "Label" cost
 //     Description text (indented lines, can span multiple lines).
 // ---------------------------------------------------------------------------
 export async function parseSkills(fetchTextFileFn) {
@@ -55,10 +55,10 @@ export async function parseSkills(fetchTextFileFn) {
       // Finalise previous skill if any
       if (current) parsed.push(current);
       current = {
-        key:         normalizeKey(m[1]),
-        label:       m[2],
-        spCost:      Number(m[3]),
-        description: '',
+        key:          normalizeKey(m[1]),
+        label:        m[2],
+        essenceCost:  Number(m[3]),
+        description:  '',
       };
       continue;
     }
@@ -88,7 +88,7 @@ export function playerHasSkill(key) {
 }
 
 // ---------------------------------------------------------------------------
-// grantSkill — adds a skill to playerState.skills without spending SP.
+// grantSkill — adds a skill to playerState.skills without spending Essence.
 // No-op if already owned. Initialises the array if needed.
 // ---------------------------------------------------------------------------
 export function grantSkill(key) {
@@ -115,7 +115,7 @@ export function revokeSkill(key) {
 }
 
 // ---------------------------------------------------------------------------
-// purchaseSkill — deducts SP from playerState.skill_points, then grants the
+// purchaseSkill — deducts Essence from playerState.essence, then grants the
 // skill. Returns true on success, false if already owned or can't afford.
 // ---------------------------------------------------------------------------
 export function purchaseSkill(key) {
@@ -129,12 +129,12 @@ export function purchaseSkill(key) {
     console.warn(`[skills] purchaseSkill: "${k}" already owned.`);
     return false;
   }
-  const sp = Number(playerState.skill_points || 0);
-  if (sp < entry.spCost) {
-    console.warn(`[skills] purchaseSkill: not enough SP (have ${sp}, need ${entry.spCost}).`);
+  const essence = Number(playerState.essence || 0);
+  if (essence < entry.essenceCost) {
+    console.warn(`[skills] purchaseSkill: not enough Essence (have ${essence}, need ${entry.essenceCost}).`);
     return false;
   }
-  playerState.skill_points = sp - entry.spCost;
+  playerState.essence = essence - entry.essenceCost;
   grantSkill(k);
   return true;
 }

@@ -70,6 +70,7 @@ let _setChapterTitle     = null;   // (t: string) → void
 let _parseAndCacheScene  = null;   // async (name: string) → void
 let _clearUndoStack      = null;   // () → void — clears undo history on load
 let _setChoiceArea       = null;   // BUG-05 — (el) → void
+let _setGameTitle        = null;   // (t: string) → void
 
 export function init({
   splashOverlay, splashSlots,
@@ -84,6 +85,7 @@ export function init({
   clearNarrative, applyTransition, setChapterTitle,
   parseAndCacheScene, setChoiceArea,   // BUG-05: added setChoiceArea
   clearUndoStack,
+  setGameTitle,
 }) {
   _splashOverlay  = splashOverlay;
   _splashSlots    = splashSlots;
@@ -118,6 +120,7 @@ export function init({
   _parseAndCacheScene = parseAndCacheScene;
   _clearUndoStack     = clearUndoStack || null;
   _setChoiceArea      = setChoiceArea || null;   // BUG-05
+  _setGameTitle       = setGameTitle || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -271,6 +274,13 @@ export async function loadAndResume(save) {
     fetchTextFileFn:    _fetchTextFile,
     evalValueFn:        _evalValue,
   });
+
+  // Restore game title from playerState after save restore
+  if (_setGameTitle) {
+    const ps = save.playerState || {};
+    const title = ps.game_title || 'System Awakening';
+    _setGameTitle(title);
+  }
 }
 
 // ---------------------------------------------------------------------------

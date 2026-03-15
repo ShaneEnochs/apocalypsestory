@@ -6,10 +6,9 @@
 *stat_group "Progress"
 *stat_color level accent-cyan
 *stat level "Level"
-*stat xp "XP"
-*stat xp_to_next "XP To Next"
-*stat_color skill_points accent-amber
-*stat skill_points "Skill Points"
+*stat_color essence accent-amber
+*stat essence "Essence"
+*stat essence_to_next "To Next Level"
 
 *stat_group "Vitals"
 *stat_color health accent-green

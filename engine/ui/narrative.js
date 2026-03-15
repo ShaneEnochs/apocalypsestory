@@ -188,9 +188,9 @@ export function addSystem(text) {
   applySystemRewards(text, _scheduleStats);
 
   const div       = document.createElement('div');
-  const isXP      = /XP\s+gained|bonus\s+XP|\+\d+\s+XP/i.test(text);
+  const isEssence = /(?:XP|Essence)\s+gained|bonus\s+(?:XP|Essence)|\+\d+\s+(?:XP|Essence)/i.test(text);
   const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(text);
-  div.className = `system-block${isXP ? ' xp-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
+  div.className = `system-block${isEssence ? ' xp-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
 
   const formatted = formatText(text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
   div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
@@ -454,9 +454,9 @@ export function renderFromLog(log, { skipAnimations = true } = {}) {  // eslint-
 
       case 'system': {
         const div       = document.createElement('div');
-        const isXP      = /XP\s+gained|bonus\s+XP|\+\d+\s+XP/i.test(entry.text);
+        const isEssence = /(?:XP|Essence)\s+gained|bonus\s+(?:XP|Essence)|\+\d+\s+(?:XP|Essence)/i.test(entry.text);
         const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(entry.text);
-        div.className = `system-block${isXP ? ' xp-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
+        div.className = `system-block${isEssence ? ' xp-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
         const formatted = formatText(entry.text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
         div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
         _narrativeContent.insertBefore(div, _choiceArea);

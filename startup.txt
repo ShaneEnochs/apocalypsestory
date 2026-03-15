@@ -1,28 +1,28 @@
 *comment global variable initialization
 
+*comment --- Game metadata ---
+*create game_title "System Awakening"
+
 *comment --- Core identity (plain *create, not stats) ---
 *comment first_name, last_name, and pronouns are set by the character creation screen.
 *comment They are declared here so the engine has them in playerState from the start.
 *create first_name "Alex"
 *create last_name  ""
 *create pronouns   "they/them"
-*create class_name "Unclassed"
+*create class_name "Infinite Sword"
 
-*comment --- Level / XP progress ---
+*comment --- Level / Essence progress ---
 *create level 1
-*create xp 0
-*create xp_to_next 20
+*create essence 0
+*create essence_to_next 10
 
 *comment --- Level-up configuration ---
-*comment xp_up_mult:       multiplier applied to xp_to_next on each level-up
+*comment essence_up_mult:       multiplier applied to essence_to_next on each level-up
 *comment lvl_up_stat_gain: stat points awarded per level-up
-*comment lvl_up_skill_gain: skill points awarded per level-up (accumulate; spent in skill browser)
-*create xp_up_mult 1.2
+*create essence_up_mult 1.2
 *create lvl_up_stat_gain 2
-*create lvl_up_skill_gain 1
 
-*comment --- Skill points (accumulated; spent in level-up skill browser) ---
-*create skill_points 0
+*comment --- Skills and journal ---
 *create skills []
 *create journal []
 *create inventory []

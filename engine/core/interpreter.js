@@ -306,6 +306,18 @@ registerCommand('*title', (t) => {
   advanceIp();
 });
 
+// *set_game_title "New Title" — changes the game title in the header and
+// stores it in playerState.game_title so it persists across saves.
+registerCommand('*set_game_title', (t) => {
+  const m = t.match(/^\*set_game_title\s+"([^"]+)"$/);
+  const title = m ? m[1] : t.replace(/^\*set_game_title\s*/, '').trim();
+  if (title) {
+    playerState.game_title = title;
+    if (cb.setGameTitle) cb.setGameTitle(title);
+  }
+  advanceIp();
+});
+
 // *label name  — jump targets; no runtime action needed
 registerCommand('*label',   () => { advanceIp(); });
 
@@ -397,25 +409,29 @@ registerCommand('*temp', (t) => {
   advanceIp();
 });
 
-// *add_xp N  /  *award_xp N  (alias — scene files use *award_xp by convention)
-//
-// BUG-A fix: *award_xp was the intended scene-file directive but was never
-// registered.  *add_xp is kept as the canonical handler; *award_xp is
-// registered as a separate entry that strips its own prefix and delegates
-// to the same logic so both forms work identically.
-function _handleAddXp(n) {
+// *award_essence N  /  *add_essence N  — primary Essence-granting directives.
+// Legacy aliases *award_xp / *add_xp are kept for backward compatibility
+// so existing scene files continue to work without modification.
+function _handleAddEssence(n) {
   if (n > 0) {
-    playerState.xp = Number(playerState.xp || 0) + n;
+    playerState.essence = Number(playerState.essence || 0) + n;
     checkAndApplyLevelUp(cb.scheduleStatsRender);
     cb.scheduleStatsRender();
   }
   advanceIp();
 }
+registerCommand('*award_essence', (t) => {
+  _handleAddEssence(Number(t.replace(/^\*award_essence\s*/, '').trim()) || 0);
+});
+registerCommand('*add_essence', (t) => {
+  _handleAddEssence(Number(t.replace(/^\*add_essence\s*/, '').trim()) || 0);
+});
+// Legacy aliases
 registerCommand('*award_xp', (t) => {
-  _handleAddXp(Number(t.replace(/^\*award_xp\s*/, '').trim()) || 0);
+  _handleAddEssence(Number(t.replace(/^\*award_xp\s*/, '').trim()) || 0);
 });
 registerCommand('*add_xp', (t) => {
-  _handleAddXp(Number(t.replace(/^\*add_xp\s*/, '').trim()) || 0);
+  _handleAddEssence(Number(t.replace(/^\*add_xp\s*/, '').trim()) || 0);
 });
 
 // *add_item itemName

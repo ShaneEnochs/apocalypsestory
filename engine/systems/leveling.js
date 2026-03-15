@@ -1,15 +1,19 @@
 // ---------------------------------------------------------------------------
-// systems/leveling.js — XP, level-up, and system reward parsing
+// systems/leveling.js — Essence, level-up, and system reward parsing
 //
-// checkAndApplyLevelUp and applySystemRewards both accept an optional
-// onChanged callback. When state changes, they call onChanged() — which
-// engine.js wires to scheduleStatsRender(). This avoids a circular import
-// with the UI layer while keeping the dependency explicit.
+// Essence is the unified currency: it pays for leveling up, purchasing skills,
+// and purchasing items.  Level-ups are manual (triggered by the player) but
+// this module still exposes canLevelUp() for the UI to check eligibility and
+// performLevelUp() for the UI to execute a single level-up.
 //
-// BUG-01 fix: health supports string OR number. When health is a string,
-//   "+N health" sets it to N (numeric). When health is already a number,
-//   "+N health" adds N. This allows authors to transition from string status
-//   ("Healthy") to a numeric HP system via the first health reward.
+// checkAndApplyLevelUp is kept for backward compatibility with
+// applySystemRewards — it no longer auto-levels; it just flags that a
+// level-up is available so the UI can show the button.
+//
+// applySystemRewards parses both legacy "XP" and new "Essence" patterns in
+// system block text so existing scene content continues to work.
+//
+// BUG-01 fix: health supports string OR number (unchanged from original).
 // ---------------------------------------------------------------------------
 
 import { playerState, statRegistry,
@@ -27,55 +31,68 @@ export function getAllocatableStatKeys() {
 }
 
 // ---------------------------------------------------------------------------
-// checkAndApplyLevelUp — runs after any XP change.
+// canLevelUp — returns true if the player has enough essence to level up.
+// Used by the status panel to show/hide the Level Up button.
+// ---------------------------------------------------------------------------
+export function canLevelUp() {
+  const toNext = Number(playerState.essence_to_next || 0);
+  if (toNext <= 0) return false;
+  return Number(playerState.essence || 0) >= toNext;
+}
+
+// ---------------------------------------------------------------------------
+// performLevelUp — executes exactly ONE level-up.
 //
-// Increments level and awards stat points for each level threshold crossed.
-// Guards against xp_to_next reaching zero (infinite loop risk).
-// Calls onChanged() if any level-up occurred.
+// Subtracts essence_to_next from essence, increments level, scales the
+// threshold by the multiplier, and awards stat points.  Returns the new
+// level number, or null if the player can't afford a level-up.
+//
+// The caller (the level-up modal) is responsible for presenting the stat
+// allocation UI and calling onChanged to refresh the panel.
+// ---------------------------------------------------------------------------
+export function performLevelUp(onChanged) {
+  if (!canLevelUp()) return null;
+
+  const mult = Number(playerState.essence_up_mult ?? 2.2);
+  const gain = Number(playerState.lvl_up_stat_gain ?? 5);
+
+  // Deduct essence
+  playerState.essence = Number(playerState.essence || 0) - Number(playerState.essence_to_next);
+
+  // Advance level
+  playerState.level = Number(playerState.level || 0) + 1;
+
+  // Scale threshold
+  playerState.essence_to_next = Math.floor(Number(playerState.essence_to_next) * mult);
+
+  // Award stat points
+  addPendingStatPoints(gain);
+  addPendingLevelUpCount(1);
+
+  if (typeof onChanged === 'function') onChanged();
+  return playerState.level;
+}
+
+// ---------------------------------------------------------------------------
+// checkAndApplyLevelUp — called after essence gains.
+//
+// In the new manual system this no longer auto-levels.  It simply checks
+// whether the player CAN level up and sets pendingLevelUpDisplay so the UI
+// can show a notification or button.
 // ---------------------------------------------------------------------------
 export function checkAndApplyLevelUp(onChanged) {
-  if (!Number(playerState.xp_to_next || 0)) return;
-
-  const mult      = Number(playerState.xp_up_mult       ?? 2.2);
-  const gain      = Number(playerState.lvl_up_stat_gain  ?? 5);
-  const skillGain = Number(playerState.lvl_up_skill_gain ?? 0);
-  let changed = false;
-
-  while (Number(playerState.xp) >= Number(playerState.xp_to_next)) {
-    playerState.level      = Number(playerState.level || 0) + 1;
-    playerState.xp_to_next = Math.floor(Number(playerState.xp_to_next) * mult);
-    addPendingStatPoints(gain);
-    addPendingLevelUpCount(1);
-    // Award skill points — accumulate in playerState, spent via skill browser
-    if (skillGain > 0) {
-      playerState.skill_points = Number(playerState.skill_points || 0) + skillGain;
-    }
-    changed = true;
-  }
-
-  if (changed) {
+  if (canLevelUp()) {
     setPendingLevelUpDisplay(true);
     if (typeof onChanged === 'function') onChanged();
   }
 }
 
 // ---------------------------------------------------------------------------
-// applyVitalNumeric — applies a numeric delta (positive or negative) to a
-// vital field.
-//
-// BUG-01 fix: health can be a string ("Healthy") or a number (100).
-//   - If it is a string and the delta is positive, the reward SETS it to b,
-//     transitioning the field from status-string mode to numeric-HP mode.
-//   - If it is a string and the delta is negative (BUG-H), we transition to 0
-//     rather than a negative number — a penalty against a string health means
-//     the character is now at 0 HP.
-//   - If it is already a number, the delta is simply added (can go negative).
-//   - mana and max_mana are always numeric; no special handling needed.
+// applyVitalNumeric — (unchanged)
 // ---------------------------------------------------------------------------
 function applyVitalNumeric(key, b) {
   if (key === 'health') {
     if (typeof playerState[key] === 'string') {
-      // Transition: string → number. Positive delta sets it; negative clamps to 0.
       playerState[key] = b >= 0 ? b : 0;
     } else {
       playerState[key] = Number(playerState[key] || 0) + b;
@@ -86,38 +103,40 @@ function applyVitalNumeric(key, b) {
 }
 
 // ---------------------------------------------------------------------------
-// applySystemRewards — parses a system block string for structured rewards
-// (XP gains, stat buffs, vital increases, inventory updates) and applies them
-// directly to playerState.
+// applySystemRewards — parses a system block string for structured rewards.
 //
-// XP deduplication: tracks position ranges to avoid double-counting when two
-// regex patterns match the same text (fix #3 from sweep 2).
+// Supports BOTH legacy "XP" patterns and new "Essence" patterns so existing
+// scene content continues to work without modification.
+//   Legacy:  "XP gained: +100"  or  "+100 XP"
+//   New:     "Essence gained: +100"  or  "+100 Essence"
+//
+// All matched amounts are applied to playerState.essence.
 // ---------------------------------------------------------------------------
 export function applySystemRewards(text, onChanged) {
   let stateChanged = false;
 
-  // --- XP ---
-  const xpRanges = [];
+  // --- Essence (+ legacy XP) ---
+  const essenceRanges = [];
   for (const pattern of [
-    /XP\s+gained\s*:\s*\+\s*(\d+)/gi,
-    /\+[^\S\n]*(\d+)[^\S\n]*(?:bonus[^\S\n]+)?XP\b/gi,
+    /(?:XP|Essence)\s+gained\s*:\s*\+\s*(\d+)/gi,
+    /\+[^\S\n]*(\d+)[^\S\n]*(?:bonus[^\S\n]+)?(?:XP|Essence)\b/gi,
   ]) {
     let match;
     while ((match = pattern.exec(text)) !== null) {
       const amount = Number(match[1]);
       if (Number.isFinite(amount) && amount > 0) {
-        xpRanges.push({ start: match.index, end: match.index + match[0].length, amount });
+        essenceRanges.push({ start: match.index, end: match.index + match[0].length, amount });
       }
     }
   }
   // Sort and de-overlap before summing
-  xpRanges.sort((a, b) => a.start - b.start);
+  essenceRanges.sort((a, b) => a.start - b.start);
   let lastEnd = -1, gainedTotal = 0;
-  for (const r of xpRanges) {
+  for (const r of essenceRanges) {
     if (r.start >= lastEnd) { gainedTotal += r.amount; lastEnd = r.end; }
   }
   if (gainedTotal > 0) {
-    playerState.xp = Number(playerState.xp || 0) + gainedTotal;
+    playerState.essence = Number(playerState.essence || 0) + gainedTotal;
     checkAndApplyLevelUp(onChanged);
     stateChanged = true;
   }
@@ -133,15 +152,6 @@ export function applySystemRewards(text, onChanged) {
   }
 
   // --- Vitals (health, mana, max_mana) + per-stat patterns ---
-  // NOTE: health uses applyVitalNumeric to support string→number transition (BUG-01 fix).
-  //
-  // BUG-H fix: added negative patterns (sign: -1) for each vital and stat so
-  // that system blocks describing penalties (e.g. "-30 health", "-5 mana") are
-  // actually applied to playerState.  Previously only positive (+N) patterns
-  // existed; negative rewards displayed as text but had no mechanical effect.
-  //
-  // Special case for health: if health is still a string ("Healthy") and we
-  // receive a negative delta, we transition to 0 rather than a negative number.
   const vitals = [
     { regex: /\+\s*(\d+)\s+max\s+mana\b/i,  key: 'max_mana', sign:  1 },
     { regex: /\-\s*(\d+)\s+max\s+mana\b/i,  key: 'max_mana', sign: -1 },
@@ -156,7 +166,6 @@ export function applySystemRewards(text, onChanged) {
     const el = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     statPatterns.push({ regex: new RegExp(`\\+\\s*(\\d+)\\s+${el}\\b`, 'i'), key, sign:  1 });
     statPatterns.push({ regex: new RegExp(`\\-\\s*(\\d+)\\s+${el}\\b`, 'i'), key, sign: -1 });
-    // Also match by key name in case the label uses different casing / spacing
     const nk = key.toLowerCase(), nl = label.toLowerCase().replace(/\s+/g, '_');
     if (nk !== nl) {
       const ek = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/_/g, '[ _]');

@@ -69,6 +69,8 @@ const dom = {
   statusPanel:        document.getElementById('status-panel'),
   statusToggle:       document.getElementById('status-toggle'),
   saveBtn:            document.getElementById('save-btn'),
+  gameTitle:          document.getElementById('game-title'),
+  splashTitle:        document.querySelector('.splash-title'),
   splashOverlay:      document.getElementById('splash-overlay'),
   splashNewBtn:       document.getElementById('splash-new-btn'),
   splashLoadBtn:      document.getElementById('splash-load-btn'),
@@ -546,6 +548,11 @@ async function boot() {
       updateUndoBtn();
       clearSessionState();
     },
+    setGameTitle: (t) => {
+      if (dom.gameTitle)   dom.gameTitle.textContent = t;
+      if (dom.splashTitle) dom.splashTitle.textContent = t;
+      document.title = t;
+    },
   });
 
   registerCallbacks({
@@ -561,6 +568,11 @@ async function boot() {
     showPageBreak,
     scheduleStatsRender,
     setChapterTitle: (t) => { dom.chapterTitle.textContent = t; setChapterTitleState(t); },
+    setGameTitle: (t) => {
+      if (dom.gameTitle)   dom.gameTitle.textContent = t;
+      if (dom.splashTitle) dom.splashTitle.textContent = t;
+      document.title = t;
+    },
     runStatsScene,
     fetchTextFile,
     getNarrativeLog,
@@ -572,6 +584,13 @@ async function boot() {
   try {
     await parseStartup(fetchTextFile, evalValue);
     await parseSkills(fetchTextFile);
+
+    // Apply game title from startup.txt (or default)
+    const title = playerState.game_title || 'System Awakening';
+    if (dom.gameTitle)   dom.gameTitle.textContent = title;
+    if (dom.splashTitle) dom.splashTitle.textContent = title;
+    document.title = title;
+
     showSplash();
   } catch (err) {
     showEngineError(`Boot failed: ${err.message}`);

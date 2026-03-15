@@ -291,7 +291,7 @@ export async function parseStartup(fetchTextFileFn, evalValueFn) {
   // ENH-04: warn if any level-up config variables are missing from startup.txt.
   // Without them the engine silently falls back to hardcoded defaults in
   // checkAndApplyLevelUp, which may not match the game's intended design.
-  const _LVL_CONFIG_KEYS = ['xp_up_mult', 'lvl_up_stat_gain', 'lvl_up_skill_gain', 'xp_to_next'];
+  const _LVL_CONFIG_KEYS = ['essence_up_mult', 'lvl_up_stat_gain', 'essence_to_next'];
   const _missingConfig   = _LVL_CONFIG_KEYS.filter(k => !Object.prototype.hasOwnProperty.call(playerState, k));
   if (_missingConfig.length > 0) {
     console.warn(

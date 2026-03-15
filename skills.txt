@@ -1,19 +1,19 @@
 // skills.txt — Skill Registry for System Awakening
 //
 // Format:
-//   *skill key "Label" sp_cost
+//   *skill key "Label" essence_cost
 //     Description text. Can span multiple lines.
 //     All indented lines become one description string.
 //
 // Rules:
 //   • key must be a single word (letters, numbers, underscores)
-//   • sp_cost is the number of skill points required to purchase (0 is valid for free skills)
-//   • Skill points are earned at level-up (1 per level) and accumulate indefinitely.
-//     Players can save them up for expensive skills.
+//   • essence_cost is the amount of Essence required to purchase (0 is valid for free skills)
+//   • Essence is a unified currency earned from gameplay. Players can spend it on
+//     leveling up, purchasing skills, or purchasing items.
 //   • description lines must be indented at least one space
 //   • a new *skill directive or end of file terminates the previous description
 //   • check ownership in scene files with: *check_skill "key" dest_var
-//   • grant without SP cost via:           *grant_skill "key"
+//   • grant without Essence cost via:      *grant_skill "key"
 //   • remove a skill via:                  *revoke_skill "key"
 
 *skill blade_dancer "Blade Dancer" 2

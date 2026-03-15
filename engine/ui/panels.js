@@ -242,14 +242,14 @@ export function showInlineLevelUp() {
     if (available.length) {
       html += `<div class="skill-browser-section-label">Available</div>`;
       available.forEach(s => {
-        const canAfford = playerState.skill_points >= s.spCost;
+        const canAfford = Number(playerState.essence || 0) >= s.essenceCost;
         // FIX #5: escape skill label and description here too
         html += `
           <div class="skill-browser-card ${canAfford ? 'skill-browser-card--available' : 'skill-browser-card--unaffordable'}">
             <div class="skill-browser-card-top">
               <span class="skill-browser-card-name">${escapeHtml(s.label)}</span>
               <div class="skill-browser-card-actions">
-                <span class="skill-browser-sp-badge ${canAfford ? 'skill-browser-sp-badge--can-afford' : ''}">${s.spCost} SP</span>
+                <span class="skill-browser-sp-badge ${canAfford ? 'skill-browser-sp-badge--can-afford' : ''}">${s.essenceCost} Essence</span>
                 <button class="skill-purchase-btn" data-purchase-key="${escapeHtml(s.key)}" ${canAfford ? '' : 'disabled'}>Unlock</button>
               </div>
             </div>

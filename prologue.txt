@@ -28,7 +28,7 @@
 
 *label opening
 
-Experience Update
+Huge Update
 The world ended on a Tuesday.
 
 Not with a bang — or rather, not *only* with a bang. It ended in layers, the way a person dies: first the small things, then the large ones, then the thing that held all the other things together.
@@ -36,7 +36,7 @@ Not with a bang — or rather, not *only* with a bang. It ended in layers, the w
 The System arrived eight years ago. A notification that appeared in every human mind simultaneously, in every language, in the precise dialect each person would understand best.
 
 *system 
-System Initialization Complete. 
+SYSTEM INITIALIZATION COMPLETE. 
 Congratulations! Your world has been inducted to the Multiverse.
 *end_system
 
@@ -52,7 +52,7 @@ The monsters came three days later.
 
 *title Eight Years Later
 
-*system XP gained: +15
+*system Essence gained: +1270
 
 Eight years of that. Eight years of dungeons and raids and watching people you loved turn into numbers on a screen — their health bars dropping, their names greying out, their entries in the party list blinking once and then going dark forever.
 
@@ -102,7 +102,7 @@ The three of you. The last three. The sky the color of an open wound.
 
 *label branch_dark
 
-*system XP gained: +15
+*system Essence gained: +15
 
 Kai points at you. "See, *that's* what I'm talking about. Eight years of the apocalypse and you still—" He stops. Shakes his head, still smiling. "You still sound like yourself."
 
@@ -112,7 +112,7 @@ You're not sure that's a compliment. You're not sure it isn't.
 
 *label branch_practical
 
-*system XP gained: +10
+*system Essence gained: +10
 
 Kai glances at you sideways. "Doing something." He looks back at the burning sky. "Like what, exactly? We cleared the last dungeon. We hit the level cap. We've spent eight years doing *something* and this—" a gesture at the horizon "—this is what we have to show for it."
 
@@ -122,7 +122,7 @@ He isn't wrong. That's the worst part about Kai. He is almost never wrong.
 
 *label branch_silent
 
-*system XP gained: +5
+*system Essence gained: +5
 
 Kai watches you for a long moment. Then he nods slowly, as if you've said something wise.
 
@@ -380,8 +380,9 @@ The blade is already in your hand. Whatever is waiting on the other side, you'll
 
 *label portal_crossing
 
-*system XP gained: +970
+*system Essence gained: +970
 *system [ ACHIEVEMENT UNLOCKED ] The Last Door — You carried the weight backward through time. That has to count for something.
+*achievement The Last Door — You carried the weight backward through time.
 
 The mist takes you.
 

@@ -1,12 +1,16 @@
 // ---------------------------------------------------------------------------
 // systems/saves.js — Save / load / slot management
 //
+// SAVE_VERSION 7: Essence replaces XP/skill_points. New playerState keys:
+//   essence, essence_to_next, essence_up_mult (replaces xp, xp_to_next, xp_up_mult).
+//   skill_points removed; skills purchased with Essence.
+//   game_title added for editable game name.
+//
 // FIX #S6 (sweep 5): buildSavePayload now persists awaitingChoice in the
 //   payload. Previously, loading a save taken at a choice point would show
 //   the narrative text but no choice buttons — restoreFromSave step 8
 //   checked save.awaitingChoice which was always undefined because it was
 //   never written into the payload.
-//   SAVE_VERSION bumped to 6 to reject stale v5 saves cleanly.
 //
 // (All earlier fix comments preserved below.)
 //
@@ -35,8 +39,8 @@ import {
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-// FIX #S6: bumped to 6 — payload now includes awaitingChoice.
-export const SAVE_VERSION  = 6;
+// FIX #S6: bumped to 7 — Essence replaces XP/skill_points; new data model.
+export const SAVE_VERSION  = 7;
 
 export const SAVE_KEY_AUTO  = 'sa_save_auto';
 export const SAVE_KEY_SLOTS = { 1: 'sa_save_slot_1', 2: 'sa_save_slot_2', 3: 'sa_save_slot_3' };
@@ -53,7 +57,7 @@ export function clearStaleSaveFound() { _staleSaveFound = false; }
 export function setStaleSaveFound()   { _staleSaveFound = true;  }
 
 // ---------------------------------------------------------------------------
-// buildSavePayload — constructs the v6 object written to localStorage.
+// buildSavePayload — constructs the v7 object written to localStorage.
 //
 // FIX #S6: now includes awaitingChoice so that loading a save taken at a
 //   choice point can re-render the buttons via restoreFromSave step 8.
@@ -172,7 +176,7 @@ export function importSaveFromJSON(json, targetSlot) {
 }
 
 // ---------------------------------------------------------------------------
-// restoreFromSave — applies a v6 save payload to live engine state.
+// restoreFromSave — applies a v7 save payload to live engine state.
 // ---------------------------------------------------------------------------
 export async function restoreFromSave(save, {
   runStatsScene,
