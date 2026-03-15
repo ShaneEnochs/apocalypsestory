@@ -387,7 +387,7 @@ export function wireCharCreation() {
   function updateBeginBtn() {
     const ok = !validateName(_inputFirstName.value, 'First name') &&
                !validateName(_inputLastName.value,  'Last name')  &&
-               !_charOverlay.querySelector('.pronoun-card.selected');
+               !!_charOverlay.querySelector('.pronoun-card.selected');
     _charBeginBtn.disabled = !ok;
   }
 
