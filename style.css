@@ -71,13 +71,13 @@
   /* --- Fonts --- */
   --font-display:  'Cinzel', serif;
   --font-body:     'Crimson Text', serif;
-  --font-mono:     'Share Tech Mono', monospace;
+  --font-mono:     'Inconsolata', monospace;
 
   /* --- Type scale --- */
-  --text-2xs:      0.6rem;    /* counters, tiny badges */
-  --text-xs:       0.65rem;   /* labels, meta text */
-  --text-sm:       0.75rem;   /* small UI, sidebar labels */
-  --text-base:     0.85rem;   /* body-small, system blocks */
+  --text-2xs:      0.7rem;    /* counters, tiny badges */
+  --text-xs:       0.78rem;   /* labels, meta text */
+  --text-sm:       0.875rem;  /* small UI, sidebar labels */
+  --text-base:     0.95rem;   /* body-small, system blocks */
   --text-md:       1rem;      /* body text, inputs */
   --text-lg:       1.3rem;    /* sub-headings */
   --text-xl:       1.6rem;    /* overlay titles */
