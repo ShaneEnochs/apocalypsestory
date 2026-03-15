@@ -97,9 +97,18 @@ export function parseChoice(startIndex, indent, ctx) {
     }
 
     if (optionText) {
+      // ENH-09: Extract optional inline stat requirement tag at end of text.
+      // Format: "Option text [StatLabel N]"  e.g. "Force the door [Body 15]"
+      let statTag = null;
+      const tagMatch = optionText.match(/^(.*?)\s*\[([A-Za-z][^[\]]*?)\s+(\d+)\]\s*$/);
+      if (tagMatch) {
+        optionText = tagMatch[1].trim();
+        statTag = { label: tagMatch[2].trim(), requirement: Number(tagMatch[3]) };
+      }
+
       const start = i + 1;
       const end   = findBlockEnd(start, optionIndent, currentLines);
-      choices.push({ text: optionText, selectable, start, end });
+      choices.push({ text: optionText, selectable, start, end, statTag });
       i = end;
       continue;
     }

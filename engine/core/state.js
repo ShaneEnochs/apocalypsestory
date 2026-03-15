@@ -19,6 +19,11 @@ export let playerState   = {};
 export let tempState     = {};
 export let statRegistry  = [];   // [{ key, label, defaultVal }, ...]
 
+// ENH-08: sessionState — survives *goto_scene (clearTempState) but is NOT
+// saved to localStorage. Cleared on new game and on page reload.
+// Lookup order in evalValue: tempState → sessionState → playerState.
+export let sessionState  = {};
+
 // ---------------------------------------------------------------------------
 // Interpreter position / flow
 // ---------------------------------------------------------------------------
@@ -84,6 +89,11 @@ export function setTempState(s)             { tempState = s; }
 export function setStatRegistry(r)          { statRegistry = r; }
 export function setStartup(s)               { startup = s; }
 
+// ENH-08: sessionState setters
+export function setSessionState(s)          { sessionState = s; }
+export function clearSessionState()         { sessionState = {}; }
+export function patchSessionState(p)        { Object.assign(sessionState, p); }
+
 export function setCurrentScene(s)          { currentScene = s; }
 export function setCurrentLines(l)          { currentLines = l; }
 export function setIp(n)                    { ip = n; }
@@ -148,6 +158,55 @@ export function setVar(command, evalValueFn) {
   } else {
     store[key] = evalValueFn(rhs);
   }
+}
+
+// ---------------------------------------------------------------------------
+// setStatClamped — handles the *set_stat directive (ENH-03)
+//
+// Syntax: *set_stat key rhs [min:N] [max:N]
+// Applies rhs using the same arithmetic-shorthand logic as setVar, then clamps
+// the result to [min, max]. Bounds are optional; omitting one means unbounded.
+// ---------------------------------------------------------------------------
+export function setStatClamped(command, evalValueFn) {
+  const m = command.match(/^\*set_stat\s+([a-zA-Z_][\w]*)\s+(.+)$/);
+  if (!m) return;
+  const [, rawKey, rest] = m;
+  const key = normalizeKey(rawKey);
+
+  const inTemp   = Object.prototype.hasOwnProperty.call(tempState,   key);
+  const inPlayer = Object.prototype.hasOwnProperty.call(playerState, key);
+  const store    = inTemp ? tempState : playerState;
+
+  if (!inTemp && !inPlayer) {
+    console.warn(`[state] *set_stat on undeclared variable "${key}" — did you mean *create or *temp?`);
+    return;
+  }
+
+  // Extract optional min:/max: bounds, then strip them from the RHS expression
+  const minMatch = rest.match(/\bmin:\s*(-?[\d.]+)/i);
+  const maxMatch = rest.match(/\bmax:\s*(-?[\d.]+)/i);
+  const rhs = rest
+    .replace(/\bmin:\s*-?[\d.]+/gi, '')
+    .replace(/\bmax:\s*-?[\d.]+/gi, '')
+    .trim();
+
+  const minVal = minMatch ? Number(minMatch[1]) : -Infinity;
+  const maxVal = maxMatch ? Number(maxMatch[1]) :  Infinity;
+
+  // Apply arithmetic shorthand if applicable, same as setVar
+  let newVal;
+  if (/^[+\-*/]\s*/.test(rhs) && typeof store[key] === 'number') {
+    const result = evalValueFn(`${store[key]} ${rhs}`);
+    newVal = Number.isFinite(result) ? result : evalValueFn(rhs);
+  } else {
+    newVal = evalValueFn(rhs);
+  }
+
+  if (typeof newVal === 'number') {
+    newVal = Math.min(maxVal, Math.max(minVal, newVal));
+    newVal = newVal === 0 ? 0 : newVal;  // normalise -0
+  }
+  store[key] = newVal;
 }
 
 // ---------------------------------------------------------------------------
@@ -220,5 +279,17 @@ export async function parseStartup(fetchTextFileFn, evalValueFn) {
   if (statRegistry.length === 0 && !_statRegistryWarningFired) {
     console.warn('[state] No *create_stat entries found — level-up allocation will be empty.');
     _statRegistryWarningFired = true;
+  }
+
+  // ENH-04: warn if any level-up config variables are missing from startup.txt.
+  // Without them the engine silently falls back to hardcoded defaults in
+  // checkAndApplyLevelUp, which may not match the game's intended design.
+  const _LVL_CONFIG_KEYS = ['xp_up_mult', 'lvl_up_stat_gain', 'lvl_up_skill_gain', 'xp_to_next'];
+  const _missingConfig   = _LVL_CONFIG_KEYS.filter(k => !Object.prototype.hasOwnProperty.call(playerState, k));
+  if (_missingConfig.length > 0) {
+    console.warn(
+      `[state] startup.txt is missing level-up config variable(s): ${_missingConfig.join(', ')}. ` +
+      `The engine will use hardcoded fallback values. Add the missing *create declarations to startup.txt.`
+    );
   }
 }

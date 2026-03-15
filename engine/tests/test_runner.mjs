@@ -81,14 +81,18 @@ function assertDeepEq(actual, expected, label) {
 // ---------------------------------------------------------------------------
 import {
   playerState, tempState, setPlayerState, setTempState,
-  normalizeKey, setVar, declareTemp,
+  normalizeKey, setVar, setStatClamped, declareTemp,
   setStatRegistry, statRegistry,
+  sessionState, clearSessionState, patchSessionState,
+  setCurrentScene, parseStartup,
+  pendingStatPoints, setPendingStatPoints, setPendingLevelUpDisplay, setPendingLevelUpCount,
 } from '../engine/core/state.js';
 
 import { evalValue } from '../engine/core/expression.js';
 import { parseLines, indexLabels, parseChoice, parseSystemBlock } from '../engine/core/parser.js';
 import { addInventoryItem, removeInventoryItem, itemBaseName, parseInventoryUpdateText } from '../engine/systems/inventory.js';
 import { checkAndApplyLevelUp, applySystemRewards, getAllocatableStatKeys } from '../engine/systems/leveling.js';
+import { importSaveFromJSON, SAVE_VERSION, buildSavePayload, loadSaveFromSlot } from '../engine/systems/saves.js';
 
 // Skills and journal need dynamic import because they depend on state being set up
 const { skillRegistry, parseSkills, playerHasSkill, grantSkill, revokeSkill, purchaseSkill } = await import('../engine/systems/skills.js');
@@ -336,7 +340,6 @@ assertDeepEq(invExcluded, [], 'excluded word "assembled" still filtered out');
 group('Leveling — checkAndApplyLevelUp');
 // ---------------------------------------------------------------------------
 resetState();
-import { pendingStatPoints, setPendingStatPoints, setPendingLevelUpDisplay, setPendingLevelUpCount } from '../engine/core/state.js';
 
 setPendingStatPoints(0);
 setPendingLevelUpDisplay(false);
@@ -487,6 +490,320 @@ assertEq(journal[1].type, 'achievement', 'second entry is achievement');
 const achievements = getAchievements();
 assertEq(achievements.length, 1, '1 achievement');
 assertEq(achievements[0].text, 'Defeated the guardian.', 'achievement text');
+
+// ===========================================================================
+// ENHANCEMENT TESTS
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+group('ENH-02 — Journal deduplication (unique flag)');
+// ---------------------------------------------------------------------------
+resetState();
+
+// Non-unique inserts always
+const r1 = addJournalEntry('Found cache.', 'entry');
+const r2 = addJournalEntry('Found cache.', 'entry');
+assertEq(r1, true,  'non-unique insert 1 returns true');
+assertEq(r2, true,  'non-unique insert 2 returns true (no dedup)');
+assertEq(playerState.journal.length, 2, 'non-unique: both entries stored');
+
+resetState();
+
+// Unique deduplicates same text+type
+const u1 = addJournalEntry('Discovered shrine.', 'entry', true);
+const u2 = addJournalEntry('Discovered shrine.', 'entry', true);
+const u3 = addJournalEntry('Discovered shrine.', 'entry', true);
+assertEq(u1, true,  'unique insert 1 returns true');
+assertEq(u2, false, 'unique insert 2 returns false (duplicate)');
+assertEq(u3, false, 'unique insert 3 returns false (duplicate)');
+assertEq(playerState.journal.length, 1, 'unique: only one entry stored');
+
+// Same text, different type is NOT a duplicate
+const ua = addJournalEntry('Discovered shrine.', 'achievement', true);
+assertEq(ua, true, 'same text, different type is not a duplicate');
+assertEq(playerState.journal.length, 2, 'entry + achievement both stored');
+
+// Non-unique and unique: unique flag deduplicates against ALL existing entries
+// (regardless of whether they were inserted with or without the unique flag)
+resetState();
+addJournalEntry('Event.', 'entry');          // non-unique: always inserts
+assertEq(playerState.journal.length, 1, 'non-unique insert stored');
+addJournalEntry('Event.', 'entry', true);   // unique: already exists, so deduplicates
+assertEq(playerState.journal.length, 1, 'unique call deduplicates against existing non-unique entry');
+addJournalEntry('Event.', 'entry', true);   // unique again — still deduplicates
+assertEq(playerState.journal.length, 1, 'second unique call also deduplicates');
+
+// ---------------------------------------------------------------------------
+group('ENH-03 — Stat clamping (*set_stat)');
+// ---------------------------------------------------------------------------
+
+resetState();
+playerState.body = 10;
+
+// Clamp max
+setStatClamped('*set_stat body +8 max:15', evalValue);
+assertEq(playerState.body, 15, '*set_stat +8 clamped to max:15 (10+8=18 → 15)');
+
+// Clamp min
+setStatClamped('*set_stat body -20 min:0', evalValue);
+assertEq(playerState.body, 0, '*set_stat -20 clamped to min:0 (15-20=-5 → 0)');
+
+// Both bounds
+playerState.body = 10;
+setStatClamped('*set_stat body +100 min:0 max:30', evalValue);
+assertEq(playerState.body, 30, '*set_stat with both bounds clamps correctly');
+
+// Absolute assignment (no arithmetic shorthand)
+setStatClamped('*set_stat body 99 max:20', evalValue);
+assertEq(playerState.body, 20, '*set_stat absolute assignment clamped to max:20');
+
+// No bounds — behaves like *set
+playerState.body = 10;
+setStatClamped('*set_stat body +5', evalValue);
+assertEq(playerState.body, 15, '*set_stat with no bounds behaves like *set');
+
+// Undeclared var — no-op, no crash
+setStatClamped('*set_stat nonexistent +5 max:10', evalValue);
+assertEq(playerState.nonexistent, undefined, '*set_stat on undeclared var is a no-op');
+
+// Negative min (below zero)
+playerState.body = 5;
+setStatClamped('*set_stat body -10 min:-5', evalValue);
+assertEq(playerState.body, -5, '*set_stat with negative min clamps to -5');
+
+// ---------------------------------------------------------------------------
+group('ENH-04 — Boot warning for missing level-up config');
+// ---------------------------------------------------------------------------
+
+// Capture console.warn calls
+const warnMessages = [];
+const origWarn = console.warn;
+console.warn = (...args) => { warnMessages.push(args.join(' ')); origWarn(...args); };
+
+// Startup with all config keys present — no config warning
+const fullStartupText = `*create xp_up_mult 1.2
+*create lvl_up_stat_gain 2
+*create lvl_up_skill_gain 1
+*create xp_to_next 1000
+*create_stat body "Body" 10
+*scene_list
+  prologue`;
+
+await parseStartup(async () => fullStartupText, evalValue);
+const warnsBefore = warnMessages.length;
+const hasConfigWarn = warnMessages.some(m => m.includes('Missing level-up config') || m.includes('missing level-up config'));
+assertEq(hasConfigWarn, false, 'no level-up config warning when all keys present');
+
+// Startup missing xp_up_mult — should warn
+warnMessages.length = 0;
+const missingKeyStartup = `*create lvl_up_stat_gain 2
+*create lvl_up_skill_gain 1
+*create xp_to_next 1000
+*create_stat body "Body" 10
+*scene_list
+  prologue`;
+
+await parseStartup(async () => missingKeyStartup, evalValue);
+const hasMissingWarn = warnMessages.some(m => m.includes('xp_up_mult'));
+assert(hasMissingWarn, 'warns about missing xp_up_mult after parseStartup');
+
+// Restore console.warn
+console.warn = origWarn;
+resetState();
+
+// ---------------------------------------------------------------------------
+group('ENH-07 — *flag_check mark-and-test');
+// ---------------------------------------------------------------------------
+
+resetState();
+
+// Simulate *flag_check by calling the logic directly
+// (interpreter can't run without DOM; we test the state logic directly)
+
+// Manual simulation of the flag_check directive logic
+function simulateFlagCheck(flagKey, destKey) {
+  const inTemp   = Object.prototype.hasOwnProperty.call(tempState,   flagKey);
+  const inPlayer = Object.prototype.hasOwnProperty.call(playerState, flagKey);
+  const flagStore = inTemp ? tempState : playerState;
+
+  if (!inTemp && !inPlayer) playerState[flagKey] = false;
+
+  const wasAlreadySet = !!flagStore[flagKey];
+  if (!wasAlreadySet) flagStore[flagKey] = true;
+
+  const destInTemp = Object.prototype.hasOwnProperty.call(tempState, destKey);
+  if (destInTemp) {
+    tempState[destKey] = !wasAlreadySet;
+  } else {
+    if (!Object.prototype.hasOwnProperty.call(playerState, destKey)) playerState[destKey] = false;
+    playerState[destKey] = !wasAlreadySet;
+  }
+}
+
+simulateFlagCheck('visited_shrine', 'first_visit');
+assertEq(playerState.visited_shrine, true, 'flagKey set to true on first call');
+assertEq(playerState.first_visit, true,    'destKey is true on first call');
+
+simulateFlagCheck('visited_shrine', 'first_visit');
+assertEq(playerState.visited_shrine, true,  'flagKey stays true on second call');
+assertEq(playerState.first_visit, false,    'destKey is false on second call');
+
+simulateFlagCheck('visited_shrine', 'first_visit');
+assertEq(playerState.first_visit, false, 'destKey remains false on third call');
+
+// Works with tempState dest_var
+resetState();
+tempState.temp_dest = false;
+simulateFlagCheck('seen_boss', 'temp_dest');
+assertEq(playerState.seen_boss, true,  'flagKey in playerState');
+assertEq(tempState.temp_dest, true,    'destKey in tempState on first call');
+simulateFlagCheck('seen_boss', 'temp_dest');
+assertEq(tempState.temp_dest, false,   'destKey in tempState false on second call');
+
+// ---------------------------------------------------------------------------
+group('ENH-08 — Session state (*persist)');
+// ---------------------------------------------------------------------------
+resetState();
+clearSessionState();
+
+// sessionState is invisible until assigned
+assertEq(evalValue('session_var'), 'session_var', 'unknown session var → string fallback before assignment');
+
+// Manual session state simulation (promotion logic)
+function simulatePersist(key) {
+  if (Object.prototype.hasOwnProperty.call(tempState, key)) {
+    patchSessionState({ [key]: tempState[key] });
+    delete tempState[key];
+  } else if (!Object.prototype.hasOwnProperty.call(sessionState, key)) {
+    console.warn(`[test] *persist: "${key}" not in tempState`);
+  }
+}
+
+// Promote temp var into session
+tempState.cutscene_mode = true;
+simulatePersist('cutscene_mode');
+assertEq(Object.prototype.hasOwnProperty.call(tempState, 'cutscene_mode'), false, 'key removed from tempState after persist');
+assertEq(sessionState.cutscene_mode, true, 'key promoted into sessionState');
+
+// evalValue can read it
+assertEq(evalValue('cutscene_mode'), true, 'evalValue reads from sessionState');
+
+// tempState takes priority over sessionState
+tempState.cutscene_mode = false;
+assertEq(evalValue('cutscene_mode'), false, 'tempState shadows sessionState in evalValue');
+delete tempState.cutscene_mode;
+assertEq(evalValue('cutscene_mode'), true, 'sessionState readable again after temp deleted');
+
+// clearSessionState wipes it
+clearSessionState();
+assertEq(evalValue('cutscene_mode'), 'cutscene_mode', 'clearSessionState empties session layer');
+
+// playerState still lower priority than both temp and session
+playerState.prio_test = 'player';
+sessionState.prio_test = 'session';
+tempState.prio_test    = 'temp';
+assertEq(evalValue('prio_test'), 'temp',    'tempState > sessionState > playerState');
+delete tempState.prio_test;
+assertEq(evalValue('prio_test'), 'session', 'sessionState > playerState when no temp');
+delete sessionState.prio_test;
+assertEq(evalValue('prio_test'), 'player',  'playerState used when temp and session absent');
+
+// ---------------------------------------------------------------------------
+group('ENH-10 — Save export/import (importSaveFromJSON)');
+// ---------------------------------------------------------------------------
+// exportSaveSlot triggers a DOM download — skip in Node environment.
+// Test importSaveFromJSON (pure logic) thoroughly.
+
+resetState();
+playerState.xp = 500;
+playerState.level = 2;
+// Set currentScene so buildSavePayload gets a valid scene name
+setCurrentScene('test_scene');
+// Build a valid payload to use as import source
+const validPayload = buildSavePayload(1, null, []);
+
+// Valid import
+const importResult = importSaveFromJSON(validPayload, 2);
+assertEq(importResult.ok, true, 'valid import returns ok:true');
+const loaded = loadSaveFromSlot(2);
+assert(loaded !== null, 'imported save loadable from target slot');
+assertEq(loaded.slot, '2', 'imported save has target slot stamped');
+assertEq(loaded.playerState.xp, 500, 'imported playerState.xp preserved');
+
+// Wrong version
+const wrongVersion = { ...validPayload, version: SAVE_VERSION - 1 };
+const versionResult = importSaveFromJSON(wrongVersion, 1);
+assertEq(versionResult.ok, false, 'wrong version import returns ok:false');
+assert(versionResult.reason.includes('version mismatch'), 'version mismatch reason returned');
+
+// Missing playerState
+const noState = { ...validPayload };
+delete noState.playerState;
+const noStateResult = importSaveFromJSON(noState, 1);
+assertEq(noStateResult.ok, false, 'missing playerState returns ok:false');
+
+// Missing scene
+const noScene = { ...validPayload };
+delete noScene.scene;
+const noSceneResult = importSaveFromJSON(noScene, 1);
+assertEq(noSceneResult.ok, false, 'missing scene returns ok:false');
+
+// Non-object input
+assertEq(importSaveFromJSON(null, 1).ok,     false, 'null input returns ok:false');
+assertEq(importSaveFromJSON('string', 1).ok, false, 'string input returns ok:false');
+assertEq(importSaveFromJSON([], 1).ok,       false, 'array input returns ok:false');
+
+// Invalid slot
+const badSlot = importSaveFromJSON(validPayload, 99);
+assertEq(badSlot.ok, false, 'invalid slot returns ok:false');
+
+// ---------------------------------------------------------------------------
+group('ENH-09 — Stat tag extraction in parseChoice');
+// ---------------------------------------------------------------------------
+const statTagScene = parseLines(`*choice
+  #Force the door [Body 15]
+    You shoulder it open.
+  #Pick the lock [Mind 10]
+    You work the tumblers.
+  #Wait outside
+    You decide to wait.
+  *selectable_if (false) #Smash it [Body 20]
+    You smash it.`);
+
+const statTagParsed = parseChoice(0, 0, { currentLines: statTagScene, evalValue });
+
+// Text is stripped of the tag
+assertEq(statTagParsed.choices[0].text, 'Force the door', 'stat tag stripped from option text');
+assertEq(statTagParsed.choices[1].text, 'Pick the lock',  'second stat tag stripped');
+assertEq(statTagParsed.choices[2].text, 'Wait outside',    'option without tag unchanged');
+assertEq(statTagParsed.choices[3].text, 'Smash it',        'selectable_if option tag stripped');
+
+// statTag object populated correctly
+assertEq(statTagParsed.choices[0].statTag?.label,       'Body', 'statTag.label correct');
+assertEq(statTagParsed.choices[0].statTag?.requirement, 15,     'statTag.requirement correct');
+assertEq(statTagParsed.choices[1].statTag?.label,       'Mind', 'second statTag.label correct');
+assertEq(statTagParsed.choices[1].statTag?.requirement, 10,     'second statTag.requirement correct');
+assertEq(statTagParsed.choices[2].statTag, null, 'option without tag has null statTag');
+assertEq(statTagParsed.choices[3].statTag?.label,       'Body', 'selectable_if statTag.label correct');
+assertEq(statTagParsed.choices[3].statTag?.requirement, 20,     'selectable_if statTag.requirement correct');
+
+// Multi-word label
+const multiWordScene = parseLines(`*choice
+  #Climb the wall [Upper Body Strength 12]
+    You haul yourself up.`);
+const mwParsed = parseChoice(0, 0, { currentLines: multiWordScene, evalValue });
+assertEq(mwParsed.choices[0].text, 'Climb the wall', 'multi-word stat tag: text correct');
+assertEq(mwParsed.choices[0].statTag?.label, 'Upper Body Strength', 'multi-word statTag.label correct');
+assertEq(mwParsed.choices[0].statTag?.requirement, 12, 'multi-word statTag.requirement correct');
+
+// Tag at start — should NOT match (tag must be at end)
+const noTagScene = parseLines(`*choice
+  #[Body 10] Force the door
+    You push.`);
+const noTagParsed = parseChoice(0, 0, { currentLines: noTagScene, evalValue });
+// The raw text has a tag at the start — since our regex anchors at the end,
+// statTag should be null and text left as-is
+assertEq(noTagParsed.choices[0].statTag, null, 'tag at start of text is not extracted');
 
 // ===========================================================================
 // Summary

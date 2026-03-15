@@ -69,6 +69,7 @@ let _applyTransition     = null;   // () → void
 let _setChapterTitle     = null;   // (t: string) → void
 let _parseAndCacheScene  = null;   // async (name: string) → void
 let _clearUndoStack      = null;   // () → void — clears undo history on load
+let _setChoiceArea       = null;   // BUG-05 — (el) → void
 
 export function init({
   splashOverlay, splashSlots,
@@ -81,7 +82,7 @@ export function init({
   renderFromLog, renderChoices, showInlineLevelUp,
   showPageBreak, showInputPrompt, runInterpreter,
   clearNarrative, applyTransition, setChapterTitle,
-  parseAndCacheScene,
+  parseAndCacheScene, setChoiceArea,   // BUG-05: added setChoiceArea
   clearUndoStack,
 }) {
   _splashOverlay  = splashOverlay;
@@ -116,6 +117,7 @@ export function init({
   _setChapterTitle    = setChapterTitle;
   _parseAndCacheScene = parseAndCacheScene;
   _clearUndoStack     = clearUndoStack || null;
+  _setChoiceArea      = setChoiceArea || null;   // BUG-05
 }
 
 // ---------------------------------------------------------------------------
@@ -185,7 +187,8 @@ export function showToast(message, durationMs = 2200) {
 export function populateSlotCard({ nameEl, metaEl, loadBtn, deleteBtn, cardEl, save }) {
   if (save) {
     const d = new Date(save.timestamp);
-    metaEl.textContent  = `${save.scene.toUpperCase()} · ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    const sceneDisplay = save.label ? save.label : save.scene.toUpperCase();  // ENH-06
+    metaEl.textContent  = `${sceneDisplay} · ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
     nameEl.textContent  = save.characterName || 'Unknown';
     loadBtn.disabled    = false;
     cardEl.classList.remove('slot-card--empty');
@@ -257,6 +260,7 @@ export async function loadAndResume(save) {
     clearNarrative:     _clearNarrative,
     applyTransition:    _applyTransition,
     setChapterTitle:    _setChapterTitle,
+    setChoiceArea:      _setChoiceArea,    // BUG-05 fix
     parseAndCacheScene: _parseAndCacheScene,
     fetchTextFileFn:    _fetchTextFile,
     evalValueFn:        _evalValue,
@@ -383,7 +387,7 @@ export function wireCharCreation() {
   function updateBeginBtn() {
     const ok = !validateName(_inputFirstName.value, 'First name') &&
                !validateName(_inputLastName.value,  'Last name')  &&
-               !!_charOverlay.querySelector('.pronoun-card.selected');
+               !_charOverlay.querySelector('.pronoun-card.selected');
     _charBeginBtn.disabled = !ok;
   }
 

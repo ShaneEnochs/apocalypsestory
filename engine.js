@@ -22,15 +22,16 @@
 // Phase 5 (next): add esbuild; bundle engine/main.js → engine.js for production.
 // ---------------------------------------------------------------------------
 
+// PATCH 1 of 6 — add pauseState, clearSessionState, exportSaveSlot, importSaveFromJSON
 import {
   playerState, tempState, statRegistry, startup,
   currentScene, currentLines, ip, pendingStatPoints,
-  awaitingChoice, delayIndex, pauseState,          // <-- add pauseState
+  awaitingChoice, delayIndex, pauseState,
   patchPlayerState, parseStartup,
   setPlayerState, setTempState, setPendingStatPoints,
   setCurrentScene, setCurrentLines, setIp, setDelayIndex,
   setAwaitingChoice, setPendingLevelUpDisplay,
-  setChapterTitleState, clearPauseState,
+  setChapterTitleState, clearPauseState, clearSessionState,  // ENH-08
 } from './engine/core/state.js';
 
 import { evalValue }       from './engine/core/expression.js';
@@ -42,9 +43,10 @@ import {
 
 import { parseLines, indexLabels } from './engine/core/parser.js';
 
+// PATCH 1 continued — add exportSaveSlot, importSaveFromJSON
 import {
   loadSaveFromSlot, saveGameToSlot,
-  deleteSaveSlot,
+  deleteSaveSlot, exportSaveSlot, importSaveFromJSON,  // ENH-10
 } from './engine/systems/saves.js';
 
 import { parseSkills } from './engine/systems/skills.js';
@@ -126,13 +128,15 @@ const labelsCache = new Map();
 // trigger a single re-render.
 // ---------------------------------------------------------------------------
 let _statsRenderPending = false;
+
+// PATCH 3 of 6 — call updateUndoBtn inside scheduleStatsRender (BUG-09)
 function scheduleStatsRender() {
   if (_statsRenderPending) return;
   _statsRenderPending = true;
   requestAnimationFrame(() => {
     _statsRenderPending = false;
     runStatsScene();
-    updateUndoBtn();  // BUG-09: keep undo button in sync with pauseState
+    updateUndoBtn();  // BUG-09 + ENH-08: keep undo button in sync with pauseState
   });
 }
 
@@ -260,11 +264,12 @@ async function popUndo() {
   updateUndoBtn();
 }
 
+// PATCH 2 of 6 — BUG-09: updateUndoBtn checks pauseState
 function updateUndoBtn() {
   const btn = document.getElementById('undo-btn');
   if (!btn) return;
-  // BUG-09 fix: disable undo when pauseState is active (*page_break, *input,
-  // and *delay don't set awaitingChoice, so the old check missed them entirely).
+  // BUG-09 fix: disable undo when pauseState is active — *page_break, *input
+  // and *delay don't set awaitingChoice, so the old check missed them entirely.
   btn.disabled = _undoStack.length === 0 || pauseState !== null;
 }
 
@@ -405,6 +410,7 @@ function wireUI() {
     // and persists across load/new-game flows within the same page load.
     _undoStack.splice(0);
     updateUndoBtn();
+    clearSessionState();  // ENH-08: session state must not bleed into a new game
     await runStatsScene();
     await gotoScene(startup.sceneList[0] || 'prologue');
   });
@@ -457,6 +463,41 @@ function wireUI() {
   document.addEventListener('keydown', e => {
     if (e.key === '`') { e.preventDefault(); toggleDebug(); }
   });
+
+  // PATCH 6 of 6 — ENH-10: wire export/import buttons
+  // Export slot buttons
+  [1, 2, 3].forEach(slot => {
+    const btn = document.getElementById(`save-export-${slot}`);
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (!exportSaveSlot(slot)) showToast(`Slot ${slot} is empty.`);
+      else showToast(`Slot ${slot} exported.`);
+    });
+  });
+
+  // Import file picker
+  const importInput = document.getElementById('save-import-file');
+  if (importInput) {
+    importInput.addEventListener('change', async () => {
+      const file = importInput.files?.[0];
+      if (!file) return;
+      const targetSlot = Number(document.getElementById('save-import-slot')?.value || 1);
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        const result = importSaveFromJSON(json, targetSlot);
+        if (result.ok) {
+          showToast(`Imported to Slot ${targetSlot}.`);
+          refreshAllSlotCards();
+        } else {
+          showToast(`Import failed: ${result.reason}`);
+        }
+      } catch {
+        showToast('Import failed: file could not be parsed as JSON.');
+      }
+      importInput.value = '';  // reset so same file can be re-imported
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -496,6 +537,7 @@ async function boot() {
     },
   });
 
+  // PATCH 5 of 6 — BUG-05 + ENH-08: add setChoiceArea and updated clearUndoStack
   initOverlays({
     splashOverlay:  dom.splashOverlay,
     splashSlots:    dom.splashSlots,
@@ -528,11 +570,15 @@ async function boot() {
       setCurrentLines(parseLines(text));
       indexLabels(name, currentLines, labelsCache);
     },
-    setChoiceArea: (el) => {          // BUG-05 fix: keep both engine.js dom ref
-      dom.choiceArea = el;            // and narrative.js internal ref in sync
-      setChoiceArea(el);              // after restoreFromSave calls renderFromLog
+    setChoiceArea: (el) => {        // BUG-05: re-point both refs after renderFromLog
+      dom.choiceArea = el;
+      setChoiceArea(el);
     },
-    clearUndoStack: () => { _undoStack.splice(0); updateUndoBtn(); },
+    clearUndoStack: () => {
+      _undoStack.splice(0);
+      updateUndoBtn();
+      clearSessionState();          // ENH-08: clear session state on load too
+    },
   });
 
   // 3. Register interpreter callbacks — must happen after initNarrative/Panels

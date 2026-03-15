@@ -304,6 +304,23 @@ export function renderChoices(choices) {
     btn.style.animationDelay = `${(delayIndex + idx) * 80}ms`;
     btn.innerHTML = `<span>${formatText(choice.text)}</span>`;
 
+    // ENH-09: Render inline stat requirement badge if the choice has one.
+    // Looks up the stat value by normalising the tag label to a state key
+    // (lowercase, spaces→underscores), then colours the badge green/red.
+    if (choice.statTag) {
+      const { label, requirement } = choice.statTag;
+      const key = normalizeKey(label.replace(/\s+/g, '_'));
+      const val = tempState[key] !== undefined
+        ? tempState[key]
+        : (playerState[key] !== undefined ? playerState[key] : null);
+      const met = val !== null && Number(val) >= requirement;
+
+      const badge = document.createElement('span');
+      badge.className = `choice-stat-badge ${met ? 'choice-stat-badge--met' : 'choice-stat-badge--unmet'}`;
+      badge.textContent = `${label} ${requirement}`;
+      btn.querySelector('span').appendChild(badge);
+    }
+
     if (!choice.selectable) {
       btn.disabled = true;
       btn.style.opacity = '0.4';

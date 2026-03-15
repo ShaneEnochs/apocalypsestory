@@ -39,8 +39,9 @@ import {
   _gotoJumped, awaitingChoice, pendingLevelUpDisplay,
   setCurrentScene, setCurrentLines, setIp, advanceIp,
   setGotoJumped, setAwaitingChoice, setDelayIndex, clearTempState,
-  normalizeKey, setVar, declareTemp, patchPlayerState,
+  normalizeKey, setVar, setStatClamped, declareTemp, patchPlayerState,
   setPauseState, clearPauseState, pauseState,
+  sessionState, patchSessionState,
 } from './state.js';
 
 import { evalValue }            from './expression.js';
@@ -349,6 +350,74 @@ registerCommand('*set', (t) => {
   advanceIp();
 });
 
+// *set_stat key rhs [min:N] [max:N] — clamped stat assignment (ENH-03)
+registerCommand('*set_stat', (t) => {
+  setStatClamped(t, evalValue);
+  checkAndApplyLevelUp(cb.scheduleStatsRender);
+  cb.scheduleStatsRender();
+  advanceIp();
+});
+
+// *flag_check varName dest_var — mark-and-test boolean (ENH-07)
+// dest_var = true on first call (marks varName), false on subsequent calls.
+// Auto-declares varName in playerState if it doesn't exist yet.
+registerCommand('*flag_check', (t) => {
+  const parts = t.replace(/^\*flag_check\s*/, '').trim().split(/\s+/);
+  if (parts.length < 2) {
+    cb.showEngineError(`*flag_check requires two arguments: *flag_check varName dest_var\nGot: ${t}`);
+    setIp(currentLines.length);
+    return;
+  }
+  const flagKey = normalizeKey(parts[0]);
+  const destKey = normalizeKey(parts[1]);
+
+  // Resolve flagKey store — prefer tempState, then playerState, then auto-declare
+  const inTemp   = Object.prototype.hasOwnProperty.call(tempState,   flagKey);
+  const inPlayer = Object.prototype.hasOwnProperty.call(playerState, flagKey);
+  const flagStore = inTemp ? tempState : playerState;
+
+  if (!inTemp && !inPlayer) {
+    // Auto-declare as false in playerState so it persists across scenes
+    playerState[flagKey] = false;
+  }
+
+  const wasAlreadySet = !!flagStore[flagKey];
+  if (!wasAlreadySet) {
+    flagStore[flagKey] = true;
+  }
+
+  // Write first-time result to dest_var
+  const destInTemp = Object.prototype.hasOwnProperty.call(tempState, destKey);
+  if (destInTemp) {
+    tempState[destKey] = !wasAlreadySet;
+  } else {
+    if (!Object.prototype.hasOwnProperty.call(playerState, destKey)) {
+      console.warn(`[interpreter] *flag_check dest_var "${destKey}" is undeclared — auto-creating in playerState.`);
+      playerState[destKey] = false;
+    }
+    playerState[destKey] = !wasAlreadySet;
+  }
+
+  cb.scheduleStatsRender();
+  advanceIp();
+});
+
+// *persist varName — move a temp variable into session state (ENH-08)
+// Session state survives *goto_scene but is NOT saved to localStorage.
+registerCommand('*persist', (t) => {
+  const key = normalizeKey(t.replace(/^\*persist\s*/, '').trim());
+  if (!key) { advanceIp(); return; }
+
+  if (Object.prototype.hasOwnProperty.call(tempState, key)) {
+    // Promote from tempState to sessionState
+    patchSessionState({ [key]: tempState[key] });
+    delete tempState[key];
+  } else if (!Object.prototype.hasOwnProperty.call(sessionState, key)) {
+    console.warn(`[interpreter] *persist: "${key}" not found in tempState — already persisted or undeclared.`);
+  }
+  advanceIp();
+});
+
 // *flag key  — sets playerState[key] = true
 registerCommand('*flag', (t) => {
   const key = normalizeKey(t.replace(/^\*flag\s*/, '').trim());
@@ -467,23 +536,32 @@ registerCommand('*check_skill', (t) => {
   advanceIp();
 });
 
-// *journal "Entry text" — adds a journal entry
+// *journal "Entry text" [unique] — adds a journal entry (ENH-02: unique deduplication)
 registerCommand('*journal', (t) => {
-  const text = t.replace(/^\*journal\s*/, '').trim().replace(/^"|"$/g, '');
-  if (text) {
-    addJournalEntry(text, 'entry');
-    cb.scheduleStatsRender();
-  }
+  // Support both quoted and unquoted text, with optional trailing 'unique' keyword
+  const m = t.match(/^\*journal\s+"([^"]+)"(\s+unique)?\s*$/i) ||
+            t.match(/^\*journal\s+(.+?)(\s+unique)?\s*$/i);
+  if (!m) { advanceIp(); return; }
+  const text   = m[1].trim();
+  const unique = !!(m[2] && m[2].trim().toLowerCase() === 'unique');
+  if (text && addJournalEntry(text, 'entry', unique)) cb.scheduleStatsRender();
+  else if (text && !unique) cb.scheduleStatsRender(); // non-unique always re-renders
   advanceIp();
 });
 
-// *achievement "Achievement text" — adds an achievement
+// *achievement "Achievement text" [unique] — adds an achievement (ENH-02: unique deduplication)
 registerCommand('*achievement', (t) => {
-  const text = t.replace(/^\*achievement\s*/, '').trim().replace(/^"|"$/g, '');
+  const m = t.match(/^\*achievement\s+"([^"]+)"(\s+unique)?\s*$/i) ||
+            t.match(/^\*achievement\s+(.+?)(\s+unique)?\s*$/i);
+  if (!m) { advanceIp(); return; }
+  const text   = m[1].trim();
+  const unique = !!(m[2] && m[2].trim().toLowerCase() === 'unique');
   if (text) {
-    addJournalEntry(text, 'achievement');
-    cb.addSystem(`◆ Achievement Unlocked: ${text}`);
-    cb.scheduleStatsRender();
+    const inserted = addJournalEntry(text, 'achievement', unique);
+    if (inserted) {
+      cb.addSystem(`◆ Achievement Unlocked: ${text}`);
+      cb.scheduleStatsRender();
+    }
   }
   advanceIp();
 });

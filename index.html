@@ -54,7 +54,9 @@
 
     <div id="splash-stale-notice" class="splash-stale-notice hidden" role="alert">
       ⚠ An older save was found but is not compatible with this version.
+      It has been removed. Please start a new game.
     </div>
+
     <div class="splash-btn-col">
       <button id="splash-new-btn" class="overlay-btn">New Game</button>
       <button id="splash-load-btn" class="overlay-btn overlay-btn--secondary">Load Game</button>
@@ -150,6 +152,7 @@
         <div class="slot-actions">
           <button class="slot-load-btn slot-load-btn--save" id="save-to-1">Save</button>
           <button class="slot-load-btn slot-load-btn--load" id="ingame-load-1" disabled>Load</button>
+          <button class="slot-load-btn slot-load-btn--export" id="save-export-1">Export</button>
           <button class="slot-delete-btn hidden" id="save-delete-1" aria-label="Delete slot 1">✕</button>
         </div>
       </div>
@@ -163,6 +166,7 @@
         <div class="slot-actions">
           <button class="slot-load-btn slot-load-btn--save" id="save-to-2">Save</button>
           <button class="slot-load-btn slot-load-btn--load" id="ingame-load-2" disabled>Load</button>
+          <button class="slot-load-btn slot-load-btn--export" id="save-export-2">Export</button>
           <button class="slot-delete-btn hidden" id="save-delete-2" aria-label="Delete slot 2">✕</button>
         </div>
       </div>
@@ -176,9 +180,22 @@
         <div class="slot-actions">
           <button class="slot-load-btn slot-load-btn--save" id="save-to-3">Save</button>
           <button class="slot-load-btn slot-load-btn--load" id="ingame-load-3" disabled>Load</button>
+          <button class="slot-load-btn slot-load-btn--export" id="save-export-3">Export</button>
           <button class="slot-delete-btn hidden" id="save-delete-3" aria-label="Delete slot 3">✕</button>
         </div>
       </div>
+    </div>
+    <!-- ENH-10: Import row -->
+    <div class="save-import-row">
+      <label for="save-import-file" class="overlay-btn overlay-btn--secondary save-import-label">
+        ↑ Import Save
+      </label>
+      <input type="file" id="save-import-file" accept=".json" class="hidden" />
+      <select id="save-import-slot" class="save-import-slot-select" aria-label="Import to slot">
+        <option value="1">→ Slot 1</option>
+        <option value="2">→ Slot 2</option>
+        <option value="3">→ Slot 3</option>
+      </select>
     </div>
     <div class="save-menu-footer">
       <button id="ingame-restart-btn" class="overlay-btn overlay-btn--danger">↺ Restart</button>
@@ -193,31 +210,31 @@
 <div id="char-creation-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="char-creation-heading">
   <div class="overlay-box char-box">
     <div class="char-header">
-      <span class="system-block-label" id="char-creation-heading">[ WHO ARE YOU ]</span>
+      <span class="system-block-label" id="char-creation-heading">[ NEW SURVIVOR ]</span>
     </div>
 
-    <div class="char-field-group">
+    <div class="char-field">
       <label class="char-label" for="input-first-name">First Name</label>
-      <div class="char-input-wrap">
-        <input id="input-first-name" class="char-input" type="text" maxlength="14" autocomplete="off" spellcheck="false" placeholder="Kael"/>
-        <span class="char-counter" id="counter-first">0/14</span>
+      <div class="char-input-row">
+        <input type="text" id="input-first-name" class="char-input" maxlength="14" autocomplete="off" spellcheck="false" placeholder="Enter first name"/>
+        <span class="char-counter" id="counter-first">14</span>
       </div>
-      <span class="char-error" id="error-first-name"></span>
+      <span class="char-error hidden" id="error-first-name"></span>
     </div>
 
-    <div class="char-field-group">
+    <div class="char-field">
       <label class="char-label" for="input-last-name">Last Name</label>
-      <div class="char-input-wrap">
-        <input id="input-last-name" class="char-input" type="text" maxlength="14" autocomplete="off" spellcheck="false" placeholder="Ashborne"/>
-        <span class="char-counter" id="counter-last">0/14</span>
+      <div class="char-input-row">
+        <input type="text" id="input-last-name" class="char-input" maxlength="14" autocomplete="off" spellcheck="false" placeholder="Enter last name"/>
+        <span class="char-counter" id="counter-last">14</span>
       </div>
-      <span class="char-error" id="error-last-name"></span>
+      <span class="char-error hidden" id="error-last-name"></span>
     </div>
 
-    <div class="char-field-group">
+    <div class="char-field">
       <label class="char-label">Pronouns</label>
-      <div class="pronoun-cards" role="radiogroup" aria-label="Pronoun selection">
-        <button class="pronoun-card selected" data-pronouns="he/him" data-subject="he" data-object="him" data-possessive="his" data-reflexive="himself" role="radio" aria-checked="false" tabindex="0">
+      <div class="pronoun-grid" role="radiogroup" aria-label="Select pronouns">
+        <button class="pronoun-card" data-pronouns="he/him" data-subject="he" data-object="him" data-possessive="his" data-reflexive="himself" role="radio" aria-checked="false" tabindex="-1">
           he / him
         </button>
         <button class="pronoun-card" data-pronouns="she/her" data-subject="she" data-object="her" data-possessive="her" data-reflexive="herself" role="radio" aria-checked="false" tabindex="-1">

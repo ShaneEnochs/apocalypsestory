@@ -127,6 +127,57 @@ export function deleteSaveSlot(slot) {
 }
 
 // ---------------------------------------------------------------------------
+// exportSaveSlot — triggers a browser download of the slot's save as JSON.
+// Returns true on success, false if the slot is empty. (ENH-10)
+// ---------------------------------------------------------------------------
+export function exportSaveSlot(slot) {
+  const save = loadSaveFromSlot(slot);
+  if (!save) return false;
+
+  const safeName = (save.characterName || 'Unknown').replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, '_');
+  const filename = `sa-save-slot${slot}-${safeName}.json`;
+  const blob     = new Blob([JSON.stringify(save, null, 2)], { type: 'application/json' });
+  const url      = URL.createObjectURL(blob);
+  const a        = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// importSaveFromJSON — validates a parsed save object and writes it to a slot.
+//
+// Returns { ok: true } on success, { ok: false, reason: string } on failure.
+// Does NOT restore/load — the caller is responsible for that. (ENH-10)
+// ---------------------------------------------------------------------------
+export function importSaveFromJSON(json, targetSlot) {
+  if (!json || typeof json !== 'object' || Array.isArray(json))
+    return { ok: false, reason: 'File is not a valid JSON object.' };
+  if (json.version !== SAVE_VERSION)
+    return { ok: false, reason: `Save version mismatch (file is v${json.version}, engine expects v${SAVE_VERSION}).` };
+  if (!json.playerState || typeof json.playerState !== 'object')
+    return { ok: false, reason: 'Save file is missing playerState.' };
+  if (!json.scene || typeof json.scene !== 'string')
+    return { ok: false, reason: 'Save file is missing scene name.' };
+
+  const key = saveKeyForSlot(targetSlot);
+  if (!key) return { ok: false, reason: `Invalid target slot: "${targetSlot}".` };
+
+  // Stamp slot field to match the chosen target
+  const patched = { ...json, slot: String(targetSlot) };
+  try {
+    localStorage.setItem(key, JSON.stringify(patched));
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: `localStorage write failed: ${err.message}` };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // restoreFromSave — applies a v4 save payload to live engine state.
 //
 // The no-replay approach:
