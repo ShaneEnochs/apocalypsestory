@@ -29,7 +29,7 @@ import {
   patchPlayerState, parseStartup,
   setPlayerState, setTempState, setPendingStatPoints,
   setCurrentScene, setCurrentLines, setIp, setDelayIndex,
-  setAwaitingChoice,
+  setAwaitingChoice, setPendingLevelUpDisplay,
 } from './engine/core/state.js';
 
 import { evalValue }       from './engine/core/expression.js';
@@ -208,6 +208,16 @@ function popUndo() {
   // Restore the DOM exactly as it was
   dom.narrativeContent.innerHTML = snap.narrativeHTML;
   dom.chapterTitle.textContent   = snap.chapterTitle;
+
+  // The restored HTML may contain a .levelup-inline-block whose event handlers
+  // are dead (innerHTML replacement kills listeners). Remove it — the
+  // interpreter re-run below will call renderChoices → showInlineLevelUp to
+  // add a fresh block with live handlers if pendingStatPoints > 0 (KB2).
+  dom.narrativeContent.querySelectorAll('.levelup-inline-block').forEach(el => el.remove());
+
+  // If the undo snapshot had a pending level-up, re-arm the display flag so
+  // renderChoices (called by the *choice handler below) triggers showInlineLevelUp.
+  if (snap.pendingStatPoints > 0) setPendingLevelUpDisplay(true);
 
   // Re-run the interpreter from the saved ip — this will hit the *choice
   // and re-render the choice buttons with fresh click handlers
