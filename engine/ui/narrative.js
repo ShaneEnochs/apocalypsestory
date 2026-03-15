@@ -138,19 +138,17 @@ export function renderFromLog(log, { skipAnimations = true } = {}) {
         div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
         _narrativeContent.insertBefore(div, _choiceArea);
         if (!skipAnimations) advanceDelayIndex();
-        // DO NOT call applySystemRewards — this is a pure render, no side effects.
         break;
       }
 
       case 'input': {
-        // Render the completed input as a static read-only block.
         const wrapper = document.createElement('div');
         wrapper.className = 'input-prompt-block input-prompt-block--submitted';
         if (skipAnimations) {
           wrapper.style.opacity   = '1';
           wrapper.style.animation = 'none';
         }
-        const safe = escapeHtml(entry.value || '');
+        const safe = escapeHtml(entry.value ?? '');
         wrapper.innerHTML = `<span class="system-block-label">[ INPUT ]</span><span class="system-block-text">${formatText(entry.prompt)}: <strong>${safe}</strong></span>`;
         _narrativeContent.insertBefore(wrapper, _choiceArea);
         break;
@@ -158,7 +156,7 @@ export function renderFromLog(log, { skipAnimations = true } = {}) {
 
       case 'levelup_confirmed': {
         const block = document.createElement('div');
-        block.className = 'levelup-inline-block levelup-inline-block--confirmed';
+        block.className = 'system-block levelup-inline-block levelup-inline-block--confirmed';
         if (skipAnimations) {
           block.style.opacity   = '0.55';
           block.style.animation = 'none';
@@ -167,49 +165,37 @@ export function renderFromLog(log, { skipAnimations = true } = {}) {
         _narrativeContent.insertBefore(block, _choiceArea);
         break;
       }
-
-      // Future entry types can be added here without touching any other code.
     }
   }
 
-  // Adopt the supplied log as the current log so subsequent pushes append
-  // correctly (e.g. if the interpreter continues after a restore).
-  _narrativeLog = [...log];
-  if (skipAnimations) setDelayIndex(log.length);
+  // Adopt the incoming log as the live log going forward.
+  _narrativeLog = Array.isArray(log) ? [...log] : [];
 }
 
 // ---------------------------------------------------------------------------
-// Pronoun resolution
+// Pronoun resolution helpers
 // ---------------------------------------------------------------------------
-const PRONOUN_SETS = {
-  'he/him':    { they: 'he',   them: 'him',  their: 'his',   themself: 'himself'  },
-  'she/her':   { they: 'she',  them: 'her',  their: 'her',   themself: 'herself'  },
-  'they/them': { they: 'they', them: 'them', their: 'their', themself: 'themself' },
-  'xe/xem':    { they: 'xe',   them: 'xem',  their: 'xyr',   themself: 'xemself'  },
-  'ze/zir':    { they: 'ze',   them: 'zir',  their: 'zir',   themself: 'zirself'  },
-};
-
-function resolvePronoun(tokenLower, capitalise) {
-  const set  = PRONOUN_SETS[playerState.pronouns] ?? PRONOUN_SETS['they/them'];
-  const word = set[tokenLower] ?? tokenLower;
-  return capitalise ? word.charAt(0).toUpperCase() + word.slice(1) : word;
+function resolvePronoun(lower, isCapital) {
+  const pronouns = playerState.pronouns || 'they/them';
+  const map = {
+    'he/him':   { they: 'he',   them: 'him',  their: 'his',   themself: 'himself' },
+    'she/her':  { they: 'she',  them: 'her',  their: 'her',   themself: 'herself' },
+    'they/them':{ they: 'they', them: 'them', their: 'their', themself: 'themself'},
+  };
+  const set = map[pronouns] || map['they/them'];
+  const word = set[lower] || lower;
+  return isCapital ? word.charAt(0).toUpperCase() + word.slice(1) : word;
 }
 
 // ---------------------------------------------------------------------------
-// formatText — variable interpolation, pronoun tokens, markdown
-//
-// FIX #4: Variable substitutions (${varName}) now run through escapeHtml()
-//   before being inserted. This prevents player-controlled values from being
-//   injected as raw HTML (XSS). Authored narrative text and markdown marks
-//   (**bold**, *italic*) are untouched.
-//
-// Exported so panels.js can use it for stat display if needed in future.
+// formatText — resolves variable interpolation, pronouns, and markdown
 // ---------------------------------------------------------------------------
 export function formatText(text) {
+  if (!text) return '';
+  let result = String(text);
+
   // 1. Variable interpolation: ${varName}
-  //    FIX #4: escape the substituted value so player-controlled strings
-  //    (names, *input results) cannot inject HTML via innerHTML.
-  let result = text.replace(/\$\{([a-zA-Z_][\w]*)\}/g, (_, v) => {
+  result = result.replace(/\$\{([a-zA-Z_][\w]*)\}/g, (_, v) => {
     const k   = normalizeKey(v);
     const val = tempState[k] !== undefined ? tempState[k] : (playerState[k] ?? '');
     return escapeHtml(val);
@@ -340,8 +326,15 @@ export function renderChoices(choices) {
         _onBeforeChoice();
         btn.disabled = true;
         _choiceArea.querySelectorAll('.choice-btn').forEach(b => { b.disabled = true; });
+        // FIX: actually execute the chosen option's block and resume the interpreter.
+        // Previously this import resolved but the .then() body was empty (just a
+        // comment), so clicking a choice button did nothing — the game froze.
         import('../core/interpreter.js').then(({ executeBlock, runInterpreter, awaitingChoice: ac }) => {
-          // executeBlock and runInterpreter are imported lazily to avoid circular dep at load time
+          const resumeAfter = ac?._blockEnd ?? choice.end;
+          const savedIp     = ac?._savedIp  ?? choice.end;
+          executeBlock(choice.start, choice.end, savedIp)
+            .then(() => runInterpreter())
+            .catch(err => console.error('[narrative] choice execution error:', err));
         });
       });
     }
