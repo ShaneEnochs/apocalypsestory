@@ -40,6 +40,7 @@ import { evalValue }       from './engine/core/expression.js';
 import {
   registerCallbacks, registerCaches,
   gotoScene, runInterpreter,
+  executeBlock,                     // FIX Main: needed for initNarrative callback
 } from './engine/core/interpreter.js';
 
 import { parseLines, indexLabels } from './engine/core/parser.js';
@@ -223,16 +224,10 @@ async function popUndo() {
   setPlayerState(JSON.parse(JSON.stringify(snap.playerState)));
   setTempState(JSON.parse(JSON.stringify(snap.tempState)));
   // FIX #13: restore sessionState from snapshot.
-  // Graceful fallback for old snapshots without sessionState: restore to {}.
-  // An empty session layer is preferable to a stale one left over from after
-  // the snapshot point.
   if (snap.sessionState !== undefined) {
-    // clearSessionState() + manual repopulate keeps the same live object
-    // reference that expression.js holds (avoids any stale-reference bugs).
     clearSessionState();
     Object.assign(sessionState, JSON.parse(JSON.stringify(snap.sessionState)));
   } else {
-    // Old snapshot — clear session state to avoid stale flags
     clearSessionState();
   }
   setPendingStatPoints(snap.pendingStatPoints);
@@ -248,8 +243,6 @@ async function popUndo() {
   setDelayIndex(0);
   setAwaitingChoice(null);
  
-  // Clear any stale pause state — the snapshot was taken before a choice,
-  // so there is no active pause directive to resume.
   clearPauseState();
  
   // --- Restore chapter title ---
@@ -257,24 +250,13 @@ async function popUndo() {
   setChapterTitleState(snap.chapterTitle);
  
   // --- Restore narrative from log ---
-  // renderFromLog clears the DOM and repaints from the structured log with
-  // zero side effects — no applySystemRewards, no interpreter execution,
-  // no dead event listeners.
   renderFromLog(snap.narrativeLog, { skipAnimations: true });
  
-  // renderFromLog rebuilds the DOM including a fresh #choice-area element,
-  // so both dom.choiceArea (engine.js) and the internal _choiceArea reference
-  // inside narrative.js must be re-pointed at the live element.
   dom.choiceArea = document.getElementById('choice-area');
   setChoiceArea(dom.choiceArea);
  
-  // If the snapshot had unspent level-up points, re-arm the display flag so
-  // renderChoices triggers showInlineLevelUp when choices are re-rendered.
   if (snap.pendingStatPoints > 0) setPendingLevelUpDisplay(true);
  
-  // Re-run the interpreter from the saved ip. It immediately hits the *choice
-  // directive and re-renders the choice buttons with fresh, live click handlers.
-  // The narrative text is already on screen from renderFromLog.
   await runInterpreter();
   runStatsScene();
   updateUndoBtn();
@@ -284,14 +266,11 @@ async function popUndo() {
 function updateUndoBtn() {
   const btn = document.getElementById('undo-btn');
   if (!btn) return;
-  // BUG-09 fix: disable undo when pauseState is active — *page_break, *input
-  // and *delay don't set awaitingChoice, so the old check missed them entirely.
   btn.disabled = _undoStack.length === 0 || pauseState !== null;
 }
 
 // ---------------------------------------------------------------------------
 // Debug overlay — toggled by backtick (`) key. Shows live engine state.
-// Only visible during gameplay; hidden on splash/overlays.
 // ---------------------------------------------------------------------------
 let _debugVisible = false;
 
@@ -307,7 +286,6 @@ function refreshDebug() {
   if (!el || !_debugVisible) return;
 
   const ps = { ...playerState };
-  // Truncate long arrays for display
   if (Array.isArray(ps.inventory) && ps.inventory.length > 5) ps.inventory = [...ps.inventory.slice(0, 5), `... +${ps.inventory.length - 5}`];
   if (Array.isArray(ps.skills) && ps.skills.length > 5) ps.skills = [...ps.skills.slice(0, 5), `... +${ps.skills.length - 5}`];
   if (Array.isArray(ps.journal) && ps.journal.length > 3) ps.journal = [`(${ps.journal.length} entries)`];
@@ -331,19 +309,14 @@ ${JSON.stringify(tempState, null, 2)}</pre></div>`;
 
 // ---------------------------------------------------------------------------
 // wireUI — attaches all top-level event listeners.
-// Overlay-internal wiring (char creation inputs, pronoun cards) is handled
-// inside overlays.js; this function only wires the header controls and the
-// overlay open/close triggers.
 // ---------------------------------------------------------------------------
 function wireUI() {
-  // Status panel toggle
   dom.statusToggle.addEventListener('click', () => {
     const visible = dom.statusPanel.classList.toggle('status-visible');
     dom.statusPanel.classList.toggle('status-hidden', !visible);
     runStatsScene();
   });
 
-  // Mobile: close status panel on outside tap
   document.addEventListener('click', e => {
     if (window.innerWidth <= 768 &&
         !dom.statusPanel.contains(e.target) &&
@@ -353,10 +326,8 @@ function wireUI() {
     }
   });
 
-  // Header save/load button
   dom.saveBtn.addEventListener('click', showSaveMenu);
 
-  // In-game save menu — save to slot
   [1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`save-to-${slot}`);
     if (!btn) return;
@@ -370,12 +341,10 @@ function wireUI() {
     });
   });
 
-  // In-game save menu — close / backdrop / Escape
   dom.saveMenuClose.addEventListener('click', hideSaveMenu);
   dom.saveOverlay.addEventListener('click', e => { if (e.target === dom.saveOverlay) hideSaveMenu(); });
   dom.saveOverlay.addEventListener('keydown', e => { if (e.key === 'Escape') hideSaveMenu(); });
 
-  // In-game save menu — delete slot
   [1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`save-delete-${slot}`);
     if (!btn) return;
@@ -387,7 +356,6 @@ function wireUI() {
     });
   });
 
-  // In-game save menu — load slot
   ['auto', 1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`ingame-load-${slot}`);
     if (!btn) return;
@@ -399,7 +367,6 @@ function wireUI() {
     });
   });
 
-  // In-game save menu — restart
   const ingameRestartBtn = document.getElementById('ingame-restart-btn');
   if (ingameRestartBtn) {
     ingameRestartBtn.addEventListener('click', () => {
@@ -411,7 +378,6 @@ function wireUI() {
     });
   }
 
-  // Splash — New Game
   dom.splashNewBtn.addEventListener('click', async () => {
     hideSplash();
     const charData = await showCharacterCreation();
@@ -422,16 +388,13 @@ function wireUI() {
     });
     dom.saveBtn.classList.remove('hidden');
     document.getElementById('undo-btn')?.classList.remove('hidden');
-    // Clear any undo history from a previous session — the stack is module-level
-    // and persists across load/new-game flows within the same page load.
     _undoStack.splice(0);
     updateUndoBtn();
-    clearSessionState();  // ENH-08: session state must not bleed into a new game
+    clearSessionState();
     await runStatsScene();
     await gotoScene(startup.sceneList[0] || 'prologue');
   });
 
-  // Splash — Load Game (show slot list)
   dom.splashLoadBtn.addEventListener('click', () => {
     dom.splashOverlay.querySelector('.splash-btn-col')?.classList.add('hidden');
     dom.splashSlots.classList.remove('hidden');
@@ -443,7 +406,6 @@ function wireUI() {
     dom.splashOverlay.querySelector('.splash-btn-col')?.classList.remove('hidden');
   });
 
-  // Splash — load from slot
   ['auto', 1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`slot-load-${slot}`);
     if (!btn) return;
@@ -455,7 +417,6 @@ function wireUI() {
     });
   });
 
-  // Splash — delete slot
   ['auto', 1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`slot-delete-${slot}`);
     if (!btn) return;
@@ -468,20 +429,16 @@ function wireUI() {
     });
   });
 
-  // Character creation input wiring lives in overlays.js — call once here
   wireCharCreation();
 
-  // Undo button
   const undoBtn = document.getElementById('undo-btn');
   if (undoBtn) undoBtn.addEventListener('click', popUndo);
 
-  // Debug overlay — toggle with backtick key
   document.addEventListener('keydown', e => {
     if (e.key === '`') { e.preventDefault(); toggleDebug(); }
   });
 
   // PATCH 6 of 6 — ENH-10: wire export/import buttons
-  // Export slot buttons
   [1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`save-export-${slot}`);
     if (!btn) return;
@@ -491,7 +448,6 @@ function wireUI() {
     });
   });
 
-  // Import file picker
   const importInput = document.getElementById('save-import-file');
   if (importInput) {
     importInput.addEventListener('change', async () => {
@@ -511,7 +467,7 @@ function wireUI() {
       } catch {
         showToast('Import failed: file could not be parsed as JSON.');
       }
-      importInput.value = '';  // reset so same file can be re-imported
+      importInput.value = '';
     });
   }
 }
@@ -526,6 +482,8 @@ async function boot() {
   // 2. Initialise UI modules with their DOM slices and cross-module callbacks.
   //    Each init() stores references locally so no module reaches into dom{}.
 
+  // FIX Main (sweep 4): pass executeBlock and runInterpreter to initNarrative
+  // so the choice click handler can call them without a circular import.
   initNarrative({
     narrativeContent: dom.narrativeContent,
     choiceArea:       dom.choiceArea,
@@ -533,6 +491,8 @@ async function boot() {
     onShowLevelUp:    showInlineLevelUp,
     scheduleStatsRender,
     onBeforeChoice:   pushUndoSnapshot,
+    executeBlock,
+    runInterpreter,
   });
 
   initPanels({
@@ -547,7 +507,6 @@ async function boot() {
     fetchTextFile,
     scheduleStatsRender,
     trapFocus,
-    // Wire callback so level-up confirmation is recorded in the narrative log
     onLevelUpConfirmed: (level) => {
       pushNarrativeLogEntry({ type: 'levelup_confirmed', level });
     },
@@ -571,7 +530,6 @@ async function boot() {
     runStatsScene,
     fetchTextFile,
     evalValue,
-    // Callbacks needed by the no-replay restoreFromSave
     renderFromLog,
     renderChoices,
     showInlineLevelUp,
@@ -586,14 +544,14 @@ async function boot() {
       setCurrentLines(parseLines(text));
       indexLabels(name, currentLines, labelsCache);
     },
-    setChoiceArea: (el) => {        // BUG-05: re-point both refs after renderFromLog
+    setChoiceArea: (el) => {
       dom.choiceArea = el;
       setChoiceArea(el);
     },
     clearUndoStack: () => {
       _undoStack.splice(0);
       updateUndoBtn();
-      clearSessionState();          // ENH-08: clear session state on load too
+      clearSessionState();
     },
   });
 
@@ -614,7 +572,7 @@ async function boot() {
     setChapterTitle: (t) => { dom.chapterTitle.textContent = t; setChapterTitleState(t); },
     runStatsScene,
     fetchTextFile,
-    getNarrativeLog,   // lets gotoScene and *save_point pass the log to auto-save
+    getNarrativeLog,
   });
 
   // 4. Wire all UI event listeners
