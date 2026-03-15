@@ -436,8 +436,10 @@ export function showCharacterCreation() {
   requestAnimationFrame(() => {
     const release = trapFocus(_charOverlay, null);
     _charOverlay._trapRelease = release;
+    // Focus the first name input inside the same rAF that wires the focus
+    // trap, so tab order is established before the field is focused.
+    try { _inputFirstName.focus(); } catch (_) {}
   });
-  setTimeout(() => { try { _inputFirstName.focus(); } catch (_) {} }, 80);
 
   return new Promise(resolve => { _charOverlay._resolve = resolve; });
 }
