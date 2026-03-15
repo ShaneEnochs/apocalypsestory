@@ -533,4 +533,6 @@ registerCommand('*choice', (t, line) => {
 // *ending
 registerCommand('*ending', () => {
   cb.showEndingScreen('The End', 'Your path is complete.');
+  // Jump past end of scene to stop the interpreter loop — the game is over.
+  setIp(currentLines.length);
 });
