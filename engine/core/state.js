@@ -136,11 +136,17 @@ export function setVar(command, evalValueFn) {
   const [, rawKey, rhs] = m;
   const key = normalizeKey(rawKey);
 
-  const inTemp   = Object.prototype.hasOwnProperty.call(tempState,   key);
-  const inPlayer = Object.prototype.hasOwnProperty.call(playerState, key);
-  const store    = inTemp ? tempState : playerState;
+  const inTemp    = Object.prototype.hasOwnProperty.call(tempState,    key);
+  const inSession = Object.prototype.hasOwnProperty.call(sessionState, key);
+  const inPlayer  = Object.prototype.hasOwnProperty.call(playerState,  key);
 
-  if (!inTemp && !inPlayer) {
+  // BUG-C fix: mirror the evalValue lookup order (temp → session → player)
+  // so *set can write to sessionState variables declared via *session_set.
+  // Previously only tempState and playerState were checked, causing *set on
+  // a session variable to silently do nothing.
+  const store = inTemp ? tempState : (inSession ? sessionState : playerState);
+
+  if (!inTemp && !inSession && !inPlayer) {
     console.warn(`[state] *set on undeclared variable "${key}" — did you mean *create or *temp?`);
     return; // Don't silently create garbage keys in persistent state
   }
@@ -171,11 +177,14 @@ export function setStatClamped(command, evalValueFn) {
   const [, rawKey, rest] = m;
   const key = normalizeKey(rawKey);
 
-  const inTemp   = Object.prototype.hasOwnProperty.call(tempState,   key);
-  const inPlayer = Object.prototype.hasOwnProperty.call(playerState, key);
-  const store    = inTemp ? tempState : playerState;
+  const inTemp    = Object.prototype.hasOwnProperty.call(tempState,    key);
+  const inSession = Object.prototype.hasOwnProperty.call(sessionState, key);
+  const inPlayer  = Object.prototype.hasOwnProperty.call(playerState,  key);
 
-  if (!inTemp && !inPlayer) {
+  // BUG-D fix: mirror setVar's corrected lookup order (temp → session → player).
+  const store = inTemp ? tempState : (inSession ? sessionState : playerState);
+
+  if (!inTemp && !inSession && !inPlayer) {
     console.warn(`[state] *set_stat on undeclared variable "${key}" — did you mean *create or *temp?`);
     return;
   }

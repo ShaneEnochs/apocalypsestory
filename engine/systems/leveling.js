@@ -60,19 +60,23 @@ export function checkAndApplyLevelUp(onChanged) {
 }
 
 // ---------------------------------------------------------------------------
-// applyVitalNumeric — applies a numeric reward to a vital field.
+// applyVitalNumeric — applies a numeric delta (positive or negative) to a
+// vital field.
 //
 // BUG-01 fix: health can be a string ("Healthy") or a number (100).
-//   - If it is a string, the reward SETS it to b (numeric), transitioning
-//     the field from status-string mode to numeric-HP mode.
-//   - If it is already a number, the reward ADDS b to it.
+//   - If it is a string and the delta is positive, the reward SETS it to b,
+//     transitioning the field from status-string mode to numeric-HP mode.
+//   - If it is a string and the delta is negative (BUG-H), we transition to 0
+//     rather than a negative number — a penalty against a string health means
+//     the character is now at 0 HP.
+//   - If it is already a number, the delta is simply added (can go negative).
 //   - mana and max_mana are always numeric; no special handling needed.
 // ---------------------------------------------------------------------------
 function applyVitalNumeric(key, b) {
   if (key === 'health') {
     if (typeof playerState[key] === 'string') {
-      // Transition: string → number. First health reward sets the value.
-      playerState[key] = b;
+      // Transition: string → number. Positive delta sets it; negative clamps to 0.
+      playerState[key] = b >= 0 ? b : 0;
     } else {
       playerState[key] = Number(playerState[key] || 0) + b;
     }
@@ -130,30 +134,43 @@ export function applySystemRewards(text, onChanged) {
 
   // --- Vitals (health, mana, max_mana) + per-stat patterns ---
   // NOTE: health uses applyVitalNumeric to support string→number transition (BUG-01 fix).
+  //
+  // BUG-H fix: added negative patterns (sign: -1) for each vital and stat so
+  // that system blocks describing penalties (e.g. "-30 health", "-5 mana") are
+  // actually applied to playerState.  Previously only positive (+N) patterns
+  // existed; negative rewards displayed as text but had no mechanical effect.
+  //
+  // Special case for health: if health is still a string ("Healthy") and we
+  // receive a negative delta, we transition to 0 rather than a negative number.
   const vitals = [
-    { regex: /\+\s*(\d+)\s+max\s+mana\b/i, key: 'max_mana' },
-    { regex: /\+\s*(\d+)\s+mana\b/i,       key: 'mana'     },
-    { regex: /\+\s*(\d+)\s+health\b/i,     key: 'health'   },
+    { regex: /\+\s*(\d+)\s+max\s+mana\b/i,  key: 'max_mana', sign:  1 },
+    { regex: /\-\s*(\d+)\s+max\s+mana\b/i,  key: 'max_mana', sign: -1 },
+    { regex: /\+\s*(\d+)\s+mana\b/i,         key: 'mana',     sign:  1 },
+    { regex: /\-\s*(\d+)\s+mana\b/i,         key: 'mana',     sign: -1 },
+    { regex: /\+\s*(\d+)\s+health\b/i,       key: 'health',   sign:  1 },
+    { regex: /\-\s*(\d+)\s+health\b/i,       key: 'health',   sign: -1 },
   ];
 
   const statPatterns = [];
   statRegistry.forEach(({ key, label }) => {
     const el = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    statPatterns.push({ regex: new RegExp(`\\+\\s*(\\d+)\\s+${el}\\b`, 'i'), key });
+    statPatterns.push({ regex: new RegExp(`\\+\\s*(\\d+)\\s+${el}\\b`, 'i'), key, sign:  1 });
+    statPatterns.push({ regex: new RegExp(`\\-\\s*(\\d+)\\s+${el}\\b`, 'i'), key, sign: -1 });
     // Also match by key name in case the label uses different casing / spacing
     const nk = key.toLowerCase(), nl = label.toLowerCase().replace(/\s+/g, '_');
     if (nk !== nl) {
       const ek = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/_/g, '[ _]');
-      statPatterns.push({ regex: new RegExp(`\\+\\s*(\\d+)\\s+${ek}\\b`, 'i'), key });
+      statPatterns.push({ regex: new RegExp(`\\+\\s*(\\d+)\\s+${ek}\\b`, 'i'), key, sign:  1 });
+      statPatterns.push({ regex: new RegExp(`\\-\\s*(\\d+)\\s+${ek}\\b`, 'i'), key, sign: -1 });
     }
   });
 
-  [...vitals, ...statPatterns].forEach(({ regex, key }) => {
+  [...vitals, ...statPatterns].forEach(({ regex, key, sign }) => {
     const m2 = text.match(regex);
     if (!m2) return;
     const b = Number(m2[1]);
     if (b > 0) {
-      applyVitalNumeric(key, b);
+      applyVitalNumeric(key, b * sign);
       stateChanged = true;
     }
   });

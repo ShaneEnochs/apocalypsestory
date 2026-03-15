@@ -121,7 +121,7 @@ export function deleteSaveSlot(slot) {
 }
 
 // ---------------------------------------------------------------------------
-// exportSaveSlot (ENH-10, FIX #12)
+// exportSaveSlot (ENH-10, FIX #12, BUG-G fix)
 // ---------------------------------------------------------------------------
 export function exportSaveSlot(slot) {
   const save = loadSaveFromSlot(slot);
@@ -134,7 +134,14 @@ export function exportSaveSlot(slot) {
   const a        = document.createElement('a');
   a.href         = url;
   a.download     = filename;
+
+  // BUG-G fix: the anchor must be attached to the document before .click() is
+  // called.  Chromium allows clicking a detached element but Firefox silently
+  // ignores it, so the export button did nothing on Firefox.
+  // Correct pattern: append → click → remove → revoke, all synchronously.
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
   return true;
 }
@@ -187,12 +194,19 @@ export async function restoreFromSave(save, {
   await parseStartup(fetchTextFileFn, evalValueFn);
 
   // 2. Merge saved playerState over fresh defaults.
-  const freshKeys     = new Set(Object.keys(playerState));
-  const savedFiltered = {};
-  for (const [k, v] of Object.entries(save.playerState)) {
-    if (freshKeys.has(k)) savedFiltered[k] = v;
-  }
-  setPlayerState({ ...playerState, ...JSON.parse(JSON.stringify(savedFiltered)) });
+  //
+  // BUG-E fix: the previous approach whitelisted only keys present in the
+  // post-startup playerState, which silently dropped any variable *create'd
+  // at runtime inside a scene file (those keys only appear in the save, not
+  // in the startup-derived defaults).
+  //
+  // New approach: start with the fresh startup defaults (so variables added
+  // to startup.txt since the save was made get their default values), then
+  // overlay the full saved playerState on top.  Every saved value —
+  // including runtime-created ones — is preserved.  Keys removed from
+  // startup.txt since the save was written will survive in the restored
+  // state, which is the safer trade-off compared to silently losing data.
+  setPlayerState({ ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) });
 
   // 3. Restore pending stat points.
   const savedPoints = save.pendingStatPoints ?? 0;
@@ -251,7 +265,9 @@ export async function restoreFromSave(save, {
           clearPauseState();
           clearNarrative();
           applyTransition();
-          runInterpreter().catch(err => console.error('[saves] runInterpreter error after page_break restore:', err));
+          // BUG-B fix: suppress auto-save — this is a restore-path resume,
+          // not a fresh navigation that should overwrite the player's save.
+          runInterpreter({ suppressAutoSave: true }).catch(err => console.error('[saves] runInterpreter error after page_break restore:', err));
         });
         break;
 
@@ -264,14 +280,16 @@ export async function restoreFromSave(save, {
             playerState[ps.varName] = value;
           }
           setIp(ps.resumeIp);
-          runInterpreter().catch(err => console.error('[saves] runInterpreter error after input restore:', err));
+          // BUG-B fix: suppress auto-save on restore-path resume.
+          runInterpreter({ suppressAutoSave: true }).catch(err => console.error('[saves] runInterpreter error after input restore:', err));
         });
         break;
 
       case 'delay':
         clearPauseState();
         setIp(ps.resumeIp);
-        runInterpreter().catch(err => console.error('[saves] runInterpreter error after delay restore:', err));
+        // BUG-B fix: suppress auto-save on restore-path resume.
+        runInterpreter({ suppressAutoSave: true }).catch(err => console.error('[saves] runInterpreter error after delay restore:', err));
         break;
     }
     return;

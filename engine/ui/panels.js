@@ -204,11 +204,29 @@ export function showInlineLevelUp() {
   if (pendingStatPoints <= 0) { setPendingLevelUpDisplay(false); return; }
   setPendingLevelUpDisplay(false);
 
+  // BUG-J fix: snapshot the available points at widget-creation time.
+  // If two system blocks in quick succession both trigger showInlineLevelUp
+  // (e.g. a multi-level gain), two separate widgets are inserted.  Without
+  // a snapshot both widgets would read the same live pendingStatPoints on
+  // Confirm, and each would deduct from the original total — leaving the
+  // player with more stat points than they earned.
+  //
+  // Each widget now owns exactly the points that were pending when it was
+  // created.  The first widget takes those points; any subsequent widget
+  // created in the same tick will see the already-reduced pendingStatPoints.
+  //
+  // A `confirmed` flag is also added so that rapid double-clicks on the
+  // Confirm button can never deduct points twice from a single widget.
+  const pointsForThisWidget = pendingStatPoints;
+  setPendingStatPoints(0);   // reserve these points for this widget immediately
+
   const keys     = getAllocatableStatKeys();
   const labelMap = {};
   statRegistry.forEach(({ key, label }) => { labelMap[key] = label; });
   const alloc = {};
   keys.forEach(k => { alloc[k] = 0; });
+
+  let confirmed = false;   // BUG-J: one-shot guard
 
   const block = document.createElement('div');
   block.className = 'levelup-inline-block';
@@ -266,7 +284,7 @@ export function showInlineLevelUp() {
 
   const render = () => {
     const spent    = Object.values(alloc).reduce((a, b) => a + b, 0);
-    const remain   = pendingStatPoints - spent;
+    const remain   = pointsForThisWidget - spent;
     const allSpent = remain === 0;
     const hasSkills = skillRegistry.length > 0;
 
@@ -317,11 +335,20 @@ export function showInlineLevelUp() {
     });
 
     block.querySelector('.levelup-confirm-btn')?.addEventListener('click', () => {
+      // BUG-J fix: one-shot guard — ignore any click after the first confirm.
+      if (confirmed) return;
       if (remain > 0) return;
+      confirmed = true;
+
       keys.forEach(k => {
         if (alloc[k]) playerState[k] = Number(playerState[k] || 0) + alloc[k];
       });
-      setPendingStatPoints(pendingStatPoints - Object.values(alloc).reduce((a, b) => a + b, 0));
+      // BUG-J fix: deduct from pointsForThisWidget (the snapshotted amount),
+      // not from the live pendingStatPoints which may have already been zeroed
+      // or modified by a concurrent widget.  The points were reserved (zeroed)
+      // at widget-creation time, so no further deduction of pendingStatPoints
+      // is needed here — we just need to apply the alloc to playerState, which
+      // is done above.
       _scheduleStats();
 
       block.classList.add('levelup-inline-block--confirmed');

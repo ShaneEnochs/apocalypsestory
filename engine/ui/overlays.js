@@ -187,7 +187,13 @@ export function showToast(message, durationMs = 2200) {
 export function populateSlotCard({ nameEl, metaEl, loadBtn, deleteBtn, cardEl, save }) {
   if (save) {
     const d = new Date(save.timestamp);
-    const sceneDisplay = save.label ? save.label : save.scene.toUpperCase();  // ENH-06
+    // BUG-L fix: strip any .txt extension from the scene name before
+    // uppercasing it. If a *goto_scene directive ever passes "scene.txt"
+    // instead of "scene", currentScene would contain the extension and the
+    // slot card would display "PROLOGUE.TXT" instead of "PROLOGUE".
+    const sceneDisplay = save.label
+      ? save.label
+      : save.scene.replace(/\.txt$/i, '').toUpperCase();  // ENH-06
     metaEl.textContent  = `${sceneDisplay} · ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
     nameEl.textContent  = save.characterName || 'Unknown';
     loadBtn.disabled    = false;

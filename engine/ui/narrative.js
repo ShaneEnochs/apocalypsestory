@@ -35,7 +35,7 @@
 // ---------------------------------------------------------------------------
 
 import {
-  playerState, tempState,
+  playerState, tempState, sessionState,
   pendingLevelUpDisplay, pendingStatPoints,
   normalizeKey,
   awaitingChoice, setAwaitingChoice,
@@ -138,9 +138,14 @@ function formatText(text) {
   // 1. Variable interpolation: ${varName}
   result = result.replace(/\$\{([a-zA-Z_][\w]*)\}/g, (_, v) => {
     const k   = normalizeKey(v);
+    // BUG-I fix: mirror evalValue lookup order (temp → session → player) so
+    // session variables declared via *session_set render correctly in narrative
+    // text.  Previously sessionState was skipped, causing ${sessionVar} to
+    // render as an empty string even though the same variable worked fine in
+    // *if conditions.
     const val = tempState[k] !== undefined
       ? tempState[k]
-      : (playerState[k] ?? '');
+      : (sessionState[k] !== undefined ? sessionState[k] : (playerState[k] ?? ''));
     return escapeHtml(val);
   });
 

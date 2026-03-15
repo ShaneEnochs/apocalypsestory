@@ -233,7 +233,7 @@ export async function gotoScene(name, label = null) {
   }
 }
 
-export async function runInterpreter() {
+export async function runInterpreter({ suppressAutoSave = false } = {}) {
   if (cb.debugLog) cb.debugLog('RUN_INTERP', `start ip=${ip} scene="${currentScene}"`);
   while (ip < currentLines.length) {
     await executeCurrentLine();
@@ -243,7 +243,11 @@ export async function runInterpreter() {
   if (pendingLevelUpDisplay) cb.showInlineLevelUp();
   cb.runStatsScene();
 
-  if (cb.getNarrativeLog) {
+  // BUG-B fix: don't auto-save when called from a save-restore callback.
+  // Restoring from a save already sets state correctly; firing an auto-save
+  // immediately would overwrite the player's real save with the mid-restore
+  // state before they have done anything.
+  if (!suppressAutoSave && cb.getNarrativeLog) {
     saveGameToSlot('auto', null, cb.getNarrativeLog());
   }
 }
@@ -393,15 +397,25 @@ registerCommand('*temp', (t) => {
   advanceIp();
 });
 
-// *add_xp N
-registerCommand('*add_xp', (t) => {
-  const n = Number(t.replace(/^\*add_xp\s*/, '').trim()) || 0;
+// *add_xp N  /  *award_xp N  (alias — scene files use *award_xp by convention)
+//
+// BUG-A fix: *award_xp was the intended scene-file directive but was never
+// registered.  *add_xp is kept as the canonical handler; *award_xp is
+// registered as a separate entry that strips its own prefix and delegates
+// to the same logic so both forms work identically.
+function _handleAddXp(n) {
   if (n > 0) {
     playerState.xp = Number(playerState.xp || 0) + n;
     checkAndApplyLevelUp(cb.scheduleStatsRender);
     cb.scheduleStatsRender();
   }
   advanceIp();
+}
+registerCommand('*award_xp', (t) => {
+  _handleAddXp(Number(t.replace(/^\*award_xp\s*/, '').trim()) || 0);
+});
+registerCommand('*add_xp', (t) => {
+  _handleAddXp(Number(t.replace(/^\*add_xp\s*/, '').trim()) || 0);
 });
 
 // *add_item itemName
@@ -541,11 +555,26 @@ registerCommand('*input', (t) => {
   // FIX #2: runInterpreter is async — must .catch() so errors are not swallowed.
   cb.showInputPrompt(varName, prompt, (value) => {
     clearPauseState();
-    if (Object.prototype.hasOwnProperty.call(tempState, varName)) {
-      tempState[varName] = value;
-    } else {
-      playerState[varName] = value;
+
+    // BUG-K fix: mirror the setVar lookup order (temp → session → player) and
+    // refuse to write to a variable that was never declared, matching the
+    // behaviour of *set.  Previously *input would silently create a new key in
+    // playerState for any mistyped variable name, with no warning to the author.
+    const inTemp    = Object.prototype.hasOwnProperty.call(tempState,    varName);
+    const inSession = Object.prototype.hasOwnProperty.call(sessionState, varName);
+    const inPlayer  = Object.prototype.hasOwnProperty.call(playerState,  varName);
+
+    if (!inTemp && !inSession && !inPlayer) {
+      cb.showEngineError(`*input: variable "${varName}" is not declared. Add *create ${varName} or *temp ${varName} before using *input.`);
+      setIp(resumeIp);
+      runInterpreter().catch(err => cb.showEngineError(err.message));
+      return;
     }
+
+    if (inTemp)         tempState[varName]    = value;
+    else if (inSession) sessionState[varName] = value;
+    else                playerState[varName]  = value;
+
     setIp(resumeIp);
     runInterpreter().catch(err => cb.showEngineError(err.message));
   });
@@ -619,13 +648,21 @@ registerCommand('*if', async (t, line) => {
 // in-game rather than only in the browser console.
 // FIX #10: guard raised from 100 → 10,000 so legitimate high-count loops
 //   (procedural generation, countdown timers) don't hit the limit.
+// BUG-F fix: if a *choice is encountered inside the loop body, awaitingChoice
+//   will be set by executeBlock. We must stamp awaitingChoice._savedIp with
+//   blockEnd before returning so the post-choice runInterpreter resumes AFTER
+//   the loop, not by re-entering it from the *loop line.
 registerCommand('*loop', async (t, line) => {
   const LOOP_GUARD = 10_000;
   const blockStart = ip + 1, blockEnd = findBlockEnd(blockStart, line.indent);
   let guard = 0;
   while (evaluateCondition(t) && guard < LOOP_GUARD) {
     await executeBlock(blockStart, blockEnd);
-    if (awaitingChoice) return;
+    if (awaitingChoice) {
+      // BUG-F fix: override _savedIp so resume lands after the entire loop.
+      awaitingChoice._savedIp = blockEnd;
+      return;
+    }
     // If a *goto inside the loop body relocated ip, honour it and exit the loop.
     if (_gotoJumped) { setGotoJumped(false); return; }
     guard += 1;
