@@ -1,6 +1,17 @@
 // ---------------------------------------------------------------------------
 // core/expression.js — Safe expression evaluator
-// (Unchanged from original — copied for test environment completeness)
+//
+// FIX #7: evalValue now returns 0 (falsy) on parse error instead of the raw
+//   expression string (which was truthy and caused conditions to "fail open" —
+//   e.g. a malformed *selectable_if condition would always enable the choice).
+//
+// FIX #8: parseOr and parseAnd no longer short-circuit token consumption.
+//   Previously: `left = left || parseAnd()` — if left was truthy, parseAnd()
+//   was never called, so its tokens were never consumed, corrupting the token
+//   stream for subsequent expressions (e.g. `flag or random(1,6) > 3` would
+//   leave `random(1,6) > 3` unconsumed and throw or misparse on the next call).
+//   Now: the right-hand side is ALWAYS fully parsed before the boolean is
+//   applied, matching how all other binary operators are handled.
 // ---------------------------------------------------------------------------
 
 import { playerState, tempState, sessionState, normalizeKey } from './state.js';
@@ -93,15 +104,28 @@ function makeParser(tokens) {
 
   function parseExpr() { return parseOr(); }
 
+  // FIX #8: Always consume the right-hand side before applying the boolean,
+  // so the token stream is never left in a partially-consumed state when the
+  // left operand already determines the result. This is necessary because
+  // the right side may contain function calls (e.g. random()) that must
+  // consume their argument tokens regardless of the boolean outcome.
   function parseOr() {
     let left = parseAnd();
-    while (peek().type === TT.OR) { advance(); left = left || parseAnd(); }
+    while (peek().type === TT.OR) {
+      advance();
+      const right = parseAnd(); // always consume, even if left is already truthy
+      left = left || right;
+    }
     return left;
   }
 
   function parseAnd() {
     let left = parseNot();
-    while (peek().type === TT.AND) { advance(); left = left && parseNot(); }
+    while (peek().type === TT.AND) {
+      advance();
+      const right = parseNot(); // always consume, even if left is already falsy
+      left = left && right;
+    }
     return left;
   }
 
@@ -249,7 +273,10 @@ export function evalValue(expr) {
     const parser = makeParser(tokens);
     return parser.parseExpr();
   } catch (err) {
+    // FIX #7: Return 0 (falsy) on parse error instead of the raw expression
+    // string (which was truthy, causing broken conditions to "fail open" —
+    // e.g. a malformed *selectable_if condition would always enable the choice).
     console.warn(`[expression] Parse error in "${trimmed}": ${err.message}`);
-    return trimmed.replace(/^"|"$/g, '');
+    return 0;
   }
 }
