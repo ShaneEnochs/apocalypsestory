@@ -9,7 +9,7 @@
 // ---------------------------------------------------------------------------
 
 import { playerState, pendingStatPoints, currentScene, ip,
-         setPlayerState, setPendingStatPoints,
+         setPlayerState, setPendingStatPoints, setPendingLevelUpDisplay,
          clearTempState, parseStartup,
          _pausedAtIp, setIsRestoring }                from '../core/state.js';
 
@@ -114,7 +114,12 @@ export async function restoreFromSave(save, { gotoScene, runStatsScene, fetchTex
   await parseStartup(fetchTextFileFn, evalValueFn);
 
   setPlayerState({ ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) });
-  setPendingStatPoints(save.pendingStatPoints ?? 0);
+  const savedPoints = save.pendingStatPoints ?? 0;
+  setPendingStatPoints(savedPoints);
+  // If points were unspent when the save was made, arm the display flag so
+  // renderChoices (called during the gotoScene replay) triggers showInlineLevelUp.
+  // Without this, the player would see disabled choices with no way to allocate.
+  if (savedPoints > 0) setPendingLevelUpDisplay(true);
   clearTempState();
 
   await runStatsScene();

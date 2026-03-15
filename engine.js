@@ -186,7 +186,7 @@ function pushUndoSnapshot() {
   updateUndoBtn();
 }
 
-function popUndo() {
+async function popUndo() {
   if (_undoStack.length === 0) return;
   const snap = _undoStack.pop();
 
@@ -221,7 +221,7 @@ function popUndo() {
 
   // Re-run the interpreter from the saved ip — this will hit the *choice
   // and re-render the choice buttons with fresh click handlers
-  runInterpreter();
+  await runInterpreter();
   runStatsScene();
   updateUndoBtn();
 }
