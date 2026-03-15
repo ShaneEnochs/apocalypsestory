@@ -36,7 +36,6 @@
 
 import {
   playerState, tempState, sessionState,
-  pendingLevelUpDisplay, pendingStatPoints,
   normalizeKey,
   awaitingChoice, setAwaitingChoice,
 } from '../core/state.js';
@@ -62,7 +61,6 @@ export function escapeHtml(val) {
 let _narrativeContent  = null;
 let _choiceArea        = null;
 let _narrativePanel    = null;
-let _onShowLevelUp     = null;
 let _scheduleStats     = null;
 let _onBeforeChoice    = null;
 
@@ -73,12 +71,11 @@ let _runInterpreter    = null;
 let _debugLog          = null;   // optional: (tag, detail) → void
 
 export function init({ narrativeContent, choiceArea, narrativePanel,
-                       onShowLevelUp, scheduleStatsRender, onBeforeChoice,
+                       scheduleStatsRender, onBeforeChoice,
                        executeBlock, runInterpreter, debugLog }) {
   _narrativeContent = narrativeContent;
   _choiceArea       = choiceArea;
   _narrativePanel   = narrativePanel;
-  _onShowLevelUp    = onShowLevelUp    || (() => {});
   _scheduleStats    = scheduleStatsRender || (() => {});
   _onBeforeChoice   = onBeforeChoice   || (() => {});
   _executeBlock     = executeBlock     || null;
@@ -188,7 +185,7 @@ export function addSystem(text) {
   applySystemRewards(text, _scheduleStats);
 
   const div       = document.createElement('div');
-  const isEssence = /(?:XP|Essence)\s+gained|bonus\s+(?:XP|Essence)|\+\d+\s+(?:XP|Essence)/i.test(text);
+  const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(text);
   const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(text);
   div.className = `system-block${isEssence ? ' xp-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
 
@@ -198,9 +195,6 @@ export function addSystem(text) {
 
   // Log the raw system text so renderFromLog can reconstruct the block.
   _narrativeLog.push({ type: 'system', text });
-
-  // pendingLevelUpDisplay is set by checkAndApplyLevelUp inside applySystemRewards
-  if (pendingLevelUpDisplay) _onShowLevelUp();
 }
 
 // ---------------------------------------------------------------------------
@@ -232,19 +226,15 @@ export function applyTransition() {
 // renderChoices — builds choice buttons and wires click → executeBlock
 //
 // Called by the interpreter (via the cb.renderChoices callback registered
-// in engine.js). Disables choices while a level-up is pending.
+// in engine.js).
 //
 // BUG J fix: choice container gets role="group" + aria-label; permanently-
-//   and temporarily-disabled buttons get aria-disabled="true"; first enabled
-//   button receives focus after render via requestAnimationFrame.
+//   disabled buttons get aria-disabled="true"; first enabled button
+//   receives focus after render via requestAnimationFrame.
 // BUG K fix: choiceMade guard prevents double-click / rapid-tap executing
 //   the same choice twice.
 // ---------------------------------------------------------------------------
 export function renderChoices(choices) {
-  // Show level-up UI before choices if points are still unspent
-  if (pendingLevelUpDisplay) _onShowLevelUp();
-
-  const levelUpActive = pendingStatPoints > 0;
   _choiceArea.innerHTML = '';
 
   // BUG J: mark container as a labelled group for screen readers
@@ -261,8 +251,6 @@ export function renderChoices(choices) {
     btn.innerHTML = `<span>${formatText(choice.text)}</span>`;
 
     // ENH-09: Render inline stat requirement badge if the choice has one.
-    // Looks up the stat value by normalising the tag label to a state key
-    // (lowercase, spaces→underscores), then colours the badge green/red.
     if (choice.statTag) {
       const { label, requirement } = choice.statTag;
       const key = normalizeKey(label.replace(/\s+/g, '_'));
@@ -277,22 +265,11 @@ export function renderChoices(choices) {
     }
 
     if (!choice.selectable) {
-      // Permanently unselectable — never gets a click handler.
       btn.disabled = true;
       btn.classList.add('choice-btn--disabled');
       btn.dataset.unselectable = 'true';
       btn.setAttribute('aria-disabled', 'true');
     } else {
-      // Always wire the click handler on selectable buttons, even when
-      // levelUpActive is true and the button starts out disabled.
-      //
-      // FIX BUG-LEVELUP: Previously, levelUpActive buttons fell into an
-      // `else if` branch that disabled them but attached NO click handler.
-      // When the level-up Confirm re-enabled the buttons, clicking them did
-      // nothing because there was no listener. The `disabled` attribute
-      // already prevents clicks from firing while the button is disabled, so
-      // attaching the handler unconditionally is safe — it only fires after
-      // Confirm removes `disabled`.
       btn.addEventListener('click', () => {
         if (choiceMade) {
           if (_debugLog) _debugLog('CHOICE BLOCKED', `choiceMade already true — btn="${choice.text.slice(0,30)}"`);
@@ -322,23 +299,12 @@ export function renderChoices(choices) {
             console.error('[narrative] choice execution error:', err);
           });
       });
-
-      // Disable temporarily if a level-up is pending confirmation.
-      if (levelUpActive) {
-        btn.disabled = true;
-        btn.classList.add('choice-btn--disabled');
-        btn.setAttribute('aria-disabled', 'true');
-      }
     }
 
     _choiceArea.appendChild(btn);
   });
 
-  // BUG J: move keyboard focus to the first enabled button after the DOM
-  // has painted, so tab-key users and screen readers land in the right place.
-  // preventScroll: true stops the browser auto-scrolling #narrative-content
-  // to the bottom when choices appear — the player should see content from
-  // the top, not jump straight to the buttons.
+  // BUG J: move keyboard focus to the first enabled button
   requestAnimationFrame(() => {
     const firstEnabled = _choiceArea.querySelector('.choice-btn:not(:disabled)');
     if (firstEnabled) firstEnabled.focus({ preventScroll: true });
@@ -454,7 +420,7 @@ export function renderFromLog(log, { skipAnimations = true } = {}) {  // eslint-
 
       case 'system': {
         const div       = document.createElement('div');
-        const isEssence = /(?:XP|Essence)\s+gained|bonus\s+(?:XP|Essence)|\+\d+\s+(?:XP|Essence)/i.test(entry.text);
+        const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(entry.text);
         const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(entry.text);
         div.className = `system-block${isEssence ? ' xp-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
         const formatted = formatText(entry.text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');

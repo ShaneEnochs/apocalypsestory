@@ -2,23 +2,20 @@
 // systems/leveling.js — Essence, level-up, and system reward parsing
 //
 // Essence is the unified currency: it pays for leveling up, purchasing skills,
-// and purchasing items.  Level-ups are manual (triggered by the player) but
-// this module still exposes canLevelUp() for the UI to check eligibility and
-// performLevelUp() for the UI to execute a single level-up.
+// and purchasing items.  Level-ups are manual (triggered by the player via the
+// Level Up button in the status panel, which opens a modal).
 //
-// checkAndApplyLevelUp is kept for backward compatibility with
-// applySystemRewards — it no longer auto-levels; it just flags that a
-// level-up is available so the UI can show the button.
+// canLevelUp() — returns true when the player has enough essence.
+// performLevelUp() — executes exactly one level-up (deducts essence, awards
+//   stat points).  Called by the level-up modal.
 //
-// applySystemRewards parses both legacy "XP" and new "Essence" patterns in
-// system block text so existing scene content continues to work.
+// applySystemRewards parses "Essence gained:" patterns in system block text.
 //
 // BUG-01 fix: health supports string OR number (unchanged from original).
 // ---------------------------------------------------------------------------
 
 import { playerState, statRegistry,
-         addPendingStatPoints, addPendingLevelUpCount,
-         setPendingLevelUpDisplay }            from '../core/state.js';
+         addPendingStatPoints }                  from '../core/state.js';
 import { addInventoryItem,
          parseInventoryUpdateText }            from './inventory.js';
 
@@ -67,24 +64,9 @@ export function performLevelUp(onChanged) {
 
   // Award stat points
   addPendingStatPoints(gain);
-  addPendingLevelUpCount(1);
 
   if (typeof onChanged === 'function') onChanged();
   return playerState.level;
-}
-
-// ---------------------------------------------------------------------------
-// checkAndApplyLevelUp — called after essence gains.
-//
-// In the new manual system this no longer auto-levels.  It simply checks
-// whether the player CAN level up and sets pendingLevelUpDisplay so the UI
-// can show a notification or button.
-// ---------------------------------------------------------------------------
-export function checkAndApplyLevelUp(onChanged) {
-  if (canLevelUp()) {
-    setPendingLevelUpDisplay(true);
-    if (typeof onChanged === 'function') onChanged();
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -105,21 +87,17 @@ function applyVitalNumeric(key, b) {
 // ---------------------------------------------------------------------------
 // applySystemRewards — parses a system block string for structured rewards.
 //
-// Supports BOTH legacy "XP" patterns and new "Essence" patterns so existing
-// scene content continues to work without modification.
-//   Legacy:  "XP gained: +100"  or  "+100 XP"
-//   New:     "Essence gained: +100"  or  "+100 Essence"
-//
+// Matches "Essence gained: +100" and "+100 Essence" patterns.
 // All matched amounts are applied to playerState.essence.
 // ---------------------------------------------------------------------------
 export function applySystemRewards(text, onChanged) {
   let stateChanged = false;
 
-  // --- Essence (+ legacy XP) ---
+  // --- Essence ---
   const essenceRanges = [];
   for (const pattern of [
-    /(?:XP|Essence)\s+gained\s*:\s*\+\s*(\d+)/gi,
-    /\+[^\S\n]*(\d+)[^\S\n]*(?:bonus[^\S\n]+)?(?:XP|Essence)\b/gi,
+    /Essence\s+gained\s*:\s*\+\s*(\d+)/gi,
+    /\+[^\S\n]*(\d+)[^\S\n]*(?:bonus[^\S\n]+)?Essence\b/gi,
   ]) {
     let match;
     while ((match = pattern.exec(text)) !== null) {
@@ -137,7 +115,6 @@ export function applySystemRewards(text, onChanged) {
   }
   if (gainedTotal > 0) {
     playerState.essence = Number(playerState.essence || 0) + gainedTotal;
-    checkAndApplyLevelUp(onChanged);
     stateChanged = true;
   }
 

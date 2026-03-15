@@ -60,7 +60,6 @@ let _evalValue           = null;   // (expr) → value
 // Phase 3 — new callbacks for the no-replay restoreFromSave
 let _renderFromLog       = null;   // (log, opts) → void
 let _renderChoices       = null;   // (choices) → void
-let _showInlineLevelUp   = null;   // () → void
 let _showPageBreak       = null;   // (btnText, onContinue) → void
 let _showInputPrompt     = null;   // (varName, prompt, onSubmit) → void
 let _runInterpreter      = null;   // async () → void
@@ -80,10 +79,10 @@ export function init({
   toast,
   runStatsScene, fetchTextFile, evalValue,
   // Callbacks needed by the no-replay restoreFromSave:
-  renderFromLog, renderChoices, showInlineLevelUp,
+  renderFromLog, renderChoices,
   showPageBreak, showInputPrompt, runInterpreter,
   clearNarrative, applyTransition, setChapterTitle,
-  parseAndCacheScene, setChoiceArea,   // BUG-05: added setChoiceArea
+  parseAndCacheScene, setChoiceArea,
   clearUndoStack,
   setGameTitle,
 }) {
@@ -110,7 +109,6 @@ export function init({
 
   _renderFromLog      = renderFromLog;
   _renderChoices      = renderChoices;
-  _showInlineLevelUp  = showInlineLevelUp;
   _showPageBreak      = showPageBreak;
   _showInputPrompt    = showInputPrompt;
   _runInterpreter     = runInterpreter;
@@ -119,7 +117,7 @@ export function init({
   _setChapterTitle    = setChapterTitle;
   _parseAndCacheScene = parseAndCacheScene;
   _clearUndoStack     = clearUndoStack || null;
-  _setChoiceArea      = setChoiceArea || null;   // BUG-05
+  _setChoiceArea      = setChoiceArea || null;
   _setGameTitle       = setGameTitle || null;
 }
 
@@ -262,14 +260,13 @@ export async function loadAndResume(save) {
     runStatsScene:      _runStatsScene,
     renderFromLog:      _renderFromLog,
     renderChoices:      _renderChoices,
-    showInlineLevelUp:  _showInlineLevelUp,
     showPageBreak:      _showPageBreak,
     showInputPrompt:    _showInputPrompt,
     runInterpreter:     _runInterpreter,
     clearNarrative:     _clearNarrative,
     applyTransition:    _applyTransition,
     setChapterTitle:    _setChapterTitle,
-    setChoiceArea:      _setChoiceArea,    // BUG-05 fix
+    setChoiceArea:      _setChoiceArea,
     parseAndCacheScene: _parseAndCacheScene,
     fetchTextFileFn:    _fetchTextFile,
     evalValueFn:        _evalValue,

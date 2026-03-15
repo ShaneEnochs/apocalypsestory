@@ -18,11 +18,12 @@
 import {
   playerState, statRegistry,
   pendingStatPoints,
-  setPendingStatPoints, setPendingLevelUpDisplay,
+  setPendingStatPoints,
+  setLevelUpInProgress, levelUpInProgress,
   normalizeKey,
 } from '../core/state.js';
 
-import { getAllocatableStatKeys } from '../systems/leveling.js';
+import { getAllocatableStatKeys, canLevelUp, performLevelUp } from '../systems/leveling.js';
 import { skillRegistry, playerHasSkill, purchaseSkill } from '../systems/skills.js';
 import { getJournalEntries, getAchievements } from '../systems/journal.js';
 import { escapeHtml } from './narrative.js'; // FIX #5: reuse shared sanitizer
@@ -30,35 +31,36 @@ import { escapeHtml } from './narrative.js'; // FIX #5: reuse shared sanitizer
 // ---------------------------------------------------------------------------
 // Module-level DOM references and callbacks — populated by init()
 // ---------------------------------------------------------------------------
-let _narrativeContent   = null;
-let _choiceArea         = null;
 let _statusPanel        = null;
 let _endingOverlay      = null;
 let _endingTitle        = null;
 let _endingContent      = null;
 let _endingStats        = null;
 let _endingActionBtn    = null;
+let _levelUpOverlay     = null;
 let _fetchTextFile      = null;   // async (name) → string
 let _scheduleStats      = null;   // () → void
 let _trapFocus          = null;   // (el, trigger) → release fn
+let _showToast          = null;   // (msg: string) → void
 let _onLevelUpConfirmed = null;   // (level: number) → void
 
-export function init({ narrativeContent, choiceArea, statusPanel,
+export function init({ statusPanel,
                        endingOverlay, endingTitle, endingContent,
                        endingStats, endingActionBtn,
+                       levelUpOverlay,
                        fetchTextFile, scheduleStatsRender, trapFocus,
-                       onLevelUpConfirmed }) {
-  _narrativeContent   = narrativeContent;
-  _choiceArea         = choiceArea;
+                       showToast, onLevelUpConfirmed }) {
   _statusPanel        = statusPanel;
   _endingOverlay      = endingOverlay;
   _endingTitle        = endingTitle;
   _endingContent      = endingContent;
   _endingStats        = endingStats;
   _endingActionBtn    = endingActionBtn;
+  _levelUpOverlay     = levelUpOverlay;
   _fetchTextFile      = fetchTextFile;
   _scheduleStats      = scheduleStatsRender;
   _trapFocus          = trapFocus;
+  _showToast          = showToast || (() => {});
   _onLevelUpConfirmed = onLevelUpConfirmed || null;
 }
 
@@ -183,7 +185,21 @@ export async function runStatsScene() {
     }
   });
   if (inGroup) html += `</div>`;
+
+  // Level Up button — shown when the player can afford a level-up
+  if (canLevelUp() && !levelUpInProgress) {
+    html += `<div class="status-section status-levelup-section"><button class="status-levelup-btn" id="status-levelup-btn">⬡ Level Up</button></div>`;
+  }
+
   _statusPanel.innerHTML = html;
+
+  // Wire Level Up button
+  const lvlBtn = _statusPanel.querySelector('#status-levelup-btn');
+  if (lvlBtn) {
+    lvlBtn.addEventListener('click', () => {
+      showLevelUpModal();
+    });
+  }
 
   // Wire skill accordion toggles in the status panel
   _statusPanel.querySelectorAll('.skill-accordion-btn').forEach(btn => {
@@ -197,28 +213,28 @@ export async function runStatsScene() {
 }
 
 // ---------------------------------------------------------------------------
-// showInlineLevelUp — inline stat-allocation block inserted into the narrative.
-// (unchanged from original — no HTML injection paths in this function)
+// showLevelUpModal — full-screen blocking modal for manual level-up.
+//
+// Calls performLevelUp() to execute the level-up (deduct essence, increment
+// level, award stat points), then presents the stat allocation grid.
+// The modal traps focus and sets levelUpInProgress to prevent saving.
 // ---------------------------------------------------------------------------
-export function showInlineLevelUp() {
-  if (pendingStatPoints <= 0) { setPendingLevelUpDisplay(false); return; }
-  setPendingLevelUpDisplay(false);
+let _trapRelease = null;
 
-  // BUG-J fix: snapshot the available points at widget-creation time.
-  // If two system blocks in quick succession both trigger showInlineLevelUp
-  // (e.g. a multi-level gain), two separate widgets are inserted.  Without
-  // a snapshot both widgets would read the same live pendingStatPoints on
-  // Confirm, and each would deduct from the original total — leaving the
-  // player with more stat points than they earned.
-  //
-  // Each widget now owns exactly the points that were pending when it was
-  // created.  The first widget takes those points; any subsequent widget
-  // created in the same tick will see the already-reduced pendingStatPoints.
-  //
-  // A `confirmed` flag is also added so that rapid double-clicks on the
-  // Confirm button can never deduct points twice from a single widget.
-  const pointsForThisWidget = pendingStatPoints;
-  setPendingStatPoints(0);   // reserve these points for this widget immediately
+export function showLevelUpModal() {
+  if (!_levelUpOverlay) return;
+  if (levelUpInProgress) return;
+
+  // Execute the level-up
+  const prevLevel = Number(playerState.level || 1);
+  const newLevel = performLevelUp(() => {});
+  if (newLevel === null) return;  // can't afford
+
+  setLevelUpInProgress(true);
+
+  // Snapshot stat points awarded for this level-up
+  const pointsToSpend = pendingStatPoints;
+  setPendingStatPoints(0);
 
   const keys     = getAllocatableStatKeys();
   const labelMap = {};
@@ -226,79 +242,31 @@ export function showInlineLevelUp() {
   const alloc = {};
   keys.forEach(k => { alloc[k] = 0; });
 
-  let confirmed = false;   // BUG-J: one-shot guard
+  let confirmed = false;
 
-  const block = document.createElement('div');
-  block.className = 'levelup-inline-block';
-  _narrativeContent.insertBefore(block, _choiceArea);
+  const box = _levelUpOverlay.querySelector('.levelup-modal-box');
+  if (!box) return;
 
-  let skillBrowserOpen = false;
-
-  function buildSkillBrowserHTML() {
-    const available = skillRegistry.filter(s => !playerHasSkill(s.key));
-    const owned     = skillRegistry.filter(s =>  playerHasSkill(s.key));
-    let html = `<div class="skill-browser">`;
-
-    if (available.length) {
-      html += `<div class="skill-browser-section-label">Available</div>`;
-      available.forEach(s => {
-        const canAfford = Number(playerState.essence || 0) >= s.essenceCost;
-        // FIX #5: escape skill label and description here too
-        html += `
-          <div class="skill-browser-card ${canAfford ? 'skill-browser-card--available' : 'skill-browser-card--unaffordable'}">
-            <div class="skill-browser-card-top">
-              <span class="skill-browser-card-name">${escapeHtml(s.label)}</span>
-              <div class="skill-browser-card-actions">
-                <span class="skill-browser-sp-badge ${canAfford ? 'skill-browser-sp-badge--can-afford' : ''}">${s.essenceCost} Essence</span>
-                <button class="skill-purchase-btn" data-purchase-key="${escapeHtml(s.key)}" ${canAfford ? '' : 'disabled'}>Unlock</button>
-              </div>
-            </div>
-            <div class="skill-browser-card-desc">${escapeHtml(s.description)}</div>
-          </div>`;
-      });
-    }
-
-    if (owned.length) {
-      html += `<div class="skill-browser-section-label skill-browser-section-label--owned">Learned</div>`;
-      owned.forEach(s => {
-        html += `
-          <div class="skill-browser-card skill-browser-card--owned">
-            <div class="skill-browser-card-top">
-              <span class="skill-browser-card-name">${escapeHtml(s.label)}</span>
-              <div class="skill-browser-card-actions">
-                <span class="skill-browser-owned-badge">✓ Learned</span>
-              </div>
-            </div>
-            <div class="skill-browser-card-desc">${escapeHtml(s.description)}</div>
-          </div>`;
-      });
-    }
-
-    if (!available.length && !owned.length) {
-      html += `<div class="skill-browser-empty">No skills defined.</div>`;
-    }
-
-    html += `</div>`;
-    return html;
-  }
-
-  const render = () => {
+  function render() {
     const spent    = Object.values(alloc).reduce((a, b) => a + b, 0);
-    const remain   = pointsForThisWidget - spent;
+    const remain   = pointsToSpend - spent;
     const allSpent = remain === 0;
-    const hasSkills = skillRegistry.length > 0;
 
-    block.innerHTML = `
-      <span class="system-block-label">[ LEVEL UP ]</span>
-      <div class="levelup-inline-header">
-        Reached <strong>Level ${playerState.level}</strong>
-        <span class="levelup-points-remaining">${remain} point${remain !== 1 ? 's' : ''} remaining</span>
+    box.innerHTML = `
+      <div class="levelup-modal-header">
+        <span class="system-block-label">[ LEVEL UP ]</span>
+        <div class="levelup-modal-title">
+          Level ${prevLevel} → <strong>Level ${newLevel}</strong>
+        </div>
+        <div class="levelup-modal-subtitle">
+          <span class="levelup-points-remaining">${remain} point${remain !== 1 ? 's' : ''} remaining</span>
+        </div>
       </div>
       <div class="stat-alloc-grid">
         ${keys.map(k => `
           <div class="stat-alloc-item ${alloc[k] ? 'selected' : ''}">
             <span class="stat-alloc-name">${escapeHtml(labelMap[k] || k)}</span>
-            <div style="display:flex;justify-content:center;gap:8px;align-items:center;">
+            <div class="stat-alloc-controls">
               <button class="alloc-btn" data-op="minus" data-k="${k}" ${alloc[k] <= 0 ? 'disabled' : ''}>−</button>
               <span class="stat-alloc-val ${alloc[k] ? 'buffed' : ''}">${Number(playerState[k] || 0) + alloc[k]}</span>
               <button class="alloc-btn" data-op="plus"  data-k="${k}" ${remain <= 0 ? 'disabled' : ''}>+</button>
@@ -306,13 +274,11 @@ export function showInlineLevelUp() {
           </div>
         `).join('')}
       </div>
-      ${skillBrowserOpen ? buildSkillBrowserHTML() : ''}
-      <div class="levelup-inline-footer" style="display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap;">
-        ${hasSkills ? `<button class="skill-browse-btn" data-toggle-skills>${skillBrowserOpen ? 'Hide Skills' : 'Browse Skills'}</button>` : ''}
+      <div class="levelup-modal-footer">
         <button class="levelup-confirm-btn ${allSpent ? '' : 'levelup-confirm-btn--locked'}" ${allSpent ? '' : 'disabled'}>Confirm</button>
       </div>`;
 
-    block.querySelectorAll('.alloc-btn').forEach(btn => {
+    box.querySelectorAll('.alloc-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const k  = btn.dataset.k;
         const op = btn.dataset.op;
@@ -322,60 +288,50 @@ export function showInlineLevelUp() {
       });
     });
 
-    block.querySelector('[data-toggle-skills]')?.addEventListener('click', () => {
-      skillBrowserOpen = !skillBrowserOpen;
-      render();
-    });
-
-    block.querySelectorAll('.skill-purchase-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const key = btn.dataset.purchaseKey;
-        if (purchaseSkill(key)) { _scheduleStats(); render(); }
-      });
-    });
-
-    block.querySelector('.levelup-confirm-btn')?.addEventListener('click', () => {
-      // BUG-J fix: one-shot guard — ignore any click after the first confirm.
+    box.querySelector('.levelup-confirm-btn')?.addEventListener('click', () => {
       if (confirmed) return;
       if (remain > 0) return;
       confirmed = true;
 
+      // Apply stat allocations
       keys.forEach(k => {
         if (alloc[k]) playerState[k] = Number(playerState[k] || 0) + alloc[k];
       });
-      // BUG-J fix: deduct from pointsForThisWidget (the snapshotted amount),
-      // not from the live pendingStatPoints which may have already been zeroed
-      // or modified by a concurrent widget.  The points were reserved (zeroed)
-      // at widget-creation time, so no further deduction of pendingStatPoints
-      // is needed here — we just need to apply the alloc to playerState, which
-      // is done above.
+
+      setLevelUpInProgress(false);
+      hideLevelUpModal();
       _scheduleStats();
 
-      block.classList.add('levelup-inline-block--confirmed');
-      block.innerHTML = `<span class="system-block-label">[ LEVEL UP ]</span><span class="system-block-text levelup-confirmed-text">Level ${playerState.level} reached — stats allocated.</span>`;
-      block.style.opacity = '0.55';
-
-      if (_onLevelUpConfirmed) _onLevelUpConfirmed(playerState.level);
-
-      // Re-enable choices now that the level-up is resolved.
-      // BUG-H fix: use a live getElementById query instead of the cached
-      // _choiceArea ref, which may point to a stale element after DOM updates.
-      // BUG-2 fix: only re-enable buttons that were temporarily disabled for
-      // the level-up. Buttons with data-unselectable="true" were permanently
-      // disabled by *selectable_if (false) and must stay locked.
-      const liveChoiceArea = document.getElementById('choice-area');
-      if (liveChoiceArea) {
-        liveChoiceArea.querySelectorAll('.choice-btn').forEach(b => {
-          if (b.dataset.unselectable !== 'true') {
-            b.disabled = false;
-            b.classList.remove('choice-btn--disabled');
-          }
-        });
-      }
+      if (_onLevelUpConfirmed) _onLevelUpConfirmed(newLevel);
+      _showToast(`Reached Level ${newLevel}`);
     });
-  };
+  }
+
+  // Show modal
+  _levelUpOverlay.classList.remove('hidden');
+  requestAnimationFrame(() => {
+    _levelUpOverlay.style.opacity = '1';
+  });
+
+  // Trap focus
+  if (_trapFocus) {
+    _trapRelease = _trapFocus(_levelUpOverlay, null);
+  }
 
   render();
+
+  // Focus first allocate button
+  requestAnimationFrame(() => {
+    const firstBtn = box.querySelector('.alloc-btn:not(:disabled)');
+    if (firstBtn) firstBtn.focus({ preventScroll: true });
+  });
+}
+
+function hideLevelUpModal() {
+  if (!_levelUpOverlay) return;
+  _levelUpOverlay.classList.add('hidden');
+  _levelUpOverlay.style.opacity = '0';
+  if (_trapRelease) { _trapRelease(); _trapRelease = null; }
 }
 
 // ---------------------------------------------------------------------------

@@ -44,8 +44,7 @@ export let awaitingChoice = null;
 // Level-up / stat allocation
 // ---------------------------------------------------------------------------
 export let pendingStatPoints     = 0;
-export let pendingLevelUpDisplay = false;
-export let _pendingLevelUpCount  = 0;
+export let levelUpInProgress     = false;
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -103,9 +102,7 @@ export function setAwaitingChoice(c)        { awaitingChoice = c; }
 
 export function setPendingStatPoints(n)     { pendingStatPoints = n; }
 export function addPendingStatPoints(n)     { pendingStatPoints += n; }
-export function setPendingLevelUpDisplay(v) { pendingLevelUpDisplay = v; }
-export function setPendingLevelUpCount(n)   { _pendingLevelUpCount = n; }
-export function addPendingLevelUpCount(n)   { _pendingLevelUpCount += n; }
+export function setLevelUpInProgress(v)     { levelUpInProgress = v; }
 
 // setDelayIndex / advanceDelayIndex removed — animation stagger system eliminated
 

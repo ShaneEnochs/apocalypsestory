@@ -58,7 +58,7 @@
 
 import {
   playerState, tempState, currentLines, ip, currentScene,
-  _gotoJumped, awaitingChoice, pendingLevelUpDisplay,
+  _gotoJumped, awaitingChoice,
   statRegistry, setStatRegistry,
   setCurrentScene, setCurrentLines, setIp, advanceIp,
   setGotoJumped, setAwaitingChoice, clearTempState,
@@ -71,7 +71,6 @@ import {
 import { evalValue }            from './expression.js';
 import { parseLines, indexLabels, parseChoice, parseSystemBlock } from './parser.js';
 import { addInventoryItem, removeInventoryItem, itemBaseName }     from '../systems/inventory.js';
-import { checkAndApplyLevelUp }                                    from '../systems/leveling.js';
 import { saveGameToSlot }                                          from '../systems/saves.js';
 import { grantSkill, revokeSkill, playerHasSkill }                 from '../systems/skills.js';
 import { addJournalEntry }                                         from '../systems/journal.js';
@@ -80,7 +79,7 @@ import { addJournalEntry }                                         from '../syst
 // Callback registry — UI functions injected by engine.js at boot.
 //
 // The interpreter needs to call addParagraph, addSystem, clearNarrative,
-// applyTransition, formatText, renderChoices, showInlineLevelUp,
+// applyTransition, formatText, renderChoices,
 // showEndingScreen, showEngineError, scheduleStatsRender, and access
 // dom.chapterTitle. None of those live here. At boot, engine.js calls
 // registerCallbacks({ ... }) to wire them up.
@@ -240,7 +239,6 @@ export async function runInterpreter({ suppressAutoSave = false } = {}) {
     if (awaitingChoice) break;
   }
   if (cb.debugLog) cb.debugLog('RUN_INTERP', `halted ip=${ip} awaitingChoice=${!!awaitingChoice} pauseState=${pauseState?.type ?? 'none'}`);
-  if (pendingLevelUpDisplay) cb.showInlineLevelUp();
   cb.runStatsScene();
 
   // BUG-B fix: don't auto-save when called from a save-restore callback.
@@ -410,12 +408,10 @@ registerCommand('*temp', (t) => {
 });
 
 // *award_essence N  /  *add_essence N  — primary Essence-granting directives.
-// Legacy aliases *award_xp / *add_xp are kept for backward compatibility
-// so existing scene files continue to work without modification.
+// *award_essence N  /  *add_essence N  — Essence-granting directives.
 function _handleAddEssence(n) {
   if (n > 0) {
     playerState.essence = Number(playerState.essence || 0) + n;
-    checkAndApplyLevelUp(cb.scheduleStatsRender);
     cb.scheduleStatsRender();
   }
   advanceIp();
@@ -425,13 +421,6 @@ registerCommand('*award_essence', (t) => {
 });
 registerCommand('*add_essence', (t) => {
   _handleAddEssence(Number(t.replace(/^\*add_essence\s*/, '').trim()) || 0);
-});
-// Legacy aliases
-registerCommand('*award_xp', (t) => {
-  _handleAddEssence(Number(t.replace(/^\*award_xp\s*/, '').trim()) || 0);
-});
-registerCommand('*add_xp', (t) => {
-  _handleAddEssence(Number(t.replace(/^\*add_xp\s*/, '').trim()) || 0);
 });
 
 // *add_item itemName

@@ -25,8 +25,8 @@
 import {
   playerState, tempState, pendingStatPoints, currentScene, ip,
   chapterTitle, statRegistry,
-  awaitingChoice,                          // FIX #S6: needed for save payload
-  setPlayerState, setPendingStatPoints, setPendingLevelUpDisplay,
+  awaitingChoice, levelUpInProgress,
+  setPlayerState, setPendingStatPoints,
   setStatRegistry,
   setCurrentScene, setCurrentLines, setIp,
   setAwaitingChoice,
@@ -88,6 +88,10 @@ export function buildSavePayload(slot, label, narrativeLog) {
 // saveGameToSlot
 // ---------------------------------------------------------------------------
 export function saveGameToSlot(slot, label = null, narrativeLog = []) {
+  if (levelUpInProgress) {
+    console.warn('[saves] Save blocked — level-up in progress.');
+    return;
+  }
   const key = saveKeyForSlot(slot);
   if (!key) { console.warn(`[saves] Unknown save slot: "${slot}"`); return; }
   try {
@@ -182,7 +186,6 @@ export async function restoreFromSave(save, {
   runStatsScene,
   renderFromLog,
   renderChoices,
-  showInlineLevelUp,
   showPageBreak,
   showInputPrompt,
   runInterpreter,
@@ -215,7 +218,6 @@ export async function restoreFromSave(save, {
   // 3. Restore pending stat points.
   const savedPoints = save.pendingStatPoints ?? 0;
   setPendingStatPoints(savedPoints);
-  if (savedPoints > 0) setPendingLevelUpDisplay(true);
   clearTempState();
 
   // Restore statRegistry from save (FIX #S4).
@@ -305,6 +307,5 @@ export async function restoreFromSave(save, {
   if (save.awaitingChoice) {
     setAwaitingChoice(save.awaitingChoice);
     renderChoices(save.awaitingChoice.choices);
-    if (savedPoints > 0) showInlineLevelUp();
   }
 }

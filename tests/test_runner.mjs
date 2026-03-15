@@ -92,13 +92,13 @@ import {
   setStatRegistry, statRegistry,
   sessionState, clearSessionState, patchSessionState,
   setCurrentScene, parseStartup,
-  pendingStatPoints, setPendingStatPoints, setPendingLevelUpDisplay, setPendingLevelUpCount,
+  pendingStatPoints, setPendingStatPoints,
 } from '../engine/core/state.js';
 
 import { evalValue } from '../engine/core/expression.js';
 import { parseLines, indexLabels, parseChoice, parseSystemBlock } from '../engine/core/parser.js';
 import { addInventoryItem, removeInventoryItem, itemBaseName, parseInventoryUpdateText } from '../engine/systems/inventory.js';
-import { checkAndApplyLevelUp, applySystemRewards, getAllocatableStatKeys } from '../engine/systems/leveling.js';
+import { performLevelUp, canLevelUp, applySystemRewards, getAllocatableStatKeys } from '../engine/systems/leveling.js';
 import { importSaveFromJSON, SAVE_VERSION, buildSavePayload, loadSaveFromSlot } from '../engine/systems/saves.js';
 
 // Skills and journal need dynamic import because they depend on state being set up
@@ -111,9 +111,9 @@ const { addJournalEntry, getJournalEntries, getAchievements } = await import('..
 function resetState() {
   setPlayerState({
     first_name: 'Test', last_name: 'Player', pronouns: 'they/them',
-    class_name: 'Warrior', level: 1, xp: 0, xp_to_next: 1000,
-    xp_up_mult: 1.2, lvl_up_stat_gain: 2, lvl_up_skill_gain: 1,
-    skill_points: 0, health: 'Healthy', mana: 100, max_mana: 100,
+    class_name: 'Warrior', level: 1, essence: 0, essence_to_next: 1000,
+    essence_up_mult: 1.2, lvl_up_stat_gain: 2,
+    health: 'Healthy', mana: 100, max_mana: 100,
     body: 10, mind: 10, spirit: 10, social: 10,
     inventory: [], skills: [], journal: [],
     loop_counter: 0,
@@ -348,22 +348,30 @@ const invExcluded = parseInventoryUpdateText('Inventory updated: assembled');
 assertDeepEq(invExcluded, [], 'excluded word "assembled" still filtered out');
 
 // ---------------------------------------------------------------------------
-group('Leveling — checkAndApplyLevelUp');
+group('Leveling — canLevelUp and performLevelUp (manual system)');
 // ---------------------------------------------------------------------------
 resetState();
 
 setPendingStatPoints(0);
-setPendingLevelUpDisplay(false);
-setPendingLevelUpCount(0);
 
-playerState.xp = 1500;  // crosses thresholds: 1000 → 1200 → 1440 (3 level-ups)
+// Give enough essence to cross multiple thresholds
+playerState.essence = 1500;
+playerState.essence_to_next = 1000;
+
+// canLevelUp should return true
+assert(canLevelUp(), 'canLevelUp returns true when essence >= essence_to_next');
+
+// canLevelUp should return true, but no auto-leveling occurs
 let changed = false;
-checkAndApplyLevelUp(() => { changed = true; });
+assert(canLevelUp(), 'canLevelUp returns true before manual level-up');
 
-assertEq(playerState.level, 4, 'leveled up to 4 (crossed 3 thresholds)');
-assertEq(changed, true, 'onChanged callback fired');
-assert(playerState.xp_to_next > 1440, 'xp_to_next increased past 1440');
-assertEq(playerState.skill_points, 3, '3 skill points awarded (1 per level-up)');
+// performLevelUp executes exactly one level-up
+const newLevel = performLevelUp(() => {});
+assertEq(newLevel, 2, 'performLevelUp returns new level 2');
+assertEq(playerState.level, 2, 'level incremented to 2');
+assert(playerState.essence < 1500, 'essence deducted after performLevelUp');
+assert(playerState.essence_to_next > 1000, 'essence_to_next scaled up');
+assert(pendingStatPoints > 0, 'stat points awarded by performLevelUp');
 
 // ---------------------------------------------------------------------------
 group('Leveling — applySystemRewards');
@@ -371,9 +379,9 @@ group('Leveling — applySystemRewards');
 resetState();
 setPendingStatPoints(0);
 
-playerState.xp = 0;
-applySystemRewards('XP gained: +500', () => {});
-assertEq(playerState.xp, 500, 'XP reward applied');
+playerState.essence = 0;
+applySystemRewards('Essence gained: +500', () => {});
+assertEq(playerState.essence, 500, 'Essence reward applied');
 
 playerState.body = 10;
 applySystemRewards('+3 to all stats', () => {});
@@ -445,21 +453,21 @@ assertDeepEq(playerState.skills, [], 'skills array empty after revoke');
 // Purchase requires skillRegistry setup — mock it
 const { skillRegistry: sr } = await import('../engine/systems/skills.js');
 // Manually push a test skill into the registry
-sr.push({ key: 'test_skill', label: 'Test Skill', spCost: 3, description: 'A test.' });
+sr.push({ key: 'test_skill', label: 'Test Skill', essenceCost: 3, description: 'A test.' });
 
-playerState.skill_points = 5;
+playerState.essence = 5;
 const bought = purchaseSkill('test_skill');
 assert(bought, 'purchaseSkill returns true');
 assert(playerHasSkill('test_skill'), 'has test_skill after purchase');
-assertEq(playerState.skill_points, 2, 'SP deducted (5 - 3 = 2)');
+assertEq(playerState.essence, 2, 'Essence deducted (5 - 3 = 2)');
 
 const buyAgain = purchaseSkill('test_skill');
 assert(!buyAgain, 'cannot buy already-owned skill');
 
-playerState.skill_points = 0;
-sr.push({ key: 'expensive', label: 'Expensive', spCost: 10, description: 'Costly.' });
+playerState.essence = 0;
+sr.push({ key: 'expensive', label: 'Expensive', essenceCost: 10, description: 'Costly.' });
 const cantAfford = purchaseSkill('expensive');
-assert(!cantAfford, 'cannot afford skill with 0 SP');
+assert(!cantAfford, 'cannot afford skill with 0 Essence');
 
 // ---------------------------------------------------------------------------
 group('Journal — entries and achievements');
@@ -536,10 +544,9 @@ const origWarn = console.warn;
 console.warn = (...args) => { warnMessages.push(args.join(' ')); origWarn(...args); };
 
 // Startup with all config keys present — no config warning
-const fullStartupText = `*create xp_up_mult 1.2
+const fullStartupText = `*create essence_up_mult 1.2
 *create lvl_up_stat_gain 2
-*create lvl_up_skill_gain 1
-*create xp_to_next 1000
+*create essence_to_next 1000
 *create_stat body "Body" 10
 *scene_list
   prologue`;
@@ -549,18 +556,17 @@ const warnsBefore = warnMessages.length;
 const hasConfigWarn = warnMessages.some(m => m.includes('Missing level-up config') || m.includes('missing level-up config'));
 assertEq(hasConfigWarn, false, 'no level-up config warning when all keys present');
 
-// Startup missing xp_up_mult — should warn
+// Startup missing essence_up_mult — should warn
 warnMessages.length = 0;
 const missingKeyStartup = `*create lvl_up_stat_gain 2
-*create lvl_up_skill_gain 1
-*create xp_to_next 1000
+*create essence_to_next 1000
 *create_stat body "Body" 10
 *scene_list
   prologue`;
 
 await parseStartup(async () => missingKeyStartup, evalValue);
-const hasMissingWarn = warnMessages.some(m => m.includes('xp_up_mult'));
-assert(hasMissingWarn, 'warns about missing xp_up_mult after parseStartup');
+const hasMissingWarn = warnMessages.some(m => m.includes('essence_up_mult'));
+assert(hasMissingWarn, 'warns about missing essence_up_mult after parseStartup');
 
 // Restore console.warn
 console.warn = origWarn;
@@ -671,7 +677,7 @@ group('ENH-10 — Save export/import (importSaveFromJSON)');
 // Test importSaveFromJSON (pure logic) thoroughly.
 
 resetState();
-playerState.xp = 500;
+playerState.essence = 500;
 playerState.level = 2;
 // Set currentScene so buildSavePayload gets a valid scene name
 setCurrentScene('test_scene');
@@ -684,7 +690,7 @@ assertEq(importResult.ok, true, 'valid import returns ok:true');
 const loaded = loadSaveFromSlot(2);
 assert(loaded !== null, 'imported save loadable from target slot');
 assertEq(loaded.slot, '2', 'imported save has target slot stamped');
-assertEq(loaded.playerState.xp, 500, 'imported playerState.xp preserved');
+assertEq(loaded.playerState.essence, 500, 'imported playerState.essence preserved');
 
 // Wrong version
 const wrongVersion = { ...validPayload, version: SAVE_VERSION - 1 };

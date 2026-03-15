@@ -13,13 +13,13 @@
 import {
   playerState, tempState, statRegistry, startup,
   currentScene, currentLines, ip, pendingStatPoints,
-  awaitingChoice, pauseState,
+  awaitingChoice, pauseState, levelUpInProgress,
   patchPlayerState, parseStartup,
   setPlayerState, setTempState, setPendingStatPoints,
   setCurrentScene, setCurrentLines, setIp,
-  setAwaitingChoice, setPendingLevelUpDisplay,
+  setAwaitingChoice,
   setChapterTitleState, clearPauseState,
-  sessionState, clearSessionState,  // ENH-08: sessionState needed by pushUndoSnapshot/popUndo
+  sessionState, clearSessionState,
 } from './engine/core/state.js';
 
 import { evalValue }       from './engine/core/expression.js';
@@ -48,7 +48,7 @@ import {
 
 import {
   init      as initPanels,
-  runStatsScene, showInlineLevelUp, showEndingScreen,
+  runStatsScene, showLevelUpModal, showEndingScreen,
 } from './engine/ui/panels.js';
 
 import {
@@ -91,6 +91,7 @@ const dom = {
   endingContent:      document.getElementById('ending-content'),
   endingStats:        document.getElementById('ending-stats'),
   endingActionBtn:    document.getElementById('ending-action-btn'),
+  levelUpOverlay:     document.getElementById('levelup-overlay'),
   toast:              document.getElementById('toast'),
 };
 
@@ -206,7 +207,6 @@ async function popUndo() {
   //     potentially duplicating paragraphs already painted by renderFromLog.
   if (snap.awaitingChoice) {
     setAwaitingChoice(snap.awaitingChoice);
-    if (snap.pendingStatPoints > 0) setPendingLevelUpDisplay(true);
     renderChoices(snap.awaitingChoice.choices);
   }
 
@@ -325,12 +325,16 @@ function wireUI() {
     }
   });
 
-  dom.saveBtn.addEventListener('click', showSaveMenu);
+  dom.saveBtn.addEventListener('click', () => {
+    if (levelUpInProgress) { showToast('Cannot save during level-up.'); return; }
+    showSaveMenu();
+  });
 
   [1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`save-to-${slot}`);
     if (!btn) return;
     btn.addEventListener('click', () => {
+      if (levelUpInProgress) { showToast('Cannot save during level-up.'); return; }
       const existing = loadSaveFromSlot(slot);
       if (existing && !confirm(`Overwrite Slot ${slot}?`)) return;
       saveGameToSlot(slot, null, getNarrativeLog());
@@ -480,7 +484,6 @@ async function boot() {
     narrativeContent: dom.narrativeContent,
     choiceArea:       dom.choiceArea,
     narrativePanel:   dom.narrativePanel,
-    onShowLevelUp:    showInlineLevelUp,
     scheduleStatsRender,
     onBeforeChoice:   pushUndoSnapshot,
     executeBlock,
@@ -492,17 +495,17 @@ async function boot() {
   window._dbgIp = () => ip;
 
   initPanels({
-    narrativeContent: dom.narrativeContent,
-    choiceArea:       dom.choiceArea,
     statusPanel:      dom.statusPanel,
     endingOverlay:    dom.endingOverlay,
     endingTitle:      dom.endingTitle,
     endingContent:    dom.endingContent,
     endingStats:      dom.endingStats,
     endingActionBtn:  dom.endingActionBtn,
+    levelUpOverlay:   dom.levelUpOverlay,
     fetchTextFile,
     scheduleStatsRender,
     trapFocus,
+    showToast,
     onLevelUpConfirmed: (level) => {
       pushNarrativeLogEntry({ type: 'levelup_confirmed', level });
     },
@@ -527,7 +530,6 @@ async function boot() {
     evalValue,
     renderFromLog,
     renderChoices,
-    showInlineLevelUp,
     showPageBreak,
     showInputPrompt,
     runInterpreter,
@@ -561,7 +563,6 @@ async function boot() {
     clearNarrative,
     applyTransition,
     renderChoices,
-    showInlineLevelUp,
     showEndingScreen,
     showEngineError,
     showInputPrompt,
@@ -585,7 +586,6 @@ async function boot() {
     await parseStartup(fetchTextFile, evalValue);
     await parseSkills(fetchTextFile);
 
-    // Apply game title from startup.txt (or default)
     const title = playerState.game_title || 'System Awakening';
     if (dom.gameTitle)   dom.gameTitle.textContent = title;
     if (dom.splashTitle) dom.splashTitle.textContent = title;
