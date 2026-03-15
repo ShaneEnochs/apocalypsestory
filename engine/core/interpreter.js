@@ -184,6 +184,11 @@ export async function gotoScene(name, label = null, isRestore = false) {
     const labels = _labelsCache.get(name) || {};
     setIp(labels[label] ?? 0);
   }
+  // Clear any stale choice state from a previous scene or session.
+  // Without this, loading a save while at a *choice breaks the interpreter
+  // loop — it immediately hits `if (awaitingChoice) break` and stops.
+  setAwaitingChoice(null);
+  setGotoJumped(false);
   saveGameToSlot('auto', label || null);
   await runInterpreter();
 }
