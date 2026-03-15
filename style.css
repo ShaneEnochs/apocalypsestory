@@ -519,7 +519,33 @@ body {
   display: block;
   margin-top: 3px;
 }
-
+.choice-stat-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--ls-normal);
+  padding: 2px 7px;
+  margin-left: 10px;
+  vertical-align: middle;
+  white-space: nowrap;
+  border-radius: 2px;
+  transition: opacity var(--transition-fast);
+}
+ 
+.choice-stat-badge--met {
+  color: var(--green);
+  border: 1px solid rgba(76, 220, 138, 0.4);
+  background: rgba(76, 220, 138, 0.07);
+}
+ 
+.choice-stat-badge--unmet {
+  color: var(--text-faint);
+  border: 1px solid var(--border-dim);
+  background: transparent;
+}
+ 
+/* Dim the badge when the button is disabled (unmet condition) */
+button:disabled .choice-stat-badge { opacity: 0.5; }
 
 /* ============================================================
    9. STATUS PANEL
@@ -788,6 +814,49 @@ body {
 
 /* Save-flash animation */
 .slot-card--saved { animation: slotSaveFlash 0.55s ease forwards; }
+
+.save-import-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border-dim);
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+ 
+.save-import-label {
+  cursor: pointer;
+  display: inline-block;
+}
+ 
+.save-import-slot-select {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-normal);
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  border: 1px solid var(--border-dim);
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+  outline: none;
+}
+ 
+.save-import-slot-select:focus {
+  border-color: var(--cyan-dim);
+}
+ 
+/* Slot export button — same base style as load button */
+.slot-load-btn--export {
+  color: var(--text-dim);
+  border-color: var(--border-dim);
+}
+ 
+.slot-load-btn--export:hover:not(:disabled) {
+  color: var(--amber);
+  border-color: var(--amber-dim);
+}
 
 
 /* ============================================================
