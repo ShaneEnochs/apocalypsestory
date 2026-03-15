@@ -533,6 +533,7 @@ async function boot() {
       setChoiceArea(el);              // after restoreFromSave calls renderFromLog
     },
     clearUndoStack: () => { _undoStack.splice(0); updateUndoBtn(); },
+  });
 
   // 3. Register interpreter callbacks — must happen after initNarrative/Panels
   //    so the functions are the real implementations, not null.
