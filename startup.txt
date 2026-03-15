@@ -6,12 +6,12 @@
 *create first_name "Alex"
 *create last_name  ""
 *create pronouns   "they/them"
-*create class_name "Infinite Sword"
+*create class_name "Unclassed"
 
 *comment --- Level / XP progress ---
 *create level 1
 *create xp 0
-*create xp_to_next 10
+*create xp_to_next 20
 
 *comment --- Level-up configuration ---
 *comment xp_up_mult:       multiplier applied to xp_to_next on each level-up
