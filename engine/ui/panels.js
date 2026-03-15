@@ -136,7 +136,7 @@ export async function runStatsScene() {
 
       // Insert Level Up button directly after the "To Next Level" row
       if (e.key === 'essence_to_next' && canLevelUp() && !levelUpInProgress) {
-        html += `<div class="status-levelup-row"><button class="status-levelup-btn" id="status-levelup-btn">⬡ Level Up Available</button></div>`;
+        html += `<div class="status-levelup-row"><button class="status-levelup-btn" id="status-levelup-btn">Level Up Available</button></div>`;
       }
     }
     if (e.type === 'inventory') {
