@@ -272,23 +272,23 @@ export function renderChoices(choices) {
     }
 
     if (!choice.selectable) {
-      // FIX BUG-6 (sweep 5): Mark permanently-unselectable buttons so the
-      // level-up confirm handler knows not to re-enable them.
+      // Permanently unselectable — never gets a click handler.
       btn.disabled = true;
       btn.classList.add('choice-btn--disabled');
       btn.dataset.unselectable = 'true';
-      // BUG J: communicate the disabled state to assistive technology
-      btn.setAttribute('aria-disabled', 'true');
-    } else if (levelUpActive) {
-      // Temporarily disabled until level-up is confirmed — no data marker,
-      // so the confirm handler WILL re-enable these.
-      btn.disabled = true;
-      btn.classList.add('choice-btn--disabled');
-      // BUG J: communicate the disabled state to assistive technology
       btn.setAttribute('aria-disabled', 'true');
     } else {
+      // Always wire the click handler on selectable buttons, even when
+      // levelUpActive is true and the button starts out disabled.
+      //
+      // FIX BUG-LEVELUP: Previously, levelUpActive buttons fell into an
+      // `else if` branch that disabled them but attached NO click handler.
+      // When the level-up Confirm re-enabled the buttons, clicking them did
+      // nothing because there was no listener. The `disabled` attribute
+      // already prevents clicks from firing while the button is disabled, so
+      // attaching the handler unconditionally is safe — it only fires after
+      // Confirm removes `disabled`.
       btn.addEventListener('click', () => {
-        // BUG K: ignore any click after the first in this choice round
         if (choiceMade) {
           if (_debugLog) _debugLog('CHOICE BLOCKED', `choiceMade already true — btn="${choice.text.slice(0,30)}"`);
           return;
@@ -297,26 +297,6 @@ export function renderChoices(choices) {
         if (_debugLog) _debugLog('CHOICE CLICKED', `"${choice.text.slice(0,40)}" start=${choice.start} end=${choice.end}`);
 
         _onBeforeChoice();
-
-        // FIX: Clear the narrative immediately when a choice is made, before
-        // executeBlock runs. This prevents two bugs:
-        //
-        // BUG-CHOICE-1 (page expansion): A *goto inside a choice body jumps to
-        //   a label within the same scene. executeBlock returns early (via
-        //   _gotoJumped), then runInterpreter continues from the label — but
-        //   without clearNarrative, the new paragraphs were appended below the
-        //   existing choice buttons, expanding the page rather than replacing it.
-        //   *goto_scene calls clearNarrative itself; *goto does not.
-        //
-        // BUG-CHOICE-2 (second button does nothing): After bug 1, the old buttons
-        //   remained in the DOM. Clicking a second button hit the choiceMade guard
-        //   (still true from the first click's closure) and silently returned.
-        //   Clearing the DOM immediately removes all buttons, so there is nothing
-        //   left to click a second time.
-        //
-        // Note: *goto_scene and *goto_scene inside deeper choice bodies both call
-        //   clearNarrative themselves before rendering new content, so calling it
-        //   here is safe — a double-clear is a no-op (log resets to []).
         clearNarrative();
 
         const choiceBlockEnd = awaitingChoice?.end ?? choice.end;
@@ -337,6 +317,13 @@ export function renderChoices(choices) {
             console.error('[narrative] choice execution error:', err);
           });
       });
+
+      // Disable temporarily if a level-up is pending confirmation.
+      if (levelUpActive) {
+        btn.disabled = true;
+        btn.classList.add('choice-btn--disabled');
+        btn.setAttribute('aria-disabled', 'true');
+      }
     }
 
     _choiceArea.appendChild(btn);
