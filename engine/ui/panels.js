@@ -93,7 +93,8 @@ export async function runStatsScene() {
     if (!t || t.startsWith('//')) return;
 
     if (t.startsWith('*stat_group')) {
-      entries.push({ type: 'group', name: t.replace('*stat_group', '').trim().replace(/^"|"$/g, '') });
+      const sgm = t.match(/^\*stat_group\s+"([^"]+)"/);
+      entries.push({ type: 'group', name: sgm ? sgm[1] : t.replace(/^\*stat_group\s*/, '').trim() });
     } else if (t.startsWith('*stat_color')) {
       const [, rawKey, color] = t.split(/\s+/);
       styleState.colors[normalizeKey(rawKey)] = color;
