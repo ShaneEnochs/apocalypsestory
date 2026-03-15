@@ -25,7 +25,7 @@
 import {
   playerState, tempState, statRegistry, startup,
   currentScene, currentLines, ip, pendingStatPoints,
-  awaitingChoice, delayIndex,
+  awaitingChoice, delayIndex, pauseState,          // <-- add pauseState
   patchPlayerState, parseStartup,
   setPlayerState, setTempState, setPendingStatPoints,
   setCurrentScene, setCurrentLines, setIp, setDelayIndex,
@@ -129,7 +129,11 @@ let _statsRenderPending = false;
 function scheduleStatsRender() {
   if (_statsRenderPending) return;
   _statsRenderPending = true;
-  Promise.resolve().then(() => { _statsRenderPending = false; runStatsScene(); refreshDebug(); });
+  requestAnimationFrame(() => {
+    _statsRenderPending = false;
+    runStatsScene();
+    updateUndoBtn();  // BUG-09: keep undo button in sync with pauseState
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -258,7 +262,10 @@ async function popUndo() {
 
 function updateUndoBtn() {
   const btn = document.getElementById('undo-btn');
-  if (btn) btn.disabled = _undoStack.length === 0;
+  if (!btn) return;
+  // BUG-09 fix: disable undo when pauseState is active (*page_break, *input,
+  // and *delay don't set awaitingChoice, so the old check missed them entirely).
+  btn.disabled = _undoStack.length === 0 || pauseState !== null;
 }
 
 // ---------------------------------------------------------------------------
@@ -521,8 +528,11 @@ async function boot() {
       setCurrentLines(parseLines(text));
       indexLabels(name, currentLines, labelsCache);
     },
+    setChoiceArea: (el) => {          // BUG-05 fix: keep both engine.js dom ref
+      dom.choiceArea = el;            // and narrative.js internal ref in sync
+      setChoiceArea(el);              // after restoreFromSave calls renderFromLog
+    },
     clearUndoStack: () => { _undoStack.splice(0); updateUndoBtn(); },
-  });
 
   // 3. Register interpreter callbacks — must happen after initNarrative/Panels
   //    so the functions are the real implementations, not null.
