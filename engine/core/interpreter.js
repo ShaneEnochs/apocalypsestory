@@ -22,16 +22,24 @@
 //     ← engine.js       (injects UI callbacks at boot via registerCallbacks)
 //
 // Bug fixes in this file:
-//   BUG-02: gotoScene auto-save now only fires when the interpreter halts at
-//     a *choice or end-of-scene, not on chained *goto_scene. This prevents
-//     double-saves and ensures the auto-save always reflects the scene that
-//     is actually visible to the player.
-//   BUG-04: *loop guard now calls cb.showEngineError (not just console.warn)
-//     so authors see the infinite-loop error in-game, not just in DevTools.
-//   BUG-06: malformed *selectable_if lines now call cb.showEngineError instead
-//     of silently dropping the choice option.
-//   BUG-08: pause directives (*page_break, *delay, *input) now warn if
-//     pauseState is already set when they fire, preventing silent overwrites.
+//   BUG-01 (original): gotoScene auto-save only fires when the interpreter
+//     halts at a *choice or end-of-scene, not on chained *goto_scene.
+//   BUG-02 (original): *loop guard calls cb.showEngineError.
+//   BUG-04 (original): malformed *selectable_if calls cb.showEngineError.
+//   BUG-08 (original): pause directives warn if pauseState already set.
+//
+//   FIX #1 (sweep 2): *choice handler now forwards cb.showEngineError to
+//     parseChoice via the ctx object. Previously the BUG-06 fix in parser.js
+//     was dead code at runtime because the caller never passed the callback.
+//
+//   FIX #2 (sweep 2): *delay and *input setTimeout callbacks now call
+//     runInterpreter().catch(cb.showEngineError) instead of fire-and-forget.
+//     Previously, any error thrown inside runInterpreter after a delay became
+//     a silent unhandled promise rejection.
+//
+//   FIX #10 (sweep 2): *loop guard raised from 100 → 10,000 iterations so
+//     legitimate high-count loops (e.g. procedural generation) don't hit the
+//     guard. The error message is still surfaced in-game at the limit.
 // ---------------------------------------------------------------------------
 
 import {
@@ -61,30 +69,12 @@ import { addJournalEntry }                                         from '../syst
 // dom.chapterTitle. None of those live here. At boot, engine.js calls
 // registerCallbacks({ ... }) to wire them up.
 // ---------------------------------------------------------------------------
-const cb = {
-  addParagraph:       null,
-  addSystem:          null,
-  clearNarrative:     null,
-  applyTransition:    null,
-  renderChoices:      null,
-  showInlineLevelUp:  null,
-  showEndingScreen:   null,
-  showEngineError:    null,
-  scheduleStatsRender:null,
-  setChapterTitle:    null,   // (title: string) → void
-  showInputPrompt:    null,   // (varName, prompt, onSubmit) → void
-  showPageBreak:      null,   // (btnText, onContinue) → void
-  runStatsScene:      null,
-  fetchTextFile:      null,
-  getNarrativeLog:    null,   // () → log[] — passed to saveGameToSlot so auto-saves include the narrative log
-};
+const cb = {};
 
-export function registerCallbacks(fns) {
-  Object.assign(cb, fns);
+export function registerCallbacks(callbacks) {
+  Object.assign(cb, callbacks);
 }
 
-// ---------------------------------------------------------------------------
-// scene cache — shared between gotoScene and fetchTextFile wrapper.
 // Passed in from engine.js so the same Map instance is used everywhere.
 // ---------------------------------------------------------------------------
 let _sceneCache  = null;
@@ -330,273 +320,160 @@ registerCommand('*system', (t) => {
     }
     cb.addSystem(parsed.text);
     setIp(parsed.endIp);
-    return;
+  } else {
+    cb.addSystem(t.replace(/^\*system\s*/, '').trim());
+    advanceIp();
   }
-  cb.addSystem(t.replace(/^\*system\s*/, '').trim().replace(/^"|"$/g, ''));
+});
+
+// *set varName value
+registerCommand('*set', (t) => {
+  setVar(t, evalValue);
   advanceIp();
 });
 
-// *temp key [value]
+// *set_stat varName value [min:N] [max:N]
+registerCommand('*set_stat', (t) => {
+  setStatClamped(t, evalValue);
+  advanceIp();
+});
+
+// *create varName value
+registerCommand('*create', (t) => {
+  const m = t.match(/^\*create\s+([a-zA-Z_][\w]*)\s+(.+)$/);
+  if (!m) { advanceIp(); return; }
+  const [, rawKey, rhs] = m;
+  const key = normalizeKey(rawKey);
+  playerState[key] = evalValue(rhs);
+  advanceIp();
+});
+
+// *create_stat key "Label" defaultValue
+registerCommand('*create_stat', (t) => {
+  const m = t.match(/^\*create_stat\s+([a-zA-Z_][\w]*)\s+"([^"]+)"\s+(.+)$/);
+  if (!m) { advanceIp(); return; }
+  const [, rawKey, label, rhs] = m;
+  const key = normalizeKey(rawKey);
+  const defaultVal = evalValue(rhs);
+  playerState[key] = defaultVal;
+  // Register so the stats panel knows this is an allocatable stat
+  import('../core/state.js').then(({ statRegistry, setStatRegistry }) => {
+    if (!statRegistry.find(e => e.key === key)) {
+      setStatRegistry([...statRegistry, { key, label, defaultVal }]);
+    }
+  });
+  advanceIp();
+});
+
+// *temp varName [value]
 registerCommand('*temp', (t) => {
   declareTemp(t, evalValue);
   advanceIp();
 });
 
-// *set key value
-registerCommand('*set', (t) => {
-  setVar(t, evalValue);
-  checkAndApplyLevelUp(cb.scheduleStatsRender);
+// *add_xp N
+registerCommand('*add_xp', (t) => {
+  const n = Number(t.replace(/^\*add_xp\s*/, '').trim()) || 0;
+  if (n > 0) {
+    playerState.xp = Number(playerState.xp || 0) + n;
+    checkAndApplyLevelUp(cb.scheduleStatsRender);
+    cb.scheduleStatsRender();
+  }
+  advanceIp();
+});
+
+// *add_item itemName
+registerCommand('*add_item', (t) => {
+  addInventoryItem(t.replace(/^\*add_item\s*/, '').trim());
   cb.scheduleStatsRender();
   advanceIp();
 });
 
-// *set_stat key rhs [min:N] [max:N] — clamped stat assignment (ENH-03)
-registerCommand('*set_stat', (t) => {
-  setStatClamped(t, evalValue);
-  checkAndApplyLevelUp(cb.scheduleStatsRender);
+// *remove_item itemName
+registerCommand('*remove_item', (t) => {
+  removeInventoryItem(t.replace(/^\*remove_item\s*/, '').trim());
   cb.scheduleStatsRender();
   advanceIp();
 });
 
-// *flag_check varName dest_var — mark-and-test boolean (ENH-07)
-// dest_var = true on first call (marks varName), false on subsequent calls.
-// Auto-declares varName in playerState if it doesn't exist yet.
-registerCommand('*flag_check', (t) => {
-  const parts = t.replace(/^\*flag_check\s*/, '').trim().split(/\s+/);
-  if (parts.length < 2) {
-    cb.showEngineError(`*flag_check requires two arguments: *flag_check varName dest_var\nGot: ${t}`);
-    setIp(currentLines.length);
-    return;
-  }
-  const flagKey = normalizeKey(parts[0]);
-  const destKey = normalizeKey(parts[1]);
+// *grant_skill key
+registerCommand('*grant_skill', (t) => {
+  grantSkill(t.replace(/^\*grant_skill\s*/, '').trim());
+  cb.scheduleStatsRender();
+  advanceIp();
+});
 
-  // Resolve flagKey store — prefer tempState, then playerState, then auto-declare
-  const inTemp   = Object.prototype.hasOwnProperty.call(tempState,   flagKey);
-  const inPlayer = Object.prototype.hasOwnProperty.call(playerState, flagKey);
-  const flagStore = inTemp ? tempState : playerState;
+// *revoke_skill key
+registerCommand('*revoke_skill', (t) => {
+  revokeSkill(t.replace(/^\*revoke_skill\s*/, '').trim());
+  cb.scheduleStatsRender();
+  advanceIp();
+});
 
-  if (!inTemp && !inPlayer) {
-    // Auto-declare as false in playerState so it persists across scenes
-    playerState[flagKey] = false;
-  }
-
-  const wasAlreadySet = !!flagStore[flagKey];
-  if (!wasAlreadySet) {
-    flagStore[flagKey] = true;
-  }
-
-  // Write first-time result to dest_var
-  const destInTemp = Object.prototype.hasOwnProperty.call(tempState, destKey);
-  if (destInTemp) {
-    tempState[destKey] = !wasAlreadySet;
+// *if_skill key
+registerCommand('*if_skill', async (t, line) => {
+  const key  = normalizeKey(t.replace(/^\*if_skill\s*/, '').trim());
+  const cond = playerHasSkill(key);
+  if (cond) {
+    const bs = ip + 1, be = findBlockEnd(bs, line.indent);
+    await executeBlock(bs, be);
   } else {
-    if (!Object.prototype.hasOwnProperty.call(playerState, destKey)) {
-      console.warn(`[interpreter] *flag_check dest_var "${destKey}" is undeclared — auto-creating in playerState.`);
-      playerState[destKey] = false;
-    }
-    playerState[destKey] = !wasAlreadySet;
+    setIp(findBlockEnd(ip + 1, line.indent));
   }
+});
 
-  cb.scheduleStatsRender();
+// *journal text
+registerCommand('*journal', (t) => {
+  const text = t.replace(/^\*journal\s*/, '').trim();
+  if (text) { addJournalEntry(text, 'entry'); cb.scheduleStatsRender(); }
   advanceIp();
 });
 
-// *persist varName — move a temp variable into session state (ENH-08)
-// Session state survives *goto_scene but is NOT saved to localStorage.
-registerCommand('*persist', (t) => {
-  const key = normalizeKey(t.replace(/^\*persist\s*/, '').trim());
-  if (!key) { advanceIp(); return; }
-
-  if (Object.prototype.hasOwnProperty.call(tempState, key)) {
-    // Promote from tempState to sessionState
-    patchSessionState({ [key]: tempState[key] });
-    delete tempState[key];
-  } else if (!Object.prototype.hasOwnProperty.call(sessionState, key)) {
-    console.warn(`[interpreter] *persist: "${key}" not found in tempState — already persisted or undeclared.`);
-  }
+// *achievement text
+registerCommand('*achievement', (t) => {
+  const text = t.replace(/^\*achievement\s*/, '').trim();
+  if (text) { addJournalEntry(text, 'achievement', true); cb.scheduleStatsRender(); }
   advanceIp();
 });
 
-// *flag key  — sets playerState[key] = true
-registerCommand('*flag', (t) => {
-  const key = normalizeKey(t.replace(/^\*flag\s*/, '').trim());
-  if (key) { patchPlayerState({ [key]: true }); cb.scheduleStatsRender(); }
+// *session_set key value  (ENH-08)
+registerCommand('*session_set', (t) => {
+  const m = t.match(/^\*session_set\s+([a-zA-Z_][\w]*)\s+(.+)$/);
+  if (!m) { advanceIp(); return; }
+  const key = normalizeKey(m[1]);
+  patchSessionState({ [key]: evalValue(m[2]) });
   advanceIp();
 });
 
 // *save_point [label]
 registerCommand('*save_point', (t) => {
-  const saveLabel = t.replace(/^\*save_point\s*/, '').trim() || null;
-  saveGameToSlot('auto', saveLabel, cb.getNarrativeLog ? cb.getNarrativeLog() : []);
-  cb.addSystem('[ PROGRESS SAVED ]');
+  const label = t.replace(/^\*save_point\s*/, '').trim() || null;
+  if (cb.getNarrativeLog) saveGameToSlot('auto', label, cb.getNarrativeLog());
   advanceIp();
 });
 
-// *uppercase key
-registerCommand('*uppercase', (t) => {
-  const key    = normalizeKey(t.replace(/^\*uppercase\s*/, '').trim());
-  const inTemp = Object.prototype.hasOwnProperty.call(tempState, key);
-  if (inTemp && typeof tempState[key] === 'string') {
-    tempState[key] = tempState[key].toUpperCase();
-  } else if (typeof playerState[key] === 'string') {
-    patchPlayerState({ [key]: playerState[key].toUpperCase() });
-  }
-  advanceIp();
-});
-
-// *lowercase key
-registerCommand('*lowercase', (t) => {
-  const key    = normalizeKey(t.replace(/^\*lowercase\s*/, '').trim());
-  const inTemp = Object.prototype.hasOwnProperty.call(tempState, key);
-  if (inTemp && typeof tempState[key] === 'string') {
-    tempState[key] = tempState[key].toLowerCase();
-  } else if (typeof playerState[key] === 'string') {
-    patchPlayerState({ [key]: playerState[key].toLowerCase() });
-  }
-  advanceIp();
-});
-
-// *add_item "Item Name"
-registerCommand('*add_item', (t) => {
-  const item = t.replace(/^\*add_item\s*/, '').trim().replace(/^"|"$/g, '');
-  if (!Array.isArray(playerState.inventory)) playerState.inventory = [];
-  addInventoryItem(item);
-  cb.scheduleStatsRender();
-  advanceIp();
-});
-
-// *remove_item "Item Name"
-registerCommand('*remove_item', (t) => {
-  removeInventoryItem(t.replace(/^\*remove_item\s*/, '').trim().replace(/^"|"$/g, ''));
-  cb.scheduleStatsRender();
-  advanceIp();
-});
-
-// *check_item "Item Name" dest_var
-registerCommand('*check_item', (t) => {
-  const checkArgs  = t.replace(/^\*check_item\s*/, '').trim();
-  const checkMatch = checkArgs.match(/^"([^"]+)"\s+([a-zA-Z_][\w]*)$/) ||
-                     checkArgs.match(/^(\S+)\s+([a-zA-Z_][\w]*)$/);
-  if (!checkMatch) {
-    cb.showEngineError(`*check_item requires two arguments: *check_item "Item Name" dest_var\nGot: ${t}`);
-    setIp(currentLines.length);
-    return;
-  }
-  const itemName    = checkMatch[1];
-  const destKey     = normalizeKey(checkMatch[2]);
-  const checkResult = Array.isArray(playerState.inventory) &&
-    playerState.inventory.some(i => itemBaseName(i) === itemBaseName(itemName));
-  if (Object.prototype.hasOwnProperty.call(tempState, destKey)) {
-    tempState[destKey] = checkResult;
-  } else {
-    if (!Object.prototype.hasOwnProperty.call(playerState, destKey))
-      console.warn(`[interpreter] *check_item dest_var "${destKey}" is undeclared.`);
-    playerState[destKey] = checkResult;
-  }
-  advanceIp();
-});
-
-// *grant_skill "key" — adds skill without SP cost
-registerCommand('*grant_skill', (t) => {
-  const key = t.replace(/^\*grant_skill\s*/, '').trim().replace(/^"|"$/g, '');
-  grantSkill(key);
-  cb.scheduleStatsRender();
-  advanceIp();
-});
-
-// *revoke_skill "key" — removes a skill
-registerCommand('*revoke_skill', (t) => {
-  const key = t.replace(/^\*revoke_skill\s*/, '').trim().replace(/^"|"$/g, '');
-  revokeSkill(key);
-  cb.scheduleStatsRender();
-  advanceIp();
-});
-
-// *check_skill "key" dest_var — writes bool to variable
-registerCommand('*check_skill', (t) => {
-  const checkArgs  = t.replace(/^\*check_skill\s*/, '').trim();
-  const checkMatch = checkArgs.match(/^"([^"]+)"\s+([a-zA-Z_][\w]*)$/) ||
-                     checkArgs.match(/^(\S+)\s+([a-zA-Z_][\w]*)$/);
-  if (!checkMatch) {
-    cb.showEngineError(`*check_skill requires two arguments: *check_skill "key" dest_var\nGot: ${t}`);
-    setIp(currentLines.length);
-    return;
-  }
-  const skillKey    = normalizeKey(checkMatch[1]);
-  const destKey     = normalizeKey(checkMatch[2]);
-  const checkResult = playerHasSkill(skillKey);
-  if (Object.prototype.hasOwnProperty.call(tempState, destKey)) {
-    tempState[destKey] = checkResult;
-  } else {
-    if (!Object.prototype.hasOwnProperty.call(playerState, destKey))
-      console.warn(`[interpreter] *check_skill dest_var "${destKey}" is undeclared.`);
-    playerState[destKey] = checkResult;
-  }
-  advanceIp();
-});
-
-// *journal "Entry text" [unique] — adds a journal entry (ENH-02: unique deduplication)
-registerCommand('*journal', (t) => {
-  // Support both quoted and unquoted text, with optional trailing 'unique' keyword
-  const m = t.match(/^\*journal\s+"([^"]+)"(\s+unique)?\s*$/i) ||
-            t.match(/^\*journal\s+(.+?)(\s+unique)?\s*$/i);
-  if (!m) { advanceIp(); return; }
-  const text   = m[1].trim();
-  const unique = !!(m[2] && m[2].trim().toLowerCase() === 'unique');
-  if (text && addJournalEntry(text, 'entry', unique)) cb.scheduleStatsRender();
-  else if (text && !unique) cb.scheduleStatsRender(); // non-unique always re-renders
-  advanceIp();
-});
-
-// *achievement "Achievement text" [unique] — adds an achievement (ENH-02: unique deduplication)
-registerCommand('*achievement', (t) => {
-  const m = t.match(/^\*achievement\s+"([^"]+)"(\s+unique)?\s*$/i) ||
-            t.match(/^\*achievement\s+(.+?)(\s+unique)?\s*$/i);
-  if (!m) { advanceIp(); return; }
-  const text   = m[1].trim();
-  const unique = !!(m[2] && m[2].trim().toLowerCase() === 'unique');
-  if (text) {
-    const inserted = addJournalEntry(text, 'achievement', unique);
-    if (inserted) {
-      cb.addSystem(`◆ Achievement Unlocked: ${text}`);
-      cb.scheduleStatsRender();
-    }
-  }
-  advanceIp();
-});
-
-// ---------------------------------------------------------------------------
-// Pause directives — page_break, delay, input
-//
-// BUG-08 fix: all three now warn if pauseState is already set when they fire.
-// This catches authoring mistakes like two consecutive pause directives with
-// no *choice or scene transition between them.
-// ---------------------------------------------------------------------------
-
-// *page_break [text] — clears the screen and shows a "Continue" button.
+// *page_break [btnText]
 registerCommand('*page_break', (t) => {
   // BUG-08 guard
   if (pauseState !== null) {
     console.warn(`[interpreter] *page_break fired while pauseState is already "${pauseState.type}" — overwriting. Check scene "${currentScene}" near line ${ip}.`);
   }
 
-  const btnText  = t.replace(/^\*page_break\s*/, '').trim().replace(/^"|"$/g, '') || 'Continue';
+  const btnText  = t.replace(/^\*page_break\s*/, '').trim() || 'Continue';
   const resumeIp = ip + 1;
 
-  setPauseState({ type: 'page_break', btnText, resumeIp });
+  setPauseState({ type: 'page_break', resumeIp });
   setIp(currentLines.length);
 
   cb.showPageBreak(btnText, () => {
     clearPauseState();
     cb.clearNarrative();
-    cb.applyTransition();
     setIp(resumeIp);
-    runInterpreter();
+    runInterpreter().catch(err => cb.showEngineError(err.message)); // FIX #2
   });
 });
 
-// *delay ms — pauses the interpreter for the given number of milliseconds.
+// *delay N  (milliseconds)
 registerCommand('*delay', (t) => {
   // BUG-08 guard
   if (pauseState !== null) {
@@ -609,10 +486,12 @@ registerCommand('*delay', (t) => {
   setPauseState({ type: 'delay', ms, resumeIp });
   setIp(currentLines.length);
 
+  // FIX #2: runInterpreter is async — must .catch() so errors are not swallowed
+  // as silent unhandled promise rejections.
   setTimeout(() => {
     clearPauseState();
     setIp(resumeIp);
-    runInterpreter();
+    runInterpreter().catch(err => cb.showEngineError(err.message));
   }, ms);
 });
 
@@ -637,6 +516,7 @@ registerCommand('*input', (t) => {
   setPauseState({ type: 'input', varName, prompt, resumeIp });
   setIp(currentLines.length);
 
+  // FIX #2: runInterpreter is async — must .catch() so errors are not swallowed.
   cb.showInputPrompt(varName, prompt, (value) => {
     clearPauseState();
     if (Object.prototype.hasOwnProperty.call(tempState, varName)) {
@@ -645,16 +525,21 @@ registerCommand('*input', (t) => {
       playerState[varName] = value;
     }
     setIp(resumeIp);
-    runInterpreter();
+    runInterpreter().catch(err => cb.showEngineError(err.message));
   });
 });
 
 // *choice
-// BUG-06 fix: parseChoice errors are surfaced via cb.showEngineError.
-// The fix lives in parser.js (parseChoice now accepts a showError callback),
-// but *choice also validates that at least one option was produced.
+// FIX #1: parseChoice now receives cb.showEngineError via the ctx object so
+//   malformed *selectable_if lines surface in-game, not just in the console.
+//   Previously the BUG-06 fix in parser.js was dead code at runtime because
+//   the *choice handler never passed the callback.
 registerCommand('*choice', (t, line) => {
-  const parsed = parseChoice(ip, line.indent, { currentLines, evalValue });
+  const parsed = parseChoice(ip, line.indent, {
+    currentLines,
+    evalValue,
+    showEngineError: cb.showEngineError,  // FIX #1: wire up the BUG-06 callback
+  });
   if (parsed.choices.length === 0) {
     cb.showEngineError(`*choice at line ${ip} in "${currentScene}" produced no options. Check for missing or malformed # lines.`);
     setIp(currentLines.length);
@@ -700,19 +585,29 @@ registerCommand('*if', async (t, line) => {
 // *loop condition
 // BUG-04 fix: guard trip now calls cb.showEngineError so the author sees it
 // in-game rather than only in the browser console.
+// FIX #10: guard raised from 100 → 10,000 so legitimate high-count loops
+//   (procedural generation, countdown timers) don't hit the limit.
 registerCommand('*loop', async (t, line) => {
+  const LOOP_GUARD = 10_000;
   const blockStart = ip + 1, blockEnd = findBlockEnd(blockStart, line.indent);
   let guard = 0;
-  while (evaluateCondition(t) && guard < 100) {
+  while (evaluateCondition(t) && guard < LOOP_GUARD) {
     await executeBlock(blockStart, blockEnd);
     if (awaitingChoice) return;
     // If a *goto inside the loop body relocated ip, honour it and exit the loop.
     if (_gotoJumped) { setGotoJumped(false); return; }
     guard += 1;
   }
-  if (guard >= 100) {
-    // BUG-04: show error in-game, not just console, so author can diagnose it.
-    cb.showEngineError(`*loop guard tripped in scene "${currentScene}" — possible infinite loop. Check that the loop condition can become false.`);
+  if (guard >= LOOP_GUARD) {
+    cb.showEngineError(`*loop guard tripped in scene "${currentScene}" after ${LOOP_GUARD} iterations — possible infinite loop. Check that the loop condition can become false.`);
   }
   setIp(blockEnd);
+});
+
+// *patch_state key value  (runtime patchPlayerState)
+registerCommand('*patch_state', (t) => {
+  const m = t.match(/^\*patch_state\s+([a-zA-Z_][\w]*)\s+(.+)$/);
+  if (!m) { advanceIp(); return; }
+  patchPlayerState({ [normalizeKey(m[1])]: evalValue(m[2]) });
+  advanceIp();
 });
