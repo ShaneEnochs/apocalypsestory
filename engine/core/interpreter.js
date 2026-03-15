@@ -197,6 +197,7 @@ export async function executeBlock(start, end, resumeAfter = end) {
 // flash of an unpolished filename at scene load time.
 // ---------------------------------------------------------------------------
 export async function gotoScene(name, label = null) {
+  if (cb.debugLog) cb.debugLog('GOTO_SCENE', `"${name}"${label ? ' @' + label : ''}`);
   let text;
   try {
     text = await cb.fetchTextFile(name);
@@ -215,54 +216,33 @@ export async function gotoScene(name, label = null) {
   cb.clearNarrative();
   cb.applyTransition();
 
-  // FIX #S2: Do NOT pre-set the title to the filename here. Let *title in the
-  // scene set it. We'll fall back to the uppercased name after execution only
-  // if the scene contains no *title directive.
-
   if (label) {
     const labels = _labelsCache.get(name) || {};
     setIp(labels[label] ?? 0);
   }
 
-  // Clear any stale choice/pause state from a previous scene or session.
   setAwaitingChoice(null);
   setGotoJumped(false);
   clearPauseState();
 
   await runInterpreter();
 
-  // FIX #S2: fallback title — only set if the scene didn't contain a *title
-  // directive (i.e. the chapterTitle hasn't changed from what it was before
-  // runInterpreter ran, which means no *title executed).
   if (chapterTitle === prevChapterTitle) {
     const fallback = name.replace(/\.txt$/i, '').toUpperCase();
     cb.setChapterTitle(fallback);
   }
-
-  // NOTE: auto-save is now written inside runInterpreter when it stops,
-  // not here. See BUG-02 fix comment above.
 }
 
-// ---------------------------------------------------------------------------
-// runInterpreter — main execution loop.
-// Runs until ip reaches end of scene or a *choice pauses execution.
-//
-// BUG-02 fix: auto-save is written here, after the loop stops, so the saved
-// narrative log is always fully populated. This is the single canonical
-// auto-save point for normal scene execution. *save_point writes its own
-// save independently.
-// ---------------------------------------------------------------------------
 export async function runInterpreter() {
+  if (cb.debugLog) cb.debugLog('RUN_INTERP', `start ip=${ip} scene="${currentScene}"`);
   while (ip < currentLines.length) {
     await executeCurrentLine();
     if (awaitingChoice) break;
   }
+  if (cb.debugLog) cb.debugLog('RUN_INTERP', `halted ip=${ip} awaitingChoice=${!!awaitingChoice} pauseState=${pauseState?.type ?? 'none'}`);
   if (pendingLevelUpDisplay) cb.showInlineLevelUp();
   cb.runStatsScene();
 
-  // Auto-save: fires when the interpreter halts at a *choice or end-of-scene.
-  // Paused states (*page_break, *delay, *input) set pauseState before stopping
-  // the loop via setIp(currentLines.length); the auto-save captures that too.
   if (cb.getNarrativeLog) {
     saveGameToSlot('auto', null, cb.getNarrativeLog());
   }
