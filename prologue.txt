@@ -28,15 +28,15 @@
 
 *label opening
 
-Huge Update
 The world ended on a Tuesday.
 
 Not with a bang — or rather, not *only* with a bang. It ended in layers, the way a person dies: first the small things, then the large ones, then the thing that held all the other things together.
 
 The System arrived eight years ago. A notification that appeared in every human mind simultaneously, in every language, in the precise dialect each person would understand best.
 
-*system 
-SYSTEM INITIALIZATION COMPLETE. 
+*system
+System Initializing...
+Initialization Complete. 
 Congratulations! Your world has been inducted to the Multiverse.
 *end_system
 
