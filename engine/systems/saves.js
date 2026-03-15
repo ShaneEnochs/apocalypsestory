@@ -26,23 +26,46 @@
 //   Firefox 58+, Safari 10.1+), a detached anchor's .click() triggers the
 //   download without needing to be in the DOM. The append/removeChild pair
 //   caused a brief DOM flash on slow machines and is unnecessary.
+//
+// FIX #S4 (sweep 3): SAVE_VERSION bumped to 5. buildSavePayload now persists
+//   sessionState and statRegistry in the save payload.
+//   • sessionState: variables promoted via *persist survive *goto_scene but
+//     were silently lost on any page reload because they weren't saved.
+//     Cross-scene decisions (cutscene flags, chapter-level choices) now
+//     survive save/load cycles correctly.
+//   • statRegistry: if a scene file declares *create_stat at runtime (not in
+//     startup.txt), those entries are wiped by the parseStartup() call in
+//     restoreFromSave. Persisting and restoring statRegistry prevents the
+//     level-up allocation screen from showing fewer stats than expected after
+//     a load.
+//   restoreFromSave now restores both fields from the payload, with graceful
+//   fallbacks for older saves that lack them.
+//
+// FIX #S5 (sweep 3): All three runInterpreter() calls in the pauseState
+//   resume branches of restoreFromSave now use .catch() so errors are not
+//   silently swallowed as unhandled promise rejections. This mirrors FIX #2
+//   already applied to the live *input / *delay / *page_break handlers in
+//   interpreter.js, which was missed in the save-restore path.
 // ---------------------------------------------------------------------------
 
 import {
   playerState, tempState, pendingStatPoints, currentScene, ip,
-  chapterTitle,
+  chapterTitle, statRegistry,
   setPlayerState, setPendingStatPoints, setPendingLevelUpDisplay,
+  setStatRegistry,
   setCurrentScene, setCurrentLines, setIp, setDelayIndex,
   setAwaitingChoice,
   clearTempState, parseStartup,
   pauseState, setPauseState, clearPauseState,
   setChapterTitleState,
+  sessionState, setSessionState,
 } from '../core/state.js';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-export const SAVE_VERSION  = 4;
+// FIX #S4: bumped to 5 — payload now includes sessionState and statRegistry.
+export const SAVE_VERSION  = 5;
 
 export const SAVE_KEY_AUTO  = 'sa_save_auto';
 export const SAVE_KEY_SLOTS = { 1: 'sa_save_slot_1', 2: 'sa_save_slot_2', 3: 'sa_save_slot_3' };
@@ -61,11 +84,14 @@ export function clearStaleSaveFound() { _staleSaveFound = false; }
 export function setStaleSaveFound()   { _staleSaveFound = true;  }
 
 // ---------------------------------------------------------------------------
-// buildSavePayload — constructs the v4 object written to localStorage.
+// buildSavePayload — constructs the v5 object written to localStorage.
 //
 // narrativeLog: the current narrative log array from getNarrativeLog().
 //   Passed explicitly so saves.js has no direct import of narrative.js
 //   (which would create a circular dependency).
+//
+// FIX #S4: now includes sessionState and statRegistry in the payload so they
+//   survive save/load cycles.
 // ---------------------------------------------------------------------------
 export function buildSavePayload(slot, label, narrativeLog) {
   return {
@@ -78,6 +104,8 @@ export function buildSavePayload(slot, label, narrativeLog) {
     pauseState:    pauseState ?? null,        // page_break / delay / input context
     characterName: `${playerState.first_name || ''} ${playerState.last_name || ''}`.trim() || 'Unknown',
     playerState:   JSON.parse(JSON.stringify(playerState)),
+    sessionState:  JSON.parse(JSON.stringify(sessionState)),  // FIX #S4
+    statRegistry:  JSON.parse(JSON.stringify(statRegistry)),  // FIX #S4
     pendingStatPoints,
     narrativeLog:  JSON.parse(JSON.stringify(narrativeLog ?? [])),
     timestamp:     Date.now(),
@@ -186,20 +214,21 @@ export function importSaveFromJSON(json, targetSlot) {
 }
 
 // ---------------------------------------------------------------------------
-// restoreFromSave — applies a v4 save payload to live engine state.
+// restoreFromSave — applies a v5 save payload to live engine state.
 //
 // The no-replay approach:
 //   1. Re-parse startup to establish fresh variable defaults.
 //   2. Merge saved playerState over fresh defaults.
-//   3. Parse and cache the saved scene's lines (needed if undo or gotoScene
-//      ever needs to replay from this point).
-//   4. Restore ip, scene, chapterTitle, delayIndex, awaitingChoice.
-//   5. Render narrative from saved log via renderFromLog — instant, no
+//   3. Restore statRegistry from the save (FIX #S4) so runtime-registered
+//      stats from scene files survive the load cycle.
+//   4. Restore sessionState from the save (FIX #S4) so *persist vars survive.
+//   5. Parse and cache the saved scene's lines so ip is meaningful and
+//      any future gotoScene / undo operations have a live currentLines array.
+//   6. Render narrative from saved log via renderFromLog — instant, no
 //      interpreter execution, no applySystemRewards calls.
-//   5b. Re-point narrative.js's _choiceArea at the live DOM element. (BUG-05)
-//   6. Re-present any pause UI (page_break / input / delay) from pauseState,
-//      or re-render choices if awaitingChoice was saved.
+//   6b. Re-point narrative.js's _choiceArea at the live DOM element. (BUG-05)
 //   7. Run the stats panel.
+//   8. Re-present pause UI or choices.
 //
 // All callbacks are injected to avoid circular imports.
 // ---------------------------------------------------------------------------
@@ -237,6 +266,26 @@ export async function restoreFromSave(save, {
   setPendingStatPoints(savedPoints);
   if (savedPoints > 0) setPendingLevelUpDisplay(true);
   clearTempState();
+
+  // FIX #S4: Restore statRegistry from save so runtime-registered stats (from
+  // scene-level *create_stat directives) are not lost. parseStartup() only
+  // registers stats from startup.txt; any additional stats added at runtime
+  // must come from the save. Merge: startup-derived entries are the base,
+  // saved entries that are NOT already in the fresh registry are appended.
+  if (Array.isArray(save.statRegistry) && save.statRegistry.length > 0) {
+    const freshKeys = new Set(statRegistry.map(e => e.key));
+    const extra = save.statRegistry.filter(e => !freshKeys.has(e.key));
+    if (extra.length > 0) {
+      setStatRegistry([...statRegistry, ...extra]);
+    }
+  }
+
+  // FIX #S4: Restore sessionState from save so *persist variables survive
+  // page reloads. Graceful fallback: if the field is absent (old save format),
+  // sessionState stays as the empty object set by parseStartup.
+  if (save.sessionState && typeof save.sessionState === 'object' && !Array.isArray(save.sessionState)) {
+    setSessionState(JSON.parse(JSON.stringify(save.sessionState)));
+  }
 
   // 4. Parse and cache the saved scene's lines so ip is meaningful and
   //    any future gotoScene / undo operations have a live currentLines array.
@@ -284,7 +333,8 @@ export async function restoreFromSave(save, {
           clearPauseState();
           clearNarrative();
           applyTransition();
-          runInterpreter();
+          // FIX #S5: .catch() so errors are not swallowed as silent rejections.
+          runInterpreter().catch(err => console.error('[saves] runInterpreter error after page_break restore:', err));
         });
         break;
 
@@ -299,15 +349,17 @@ export async function restoreFromSave(save, {
             playerState[ps.varName] = value;
           }
           setIp(ps.resumeIp);
-          runInterpreter();
+          // FIX #S5: .catch() so errors are not swallowed as silent rejections.
+          runInterpreter().catch(err => console.error('[saves] runInterpreter error after input restore:', err));
         });
         break;
 
       case 'delay':
-        // Delay already elapsed — resume immediately
+        // Delay already elapsed — resume immediately.
         clearPauseState();
         setIp(ps.resumeIp);
-        runInterpreter();
+        // FIX #S5: .catch() so errors are not swallowed as silent rejections.
+        runInterpreter().catch(err => console.error('[saves] runInterpreter error after delay restore:', err));
         break;
     }
     return;
