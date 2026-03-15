@@ -19,7 +19,6 @@ import {
   playerState, statRegistry,
   pendingStatPoints,
   setPendingStatPoints, setPendingLevelUpDisplay,
-  delayIndex, advanceDelayIndex,
   normalizeKey,
 } from '../core/state.js';
 
@@ -213,8 +212,6 @@ export function showInlineLevelUp() {
 
   const block = document.createElement('div');
   block.className = 'levelup-inline-block';
-  block.style.animationDelay = `${delayIndex * 80}ms`;
-  advanceDelayIndex();
   _narrativeContent.insertBefore(block, _choiceArea);
 
   let skillBrowserOpen = false;
