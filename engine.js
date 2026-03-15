@@ -1,28 +1,15 @@
 // ---------------------------------------------------------------------------
 // engine.js — System Awakening coordinator (Phase 4 complete)
 //
-// This file is the final coordinator after all four extraction phases.
-// It owns: the DOM cache, fetchTextFile, scheduleStatsRender, boot, wireUI,
-// and getEngineState. Everything else lives in a module under engine/.
-//
-// Module map:
-//   engine/core/state.js        — all mutable state + variable management
-//   engine/core/expression.js   — safe recursive descent expression evaluator
-//   engine/core/parser.js       — parseLines, indexLabels, parseChoice, parseSystemBlock
-//   engine/core/interpreter.js  — directive registry, executeBlock, gotoScene, runInterpreter
-//   engine/systems/inventory.js — inventory add/remove/check
-//   engine/systems/leveling.js  — XP, level-up, system reward parsing
-//   engine/systems/saves.js     — localStorage save/load/slot management
-//   engine/ui/narrative.js      — formatText, addParagraph, addSystem, clearNarrative,
-//                                  applyTransition, renderChoices
-//   engine/ui/panels.js         — runStatsScene, showInlineLevelUp, showEndingScreen
-//   engine/ui/overlays.js       — trapFocus, showToast, slot cards, splash, save menu,
-//                                  char creation, loadAndResume
-//
-// Phase 5 (next): add esbuild; bundle engine/main.js → engine.js for production.
+// FIX #S6 (sweep 5): popUndo no longer calls runInterpreter(). Previously
+//   it re-ran the interpreter from the snapshot ip, which caused:
+//   - BUG 2: a duplicate auto-save overwriting the player's actual progress
+//   - BUG 3: potential duplicate paragraphs if lines existed between ip and *choice
+//   Now popUndo restores awaitingChoice from the snapshot and calls
+//   renderChoices directly to re-create buttons with live click handlers.
+//   pushUndoSnapshot now captures awaitingChoice in the snapshot.
 // ---------------------------------------------------------------------------
 
-// PATCH 1 of 6 — add pauseState, clearSessionState, exportSaveSlot, importSaveFromJSON
 import {
   playerState, tempState, statRegistry, startup,
   currentScene, currentLines, ip, pendingStatPoints,
@@ -32,7 +19,7 @@ import {
   setCurrentScene, setCurrentLines, setIp, setDelayIndex,
   setAwaitingChoice, setPendingLevelUpDisplay,
   setChapterTitleState, clearPauseState,
-  sessionState, clearSessionState,  // ENH-08: sessionState needed by pushUndoSnapshot/popUndo
+  sessionState, clearSessionState,
 } from './engine/core/state.js';
 
 import { evalValue }       from './engine/core/expression.js';
@@ -40,15 +27,14 @@ import { evalValue }       from './engine/core/expression.js';
 import {
   registerCallbacks, registerCaches,
   gotoScene, runInterpreter,
-  executeBlock,                     // FIX Main: needed for initNarrative callback
+  executeBlock,
 } from './engine/core/interpreter.js';
 
 import { parseLines, indexLabels } from './engine/core/parser.js';
 
-// PATCH 1 continued — add exportSaveSlot, importSaveFromJSON
 import {
   loadSaveFromSlot, saveGameToSlot,
-  deleteSaveSlot, exportSaveSlot, importSaveFromJSON,  // ENH-10
+  deleteSaveSlot, exportSaveSlot, importSaveFromJSON,
 } from './engine/systems/saves.js';
 
 import { parseSkills } from './engine/systems/skills.js';
@@ -75,9 +61,6 @@ import {
   loadAndResume,
 } from './engine/ui/overlays.js';
 
-// ---------------------------------------------------------------------------
-// DOM cache
-// ---------------------------------------------------------------------------
 const dom = {
   narrativeContent:   document.getElementById('narrative-content'),
   choiceArea:         document.getElementById('choice-area'),
@@ -86,16 +69,13 @@ const dom = {
   statusPanel:        document.getElementById('status-panel'),
   statusToggle:       document.getElementById('status-toggle'),
   saveBtn:            document.getElementById('save-btn'),
-  // Splash
   splashOverlay:      document.getElementById('splash-overlay'),
   splashNewBtn:       document.getElementById('splash-new-btn'),
   splashLoadBtn:      document.getElementById('splash-load-btn'),
   splashSlots:        document.getElementById('splash-slots'),
   splashSlotsBack:    document.getElementById('splash-slots-back'),
-  // In-game save menu
   saveOverlay:        document.getElementById('save-overlay'),
   saveMenuClose:      document.getElementById('save-menu-close'),
-  // Character creation
   charOverlay:        document.getElementById('char-creation-overlay'),
   inputFirstName:     document.getElementById('input-first-name'),
   inputLastName:      document.getElementById('input-last-name'),
@@ -104,13 +84,11 @@ const dom = {
   errorFirstName:     document.getElementById('error-first-name'),
   errorLastName:      document.getElementById('error-last-name'),
   charBeginBtn:       document.getElementById('char-begin-btn'),
-  // Ending
   endingOverlay:      document.getElementById('ending-overlay'),
   endingTitle:        document.getElementById('ending-title'),
   endingContent:      document.getElementById('ending-content'),
   endingStats:        document.getElementById('ending-stats'),
   endingActionBtn:    document.getElementById('ending-action-btn'),
-  // Toast
   toast:              document.getElementById('toast'),
 };
 
@@ -118,33 +96,20 @@ Object.entries(dom).forEach(([key, el]) => {
   if (!el) console.warn(`[engine] DOM element missing: "${key}" — check index.html IDs`);
 });
 
-// ---------------------------------------------------------------------------
-// Caches — shared between interpreter and fetchTextFile
-// ---------------------------------------------------------------------------
 const sceneCache  = new Map();
 const labelsCache = new Map();
 
-// ---------------------------------------------------------------------------
-// scheduleStatsRender — deferred stats panel refresh.
-// Micro-task batching: multiple synchronous state changes in one tick only
-// trigger a single re-render.
-// ---------------------------------------------------------------------------
 let _statsRenderPending = false;
-
-// PATCH 3 of 6 — call updateUndoBtn inside scheduleStatsRender (BUG-09)
 function scheduleStatsRender() {
   if (_statsRenderPending) return;
   _statsRenderPending = true;
   requestAnimationFrame(() => {
     _statsRenderPending = false;
     runStatsScene();
-    updateUndoBtn();  // BUG-09 + ENH-08: keep undo button in sync with pauseState
+    updateUndoBtn();
   });
 }
 
-// ---------------------------------------------------------------------------
-// fetchTextFile — loads .txt files with scene-level caching
-// ---------------------------------------------------------------------------
 async function fetchTextFile(name) {
   const key = name.endsWith('.txt') ? name : `${name}.txt`;
   if (sceneCache.has(key)) return sceneCache.get(key);
@@ -155,9 +120,6 @@ async function fetchTextFile(name) {
   return text;
 }
 
-// ---------------------------------------------------------------------------
-// showEngineError — renders a red error block into the narrative area
-// ---------------------------------------------------------------------------
 function showEngineError(message) {
   clearNarrative();
   const div = document.createElement('div');
@@ -176,41 +138,31 @@ function showEngineError(message) {
   dom.chapterTitle.textContent = 'ERROR';
 }
 
-// ---------------------------------------------------------------------------
-// getEngineState — test accessor (no automated tests yet, kept for future use)
-// ---------------------------------------------------------------------------
 function getEngineState() {
   return { playerState, tempState, statRegistry, startup, currentScene, pendingStatPoints };
 }
 
 // ---------------------------------------------------------------------------
-// Undo system — snapshots state on each choice, allows stepping back.
-//
-// Phase 2 rewrite: snapshots now store narrativeLog instead of narrativeHTML.
-// popUndo restores by calling renderFromLog() — no innerHTML clobber, no
-// interpreter re-run, no dead event listeners. This eliminates the entire
-// class of bugs caused by innerHTML replacement (detached DOM refs, killed
-// levelup-inline-block handlers, stale _choiceArea pointer in narrative.js).
-//
-// Limited to 10 entries. Each snapshot captures everything needed to
-// fully restore the game to the moment before a choice was made.
+// Undo system
 // ---------------------------------------------------------------------------
 const _undoStack = [];
 const UNDO_MAX = 10;
 
 function pushUndoSnapshot() {
-  // Deep-copy the narrative log at snapshot time so subsequent pushes don't
-  // mutate the stored array.
   _undoStack.push({
     playerState:      JSON.parse(JSON.stringify(playerState)),
     tempState:        JSON.parse(JSON.stringify(tempState)),
-    // FIX #13: include sessionState so popUndo can restore session-scoped flags
     sessionState:     JSON.parse(JSON.stringify(sessionState)),
     pendingStatPoints,
     scene:            currentScene,
     ip,
     narrativeLog:     JSON.parse(JSON.stringify(getNarrativeLog())),
     chapterTitle:     dom.chapterTitle.textContent,
+    // FIX #S6: capture awaitingChoice so popUndo can re-render choices
+    // directly without re-running the interpreter.
+    awaitingChoice:   awaitingChoice
+      ? JSON.parse(JSON.stringify(awaitingChoice))
+      : null,
   });
   if (_undoStack.length > UNDO_MAX) _undoStack.shift();
   updateUndoBtn();
@@ -219,11 +171,9 @@ function pushUndoSnapshot() {
 async function popUndo() {
   if (_undoStack.length === 0) return;
   const snap = _undoStack.pop();
- 
-  // --- Restore game state ---
+
   setPlayerState(JSON.parse(JSON.stringify(snap.playerState)));
   setTempState(JSON.parse(JSON.stringify(snap.tempState)));
-  // FIX #13: restore sessionState from snapshot.
   if (snap.sessionState !== undefined) {
     clearSessionState();
     Object.assign(sessionState, JSON.parse(JSON.stringify(snap.sessionState)));
@@ -232,8 +182,7 @@ async function popUndo() {
   }
   setPendingStatPoints(snap.pendingStatPoints);
   setCurrentScene(snap.scene);
- 
-  // Re-parse lines so the interpreter has a live currentLines array.
+
   const text = sceneCache.get(snap.scene.endsWith('.txt') ? snap.scene : `${snap.scene}.txt`);
   if (text) {
     setCurrentLines(parseLines(text));
@@ -242,27 +191,32 @@ async function popUndo() {
   setIp(snap.ip);
   setDelayIndex(0);
   setAwaitingChoice(null);
- 
   clearPauseState();
- 
-  // --- Restore chapter title ---
+
   dom.chapterTitle.textContent = snap.chapterTitle;
   setChapterTitleState(snap.chapterTitle);
- 
-  // --- Restore narrative from log ---
+
   renderFromLog(snap.narrativeLog, { skipAnimations: true });
- 
+
   dom.choiceArea = document.getElementById('choice-area');
   setChoiceArea(dom.choiceArea);
- 
-  if (snap.pendingStatPoints > 0) setPendingLevelUpDisplay(true);
- 
-  await runInterpreter();
+
+  // FIX #S6 (BUG 2 + BUG 3): Restore choices directly from the snapshot
+  // instead of calling runInterpreter(). This avoids:
+  //   - BUG 2: runInterpreter writes an auto-save, overwriting the player's
+  //     actual progress with the undo'd state.
+  //   - BUG 3: runInterpreter re-executes lines between ip and *choice,
+  //     potentially duplicating paragraphs already painted by renderFromLog.
+  if (snap.awaitingChoice) {
+    setAwaitingChoice(snap.awaitingChoice);
+    if (snap.pendingStatPoints > 0) setPendingLevelUpDisplay(true);
+    renderChoices(snap.awaitingChoice.choices);
+  }
+
   runStatsScene();
   updateUndoBtn();
 }
 
-// PATCH 2 of 6 — BUG-09: updateUndoBtn checks pauseState
 function updateUndoBtn() {
   const btn = document.getElementById('undo-btn');
   if (!btn) return;
@@ -270,7 +224,7 @@ function updateUndoBtn() {
 }
 
 // ---------------------------------------------------------------------------
-// Debug overlay — toggled by backtick (`) key. Shows live engine state.
+// Debug overlay
 // ---------------------------------------------------------------------------
 let _debugVisible = false;
 
@@ -308,7 +262,7 @@ ${JSON.stringify(tempState, null, 2)}</pre></div>`;
 }
 
 // ---------------------------------------------------------------------------
-// wireUI — attaches all top-level event listeners.
+// wireUI
 // ---------------------------------------------------------------------------
 function wireUI() {
   dom.statusToggle.addEventListener('click', () => {
@@ -438,7 +392,6 @@ function wireUI() {
     if (e.key === '`') { e.preventDefault(); toggleDebug(); }
   });
 
-  // PATCH 6 of 6 — ENH-10: wire export/import buttons
   [1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`save-export-${slot}`);
     if (!btn) return;
@@ -473,17 +426,11 @@ function wireUI() {
 }
 
 // ---------------------------------------------------------------------------
-// boot — initialise all modules, then show the splash screen
+// boot
 // ---------------------------------------------------------------------------
 async function boot() {
-  // 1. Register shared caches with the interpreter
   registerCaches(sceneCache, labelsCache);
 
-  // 2. Initialise UI modules with their DOM slices and cross-module callbacks.
-  //    Each init() stores references locally so no module reaches into dom{}.
-
-  // FIX Main (sweep 4): pass executeBlock and runInterpreter to initNarrative
-  // so the choice click handler can call them without a circular import.
   initNarrative({
     narrativeContent: dom.narrativeContent,
     choiceArea:       dom.choiceArea,
@@ -512,7 +459,6 @@ async function boot() {
     },
   });
 
-  // PATCH 5 of 6 — BUG-05 + ENH-08: add setChoiceArea and updated clearUndoStack
   initOverlays({
     splashOverlay:  dom.splashOverlay,
     splashSlots:    dom.splashSlots,
@@ -555,8 +501,6 @@ async function boot() {
     },
   });
 
-  // 3. Register interpreter callbacks — must happen after initNarrative/Panels
-  //    so the functions are the real implementations, not null.
   registerCallbacks({
     addParagraph,
     addSystem,
@@ -575,10 +519,8 @@ async function boot() {
     getNarrativeLog,
   });
 
-  // 4. Wire all UI event listeners
   wireUI();
 
-  // 5. Parse startup.txt, skills.txt, and show the splash screen
   try {
     await parseStartup(fetchTextFile, evalValue);
     await parseSkills(fetchTextFile);
