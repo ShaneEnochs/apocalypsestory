@@ -19,9 +19,13 @@
 //     directly — no gotoScene call, no interpreter replay.
 //
 // BUG-05 fix: restoreFromSave now accepts and calls a setChoiceArea callback
-// after renderFromLog, mirroring what popUndo already does in engine.js.
-// Without this, narrative.js's internal _choiceArea pointer is stale after a
-// mid-session load, causing renderChoices to insert buttons into a detached node.
+//   after renderFromLog, mirroring what popUndo already does in engine.js.
+//
+// FIX #12 (sweep 2): exportSaveSlot no longer appends the <a> element to
+//   document.body before clicking. In all modern browsers (Chrome 60+,
+//   Firefox 58+, Safari 10.1+), a detached anchor's .click() triggers the
+//   download without needing to be in the DOM. The append/removeChild pair
+//   caused a brief DOM flash on slow machines and is unnecessary.
 // ---------------------------------------------------------------------------
 
 import {
@@ -129,6 +133,11 @@ export function deleteSaveSlot(slot) {
 // ---------------------------------------------------------------------------
 // exportSaveSlot — triggers a browser download of the slot's save as JSON.
 // Returns true on success, false if the slot is empty. (ENH-10)
+//
+// FIX #12: The <a> element no longer needs to be appended to document.body
+//   before calling .click(). Modern browsers trigger the download from a
+//   detached anchor. The old append+removeChild caused a brief DOM flash
+//   on slow machines and is entirely unnecessary.
 // ---------------------------------------------------------------------------
 export function exportSaveSlot(slot) {
   const save = loadSaveFromSlot(slot);
@@ -139,11 +148,10 @@ export function exportSaveSlot(slot) {
   const blob     = new Blob([JSON.stringify(save, null, 2)], { type: 'application/json' });
   const url      = URL.createObjectURL(blob);
   const a        = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
+  a.href         = url;
+  a.download     = filename;
+  // FIX #12: call .click() directly — no DOM append/removeChild needed
   a.click();
-  document.body.removeChild(a);
   URL.revokeObjectURL(url);
   return true;
 }
@@ -241,7 +249,7 @@ export async function restoreFromSave(save, {
 
   // 5. Restore chapter title — both DOM and state field.
   if (save.chapterTitle) {
-    setChapterTitle(save.chapterTitle);      // updates DOM + setChapterTitleState via engine.js callback
+    setChapterTitle(save.chapterTitle);
   }
 
   // 6. Render narrative from the saved log — pure DOM paint, no side effects.
@@ -253,8 +261,6 @@ export async function restoreFromSave(save, {
   // _choiceArea pointer inside narrative.js is now pointing at a stale element.
   // Re-acquire the live #choice-area from the DOM and pass it to setChoiceArea
   // so that subsequent renderChoices() calls insert buttons in the right place.
-  // (popUndo in engine.js already does this — this call makes restoreFromSave
-  // consistent with that behaviour.)
   if (typeof setChoiceArea === 'function') {
     setChoiceArea(document.getElementById('choice-area'));
   }
@@ -292,24 +298,25 @@ export async function restoreFromSave(save, {
           } else {
             playerState[ps.varName] = value;
           }
+          setIp(ps.resumeIp);
           runInterpreter();
         });
         break;
 
       case 'delay':
-        // The delay has already elapsed during the player's absence; resume now.
+        // Delay already elapsed — resume immediately
         clearPauseState();
+        setIp(ps.resumeIp);
         runInterpreter();
         break;
     }
-  } else {
-    // No pause state — run the interpreter from the saved ip. It will
-    // immediately hit the *choice (or *ending etc.) at that position
-    // and render choices / end screen without replaying any narrative text
-    // (that's already on screen from renderFromLog).
-    //
-    // If pendingStatPoints > 0, showInlineLevelUp will be called by
-    // runInterpreter → renderChoices → pendingLevelUpDisplay check.
-    await runInterpreter();
+    return;
+  }
+
+  // If no pause state, re-render awaitingChoice if it was saved.
+  if (save.awaitingChoice) {
+    setAwaitingChoice(save.awaitingChoice);
+    renderChoices(save.awaitingChoice.choices);
+    if (savedPoints > 0) showInlineLevelUp();
   }
 }
