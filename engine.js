@@ -219,15 +219,32 @@ function updateUndoBtn() {
 }
 
 // ---------------------------------------------------------------------------
-// Debug overlay
+// Debug overlay — enhanced to show choice state, awaitingChoice details,
+// pauseState, a live event log, and auto-refreshes every 250ms while open.
 // ---------------------------------------------------------------------------
 let _debugVisible = false;
+let _debugRefreshTimer = null;
+const _debugEventLog = [];   // rolling log of engine events
+const DEBUG_LOG_MAX = 30;
+
+export function debugLog(tag, detail = '') {
+  const ts = performance.now().toFixed(0);
+  _debugEventLog.unshift(`[${ts}ms] ${tag}${detail ? ': ' + detail : ''}`);
+  if (_debugEventLog.length > DEBUG_LOG_MAX) _debugEventLog.pop();
+  if (_debugVisible) refreshDebug();
+}
 
 function toggleDebug() {
   _debugVisible = !_debugVisible;
   const el = document.getElementById('debug-overlay');
   if (el) el.classList.toggle('hidden', !_debugVisible);
-  if (_debugVisible) refreshDebug();
+  if (_debugVisible) {
+    refreshDebug();
+    _debugRefreshTimer = setInterval(refreshDebug, 250);
+  } else {
+    clearInterval(_debugRefreshTimer);
+    _debugRefreshTimer = null;
+  }
 }
 
 function refreshDebug() {
@@ -236,23 +253,54 @@ function refreshDebug() {
 
   const ps = { ...playerState };
   if (Array.isArray(ps.inventory) && ps.inventory.length > 5) ps.inventory = [...ps.inventory.slice(0, 5), `... +${ps.inventory.length - 5}`];
-  if (Array.isArray(ps.skills) && ps.skills.length > 5) ps.skills = [...ps.skills.slice(0, 5), `... +${ps.skills.length - 5}`];
-  if (Array.isArray(ps.journal) && ps.journal.length > 3) ps.journal = [`(${ps.journal.length} entries)`];
+  if (Array.isArray(ps.skills)    && ps.skills.length > 5)    ps.skills    = [...ps.skills.slice(0, 5),    `... +${ps.skills.length - 5}`];
+  if (Array.isArray(ps.journal)   && ps.journal.length > 3)   ps.journal   = [`(${ps.journal.length} entries)`];
 
   const currentLine = currentLines[ip];
-  const linePreview = currentLine ? currentLine.trimmed.slice(0, 80) : '(end)';
+  const linePreview = currentLine ? currentLine.trimmed.slice(0, 80) : '(end of scene)';
+
+  // awaitingChoice detail
+  let acDetail = 'none';
+  if (awaitingChoice) {
+    const opts = (awaitingChoice.choices || []).map((c, i) =>
+      `  [${i}] selectable=${c.selectable} start=${c.start} end=${c.end} "${(c.text || '').slice(0, 40)}"`
+    ).join('\n');
+    acDetail = `end=${awaitingChoice.end} _savedIp=${awaitingChoice._savedIp ?? 'unset'} _blockEnd=${awaitingChoice._blockEnd ?? 'unset'}\n${opts}`;
+  }
+
+  // pauseState detail
+  const psDetail = pauseState
+    ? `type=${pauseState.type} resumeIp=${pauseState.resumeIp}`
+    : 'none';
+
+  // choice buttons currently in DOM
+  const choiceArea = document.getElementById('choice-area');
+  const btns = choiceArea ? [...choiceArea.querySelectorAll('.choice-btn')] : [];
+  const btnDetail = btns.length
+    ? btns.map((b, i) => `  [${i}] disabled=${b.disabled} unselectable=${b.dataset.unselectable || 'false'} "${b.textContent.trim().slice(0, 40)}"`).join('\n')
+    : '  (none)';
 
   el.innerHTML = `<div class="debug-header">DEBUG <button class="debug-close" onclick="this.parentElement.parentElement.classList.add('hidden')">&times;</button></div>
-<div class="debug-body"><pre>scene:  ${currentScene || '(none)'}
-ip:     ${ip} / ${currentLines.length}
-line:   ${linePreview}
-await:  ${awaitingChoice ? 'choice pending' : 'none'}
-undo:   ${_undoStack.length} snapshots
+<div class="debug-body"><pre>── ENGINE ──────────────────────────
+scene:      ${currentScene || '(none)'}
+ip:         ${ip} / ${currentLines.length}
+line:       ${linePreview}
+pauseState: ${psDetail}
+undo stack: ${_undoStack.length} snapshots
 
-playerState:
+── CHOICE STATE ────────────────────
+awaitingChoice: ${acDetail}
+
+── DOM BUTTONS ─────────────────────
+${btnDetail}
+
+── EVENT LOG ───────────────────────
+${_debugEventLog.slice(0, 20).join('\n') || '  (none yet)'}
+
+── PLAYER STATE ────────────────────
 ${JSON.stringify(ps, null, 2)}
 
-tempState:
+── TEMP STATE ──────────────────────
 ${JSON.stringify(tempState, null, 2)}</pre></div>`;
 }
 
@@ -435,7 +483,11 @@ async function boot() {
     onBeforeChoice:   pushUndoSnapshot,
     executeBlock,
     runInterpreter,
+    debugLog,
   });
+
+  // Expose ip to the debug overlay via a thin accessor (avoids circular import)
+  window._dbgIp = () => ip;
 
   initPanels({
     narrativeContent: dom.narrativeContent,
@@ -512,6 +564,7 @@ async function boot() {
     runStatsScene,
     fetchTextFile,
     getNarrativeLog,
+    debugLog,
   });
 
   wireUI();
