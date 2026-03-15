@@ -338,12 +338,15 @@ export function showInlineLevelUp() {
       // temporarily disabled for the level-up. Buttons with
       // data-unselectable="true" were disabled by *selectable_if (false)
       // and must stay locked.
-      _choiceArea.querySelectorAll('.choice-btn').forEach(b => {
-        if (b.dataset.unselectable !== 'true') {
-          b.disabled = false;
-          b.classList.remove('choice-btn--disabled');
-        }
-      });
+      const liveChoiceArea = document.getElementById('choice-area');
+      if (liveChoiceArea) {
+        liveChoiceArea.querySelectorAll('.choice-btn').forEach(b => {
+          if (b.dataset.unselectable !== 'true') {
+            b.disabled = false;
+            b.classList.remove('choice-btn--disabled');
+          }
+        });
+      }
     });
   };
 

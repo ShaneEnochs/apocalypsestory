@@ -512,6 +512,33 @@ body {
 .choice-btn:hover::after   { width: 100%; }
 .choice-btn:active          { transform: translateX(2px) scale(0.99); }
 
+.choice-btn--disabled,
+.choice-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  color: var(--text-faint);
+  border-color: var(--border-dim);
+  pointer-events: none;
+}
+
+.choice-btn--disabled:hover,
+.choice-btn:disabled:hover {
+  border-color: var(--border-dim);
+  color: var(--text-faint);
+  transform: none;
+}
+
+.choice-btn--disabled::after,
+.choice-btn:disabled::after {
+  width: 0;
+}
+
+.choice-btn--disabled::before,
+.choice-btn:disabled::before {
+  opacity: 0.3;
+  color: var(--text-faint);
+}
+
 .choice-note {
   font-style: italic;
   font-size: 0.88em;

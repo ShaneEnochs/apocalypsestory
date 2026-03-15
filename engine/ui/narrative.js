@@ -19,7 +19,7 @@ import {
   playerState, tempState,
   pendingLevelUpDisplay, pendingStatPoints,
   delayIndex, setDelayIndex, advanceDelayIndex,
-  normalizeKey,
+  normalizeKey, awaitingChoice, setAwaitingChoice,
 } from '../core/state.js';
 
 import { applySystemRewards } from '../systems/leveling.js';
@@ -295,11 +295,14 @@ export function renderChoices(choices) {
 
   const levelUpActive = pendingStatPoints > 0;
   _choiceArea.innerHTML = '';
+  _choiceArea.setAttribute('role', 'group');
+  _choiceArea.setAttribute('aria-label', 'Story choices');
 
+  let choiceMade = false;
   choices.forEach((choice, idx) => {
     const btn = document.createElement('button');
     btn.className = 'choice-btn';
-    btn.style.animationDelay = `${(delayIndex + idx) * 80}ms`;
+    btn.style.animationDelay = `${idx * 80}ms`;
     btn.innerHTML = `<span>${formatText(choice.text)}</span>`;
 
     // ENH-09: Render inline stat requirement badge if the choice has one.
@@ -313,7 +316,7 @@ export function renderChoices(choices) {
         : (playerState[key] !== undefined ? playerState[key] : null);
       const met = val !== null && Number(val) >= requirement;
       const badge = document.createElement('span');
-      badge.className = `stat-requirement-badge ${met ? 'stat-req--met' : 'stat-req--unmet'}`;
+      badge.className = `choice-stat-badge ${met ? 'choice-stat-badge--met' : 'choice-stat-badge--unmet'}`;
       badge.textContent = `${label} ${requirement}`;
       btn.appendChild(badge);
     }
@@ -321,19 +324,27 @@ export function renderChoices(choices) {
     if (!choice.selectable || levelUpActive) {
       btn.disabled = true;
       btn.classList.add('choice-btn--disabled');
+      btn.setAttribute('aria-disabled', 'true');
+      // Mark permanently-unselectable buttons so the level-up confirm handler
+      // knows not to re-enable them. Buttons disabled only for levelUpActive
+      // have no marker and WILL be re-enabled after the level-up is confirmed.
+      if (!choice.selectable) btn.dataset.unselectable = 'true';
     } else {
       btn.addEventListener('click', () => {
+        if (choiceMade) return;
+        choiceMade = true;
         _onBeforeChoice();
         btn.disabled = true;
         _choiceArea.querySelectorAll('.choice-btn').forEach(b => { b.disabled = true; });
-        // FIX: actually execute the chosen option's block and resume the interpreter.
-        // Previously this import resolved but the .then() body was empty (just a
-        // comment), so clicking a choice button did nothing — the game froze.
-        // _savedIp is the ip to resume at after the choice block completes;
-        // it is stashed on awaitingChoice by executeBlock when a *choice is
-        // encountered mid-block, or falls back to choice.end for top-level choices.
-        import('../core/interpreter.js').then(({ executeBlock, runInterpreter, awaitingChoice: ac }) => {
-          const savedIp = ac?._savedIp ?? choice.end;
+        // Capture and clear awaitingChoice BEFORE executeBlock runs.
+        // awaitingChoice.end = line after the entire *choice block (correct for all options).
+        // awaitingChoice._savedIp = resume point stashed by executeBlock for nested choices.
+        // CRITICAL: if awaitingChoice is not cleared here, executeBlock's inner loop sees
+        // it truthy on its first iteration and bails immediately — the choice body never runs.
+        const choiceBlockEnd = awaitingChoice?.end ?? choice.end;
+        const savedIp = awaitingChoice?._savedIp ?? choiceBlockEnd;
+        setAwaitingChoice(null);
+        import('../core/interpreter.js').then(({ executeBlock, runInterpreter }) => {
           executeBlock(choice.start, choice.end, savedIp)
             .then(() => runInterpreter())
             .catch(err => console.error('[narrative] choice execution error:', err));
@@ -342,6 +353,11 @@ export function renderChoices(choices) {
     }
 
     _choiceArea.appendChild(btn);
+  });
+
+  requestAnimationFrame(() => {
+    const firstEnabled = _choiceArea.querySelector('.choice-btn:not(:disabled)');
+    if (firstEnabled) firstEnabled.focus();
   });
 }
 
