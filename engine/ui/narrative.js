@@ -23,7 +23,7 @@ import {
   pendingLevelUpDisplay, pendingStatPoints,
   awaitingChoice, setAwaitingChoice,
   delayIndex, advanceDelayIndex, setDelayIndex,
-  normalizeKey,
+  normalizeKey, _isRestoring,
 } from '../core/state.js';
 
 import { applySystemRewards }            from '../systems/leveling.js';
@@ -111,7 +111,10 @@ export function addParagraph(text, cls = 'narrative-paragraph') {
 // addSystem — renders a system block, applies rewards, triggers level-up UI
 // ---------------------------------------------------------------------------
 export function addSystem(text) {
-  applySystemRewards(text, _scheduleStats);
+  // Skip reward parsing during save/load replay — playerState was already
+  // restored from the save payload, so re-applying rewards would double-count
+  // XP and trigger a spurious level-up (KB1).
+  if (!_isRestoring) applySystemRewards(text, _scheduleStats);
 
   const div       = document.createElement('div');
   const isXP      = /XP\s+gained|bonus\s+XP|\+\d+\s+XP/i.test(text);

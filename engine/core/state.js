@@ -54,6 +54,23 @@ export let delayIndex = 0;
 export let startup = { sceneList: [] };
 
 // ---------------------------------------------------------------------------
+// _isRestoring — true while restoreFromSave is replaying a scene.
+// addSystem checks this flag and skips applySystemRewards during replay to
+// prevent double-counting XP / rewards (KB1).
+// ---------------------------------------------------------------------------
+export let _isRestoring = false;
+export function setIsRestoring(v) { _isRestoring = v; }
+
+// ---------------------------------------------------------------------------
+// _pausedAtIp — set by *page_break / *delay / *input before they jump ip to
+// currentLines.length. buildSavePayload reads this so saves record the real
+// directive line rather than the synthetic "past-end" ip (KB3).
+// ---------------------------------------------------------------------------
+export let _pausedAtIp = null;
+export function setPausedAtIp(n) { _pausedAtIp = n; }
+export function clearPausedAtIp() { _pausedAtIp = null; }
+
+// ---------------------------------------------------------------------------
 // Setters
 // ---------------------------------------------------------------------------
 export function setPlayerState(s)           { playerState = s; }

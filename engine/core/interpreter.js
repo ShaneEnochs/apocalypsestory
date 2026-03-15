@@ -28,6 +28,7 @@ import {
   setCurrentScene, setCurrentLines, setIp, advanceIp,
   setGotoJumped, setAwaitingChoice, setDelayIndex, clearTempState,
   normalizeKey, setVar, declareTemp, patchPlayerState,
+  setPausedAtIp, clearPausedAtIp,
 } from './state.js';
 
 import { evalValue }            from './expression.js';
@@ -491,12 +492,15 @@ registerCommand('*input', (t) => {
   const prompt  = m[2];
   const resumeIp = ip + 1;
 
+  // Record the real ip before jumping so buildSavePayload can use it (KB3).
+  setPausedAtIp(ip);
   // Jump ip past end of scene to stop runInterpreter's loop.
   // The onSubmit callback restores ip to resumeIp and re-enters the loop.
   setIp(currentLines.length);
 
   // Build the input UI via the callback system
   cb.showInputPrompt(varName, prompt, (value) => {
+    clearPausedAtIp();
     // Store the value in tempState if it exists there, otherwise playerState
     if (Object.prototype.hasOwnProperty.call(tempState, varName)) {
       tempState[varName] = value;
@@ -553,9 +557,12 @@ registerCommand('*loop', async (t, line) => {
 registerCommand('*page_break', (t) => {
   const btnText = t.replace(/^\*page_break\s*/, '').trim().replace(/^"|"$/g, '') || 'Continue';
   const resumeIp = ip + 1;
+  // Record the real ip before jumping so buildSavePayload can use it (KB3).
+  setPausedAtIp(ip);
   // Jump past end to stop the interpreter loop
   setIp(currentLines.length);
   cb.showPageBreak(btnText, () => {
+    clearPausedAtIp();
     cb.clearNarrative();
     cb.applyTransition();
     setIp(resumeIp);
@@ -568,8 +575,11 @@ registerCommand('*page_break', (t) => {
 registerCommand('*delay', (t) => {
   const ms = Number(t.replace(/^\*delay\s*/, '').trim()) || 500;
   const resumeIp = ip + 1;
+  // Record the real ip before jumping so buildSavePayload can use it (KB3).
+  setPausedAtIp(ip);
   setIp(currentLines.length);
   setTimeout(() => {
+    clearPausedAtIp();
     setIp(resumeIp);
     runInterpreter();
   }, ms);

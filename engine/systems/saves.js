@@ -10,7 +10,8 @@
 
 import { playerState, pendingStatPoints, currentScene, ip,
          setPlayerState, setPendingStatPoints,
-         clearTempState, parseStartup }                from '../core/state.js';
+         clearTempState, parseStartup,
+         _pausedAtIp, setIsRestoring }                from '../core/state.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -42,7 +43,10 @@ export function buildSavePayload(slot, label) {
     slot:             String(slot),
     scene:            currentScene,
     label:            label ?? null,
-    ip:               ip,
+    // Use _pausedAtIp when the interpreter is halted at a *page_break / *delay /
+    // *input directive — those directives jump ip to currentLines.length to stop
+    // the loop, so raw ip would give us a past-end value that breaks restore (KB3).
+    ip:               _pausedAtIp !== null ? _pausedAtIp : ip,
     characterName:    `${playerState.first_name || ''} ${playerState.last_name || ''}`.trim() || 'Unknown',
     playerState:      JSON.parse(JSON.stringify(playerState)),
     pendingStatPoints,
@@ -114,7 +118,16 @@ export async function restoreFromSave(save, { gotoScene, runStatsScene, fetchTex
   clearTempState();
 
   await runStatsScene();
-  // Pass savedIp so gotoScene can resume at the exact line position.
-  // Falls back to label or ip=0 for older saves that don't have ip.
-  await gotoScene(save.scene, save.label, true, save.ip ?? null);
+  // Set _isRestoring so addSystem skips applySystemRewards during the replay
+  // from the nearest *label — playerState is already correct from the save
+  // payload and re-applying rewards would double-count XP / trigger a
+  // spurious level-up (KB1).
+  setIsRestoring(true);
+  try {
+    // Pass savedIp so gotoScene can resume at the exact line position.
+    // Falls back to label or ip=0 for older saves that don't have ip.
+    await gotoScene(save.scene, save.label, true, save.ip ?? null);
+  } finally {
+    setIsRestoring(false);
+  }
 }
