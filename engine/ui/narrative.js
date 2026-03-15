@@ -336,7 +336,15 @@ export function renderChoices(choices) {
       btn.appendChild(badge);
     }
 
-    if (!choice.selectable || levelUpActive) {
+    if (!choice.selectable) {
+      // FIX BUG-6 (sweep 5): Mark permanently-unselectable buttons so the
+      // level-up confirm handler knows not to re-enable them.
+      btn.disabled = true;
+      btn.classList.add('choice-btn--disabled');
+      btn.dataset.unselectable = 'true';
+    } else if (levelUpActive) {
+      // Temporarily disabled until level-up is confirmed — no data marker,
+      // so the confirm handler WILL re-enable these.
       btn.disabled = true;
       btn.classList.add('choice-btn--disabled');
     } else {
