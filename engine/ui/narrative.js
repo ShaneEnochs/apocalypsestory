@@ -331,9 +331,12 @@ export function renderChoices(choices) {
 
   // BUG J: move keyboard focus to the first enabled button after the DOM
   // has painted, so tab-key users and screen readers land in the right place.
+  // preventScroll: true stops the browser auto-scrolling #narrative-content
+  // to the bottom when choices appear — the player should see content from
+  // the top, not jump straight to the buttons.
   requestAnimationFrame(() => {
     const firstEnabled = _choiceArea.querySelector('.choice-btn:not(:disabled)');
-    if (firstEnabled) firstEnabled.focus();
+    if (firstEnabled) firstEnabled.focus({ preventScroll: true });
   });
 }
 
@@ -408,8 +411,9 @@ export function showInputPrompt(varName, prompt, onSubmit) {
     if (e.key === 'Enter') doSubmit();
   });
 
-  // Auto-focus the input field
-  requestAnimationFrame(() => field.focus());
+  // Auto-focus the input field without scrolling to it — the player should
+  // read from the top of the screen, not jump to the input widget.
+  requestAnimationFrame(() => field.focus({ preventScroll: true }));
 }
 
 // ---------------------------------------------------------------------------
