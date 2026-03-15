@@ -52,7 +52,7 @@ The monsters came three days later.
 
 *title Eight Years Later
 
-*system Essence gained: +1270
+*system Essence gained: +5
 
 Eight years of that. Eight years of dungeons and raids and watching people you loved turn into numbers on a screen — their health bars dropping, their names greying out, their entries in the party list blinking once and then going dark forever.
 
@@ -102,7 +102,7 @@ The three of you. The last three. The sky the color of an open wound.
 
 *label branch_dark
 
-*system Essence gained: +15
+*system Essence gained: +5
 
 Kai points at you. "See, *that's* what I'm talking about. Eight years of the apocalypse and you still—" He stops. Shakes his head, still smiling. "You still sound like yourself."
 
@@ -380,7 +380,7 @@ The blade is already in your hand. Whatever is waiting on the other side, you'll
 
 *label portal_crossing
 
-*system Essence gained: +970
+*system Essence gained: +20
 *system [ ACHIEVEMENT UNLOCKED ] The Last Door — You carried the weight backward through time. That has to count for something.
 *achievement The Last Door — You carried the weight backward through time.
 
