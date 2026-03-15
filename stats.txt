@@ -1,5 +1,4 @@
-*stat_group "Operative"
-*stat_icon first_name "◈"
+*stat_group "Identity"
 *stat first_name "First Name"
 *stat last_name "Last Name"
 *stat class_name "Class"
