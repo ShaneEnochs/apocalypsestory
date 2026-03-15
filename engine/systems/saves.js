@@ -39,8 +39,8 @@ import {
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-// FIX #S6: bumped to 7 — Essence replaces XP/skill_points; new data model.
-export const SAVE_VERSION  = 7;
+// FIX #S6: bumped to 8 — Phase 3: Store system (items.txt, item purchases).
+export const SAVE_VERSION  = 8;
 
 export const SAVE_KEY_AUTO  = 'sa_save_auto';
 export const SAVE_KEY_SLOTS = { 1: 'sa_save_slot_1', 2: 'sa_save_slot_2', 3: 'sa_save_slot_3' };

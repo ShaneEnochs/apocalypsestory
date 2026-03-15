@@ -430,6 +430,13 @@ registerCommand('*add_item', (t) => {
   advanceIp();
 });
 
+// *grant_item itemName — convenience alias for *add_item (Phase 3)
+registerCommand('*grant_item', (t) => {
+  addInventoryItem(t.replace(/^\*grant_item\s*/, '').trim());
+  cb.scheduleStatsRender();
+  advanceIp();
+});
+
 // *remove_item itemName
 registerCommand('*remove_item', (t) => {
   removeInventoryItem(t.replace(/^\*remove_item\s*/, '').trim());

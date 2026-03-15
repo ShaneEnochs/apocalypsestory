@@ -1,5 +1,8 @@
 // ---------------------------------------------------------------------------
-// ui/panels.js — Stats panel, level-up allocation, ending screen
+// ui/panels.js — Stats panel, level-up allocation, store, ending screen
+//
+// Phase 3: Added Store system — a full-screen overlay with Skills and Items
+// tabs where players spend Essence. Store button appears in the status panel.
 //
 // FIX #5: All author-controlled strings rendered into innerHTML now pass
 //   through escapeHtml() imported from narrative.js. This covers:
@@ -11,8 +14,6 @@
 //   These are author-controlled rather than player-controlled, so the XSS
 //   risk is lower (a malicious author could inject via a scene file), but
 //   defensive escaping is correct practice and costs nothing.
-//
-// All other logic is unchanged from the original.
 // ---------------------------------------------------------------------------
 
 import {
@@ -25,6 +26,7 @@ import {
 
 import { getAllocatableStatKeys, canLevelUp, performLevelUp } from '../systems/leveling.js';
 import { skillRegistry, playerHasSkill, purchaseSkill } from '../systems/skills.js';
+import { itemRegistry, purchaseItem } from '../systems/items.js';
 import { getJournalEntries, getAchievements } from '../systems/journal.js';
 import { escapeHtml } from './narrative.js'; // FIX #5: reuse shared sanitizer
 
@@ -38,6 +40,7 @@ let _endingContent      = null;
 let _endingStats        = null;
 let _endingActionBtn    = null;
 let _levelUpOverlay     = null;
+let _storeOverlay       = null;
 let _fetchTextFile      = null;   // async (name) → string
 let _scheduleStats      = null;   // () → void
 let _trapFocus          = null;   // (el, trigger) → release fn
@@ -48,6 +51,7 @@ export function init({ statusPanel,
                        endingOverlay, endingTitle, endingContent,
                        endingStats, endingActionBtn,
                        levelUpOverlay,
+                       storeOverlay,
                        fetchTextFile, scheduleStatsRender, trapFocus,
                        showToast, onLevelUpConfirmed }) {
   _statusPanel        = statusPanel;
@@ -57,6 +61,7 @@ export function init({ statusPanel,
   _endingStats        = endingStats;
   _endingActionBtn    = endingActionBtn;
   _levelUpOverlay     = levelUpOverlay;
+  _storeOverlay       = storeOverlay;
   _fetchTextFile      = fetchTextFile;
   _scheduleStats      = scheduleStatsRender;
   _trapFocus          = trapFocus;
@@ -191,6 +196,12 @@ export async function runStatsScene() {
   });
   if (inGroup) html += `</div>`;
 
+  // Store button — shown when there are skills or items to buy
+  const hasStoreContent = skillRegistry.length > 0 || itemRegistry.length > 0;
+  if (hasStoreContent) {
+    html += `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn">◈ Store</button></div>`;
+  }
+
   _statusPanel.innerHTML = html;
 
   // Wire Level Up button
@@ -198,6 +209,14 @@ export async function runStatsScene() {
   if (lvlBtn) {
     lvlBtn.addEventListener('click', () => {
       showLevelUpModal();
+    });
+  }
+
+  // Wire Store button
+  const storeBtn = _statusPanel.querySelector('#status-store-btn');
+  if (storeBtn) {
+    storeBtn.addEventListener('click', () => {
+      showStore();
     });
   }
 
@@ -380,6 +399,185 @@ function hideLevelUpModal() {
   _levelUpOverlay.classList.add('hidden');
   _levelUpOverlay.style.opacity = '0';
   if (_trapRelease) { _trapRelease(); _trapRelease = null; }
+}
+
+// ---------------------------------------------------------------------------
+// Store system — full-screen overlay with Skills and Items tabs
+// ---------------------------------------------------------------------------
+let _storeTrapRelease = null;
+let _storeActiveTab   = 'skills';   // preserved across open/close
+
+export function showStore() {
+  if (!_storeOverlay) return;
+
+  _storeOverlay.classList.remove('hidden');
+  requestAnimationFrame(() => {
+    _storeOverlay.style.opacity = '1';
+  });
+
+  if (_trapFocus) {
+    _storeTrapRelease = _trapFocus(_storeOverlay, null);
+  }
+
+  renderStore();
+}
+
+function hideStore() {
+  if (!_storeOverlay) return;
+  _storeOverlay.classList.add('hidden');
+  _storeOverlay.style.opacity = '0';
+  if (_storeTrapRelease) { _storeTrapRelease(); _storeTrapRelease = null; }
+  _scheduleStats();
+}
+
+function renderStore() {
+  const box = _storeOverlay.querySelector('.store-modal-box');
+  if (!box) return;
+
+  const essence = Number(playerState.essence || 0);
+
+  box.innerHTML = `
+    <div class="store-header">
+      <span class="system-block-label">[ STORE ]</span>
+      <div class="store-essence-pool">
+        <span class="store-essence-label">Essence</span>
+        <span class="store-essence-val">${essence}</span>
+      </div>
+      <button class="store-close-btn" id="store-close-btn">✕</button>
+    </div>
+    <div class="store-tabs">
+      <button class="store-tab ${_storeActiveTab === 'skills' ? 'store-tab--active' : ''}" data-tab="skills">Skills</button>
+      <button class="store-tab ${_storeActiveTab === 'items' ? 'store-tab--active' : ''}" data-tab="items">Items</button>
+    </div>
+    <div class="store-content" id="store-content"></div>`;
+
+  // Wire close button
+  box.querySelector('#store-close-btn')?.addEventListener('click', hideStore);
+
+  // Wire tabs
+  box.querySelectorAll('.store-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      _storeActiveTab = tab.dataset.tab;
+      renderStore();
+    });
+  });
+
+  // Render active tab content
+  const content = box.querySelector('#store-content');
+  if (_storeActiveTab === 'skills') {
+    renderSkillsTab(content, essence);
+  } else {
+    renderItemsTab(content, essence);
+  }
+
+  // Focus close button
+  requestAnimationFrame(() => {
+    box.querySelector('#store-close-btn')?.focus({ preventScroll: true });
+  });
+}
+
+function renderSkillsTab(container, essence) {
+  if (skillRegistry.length === 0) {
+    container.innerHTML = `<div class="store-empty">No skills available.</div>`;
+    return;
+  }
+
+  // Split into available vs owned
+  const available = skillRegistry.filter(s => !playerHasSkill(s.key));
+  const owned     = skillRegistry.filter(s => playerHasSkill(s.key));
+
+  let html = '';
+
+  if (available.length > 0) {
+    html += `<div class="store-section-label">Available</div>`;
+    available.forEach(skill => {
+      const canAfford = essence >= skill.essenceCost;
+      const cardCls   = canAfford ? '' : 'store-card--unaffordable';
+      const badgeCls  = canAfford ? 'store-cost-badge--can-afford' : '';
+      html += `
+        <div class="store-card ${cardCls}" data-key="${escapeHtml(skill.key)}" data-type="skill">
+          <div class="store-card-top">
+            <span class="store-card-name">${escapeHtml(skill.label)}</span>
+            <div class="store-card-actions">
+              <span class="store-cost-badge ${badgeCls}">${skill.essenceCost} Essence</span>
+              <button class="store-purchase-btn" ${canAfford ? '' : 'disabled'} data-key="${escapeHtml(skill.key)}" data-type="skill">Unlock</button>
+            </div>
+          </div>
+          <div class="store-card-desc">${escapeHtml(skill.description)}</div>
+        </div>`;
+    });
+  }
+
+  if (owned.length > 0) {
+    html += `<div class="store-section-label store-section-label--owned">Owned</div>`;
+    owned.forEach(skill => {
+      html += `
+        <div class="store-card store-card--owned" data-key="${escapeHtml(skill.key)}">
+          <div class="store-card-top">
+            <span class="store-card-name">${escapeHtml(skill.label)}</span>
+            <div class="store-card-actions">
+              <span class="store-owned-badge">Owned</span>
+            </div>
+          </div>
+          <div class="store-card-desc">${escapeHtml(skill.description)}</div>
+        </div>`;
+    });
+  }
+
+  if (available.length === 0 && owned.length === 0) {
+    html = `<div class="store-empty">No skills defined.</div>`;
+  }
+
+  container.innerHTML = html;
+
+  // Wire purchase buttons
+  container.querySelectorAll('.store-purchase-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.key;
+      if (purchaseSkill(key)) {
+        _showToast(`Skill unlocked: ${skillRegistry.find(s => s.key === key)?.label || key}`);
+        renderStore();  // Re-render to reflect changes
+      }
+    });
+  });
+}
+
+function renderItemsTab(container, essence) {
+  if (itemRegistry.length === 0) {
+    container.innerHTML = `<div class="store-empty">No items available.</div>`;
+    return;
+  }
+
+  let html = '';
+  itemRegistry.forEach(item => {
+    const canAfford = essence >= item.essenceCost;
+    const cardCls   = canAfford ? '' : 'store-card--unaffordable';
+    const badgeCls  = canAfford ? 'store-cost-badge--can-afford' : '';
+    html += `
+      <div class="store-card ${cardCls}" data-key="${escapeHtml(item.key)}" data-type="item">
+        <div class="store-card-top">
+          <span class="store-card-name">${escapeHtml(item.label)}</span>
+          <div class="store-card-actions">
+            <span class="store-cost-badge ${badgeCls}">${item.essenceCost} Essence</span>
+            <button class="store-purchase-btn" ${canAfford ? '' : 'disabled'} data-key="${escapeHtml(item.key)}" data-type="item">Buy</button>
+          </div>
+        </div>
+        <div class="store-card-desc">${escapeHtml(item.description)}</div>
+      </div>`;
+  });
+
+  container.innerHTML = html;
+
+  // Wire purchase buttons
+  container.querySelectorAll('.store-purchase-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.key;
+      if (purchaseItem(key)) {
+        _showToast(`Purchased: ${itemRegistry.find(i => i.key === key)?.label || key}`);
+        renderStore();  // Re-render to reflect updated essence
+      }
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------

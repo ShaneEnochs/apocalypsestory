@@ -38,6 +38,7 @@ import {
 } from './engine/systems/saves.js';
 
 import { parseSkills } from './engine/systems/skills.js';
+import { parseItems }  from './engine/systems/items.js';
 
 import {
   init      as initNarrative,
@@ -92,6 +93,7 @@ const dom = {
   endingStats:        document.getElementById('ending-stats'),
   endingActionBtn:    document.getElementById('ending-action-btn'),
   levelUpOverlay:     document.getElementById('levelup-overlay'),
+  storeOverlay:       document.getElementById('store-overlay'),
   toast:              document.getElementById('toast'),
 };
 
@@ -502,6 +504,7 @@ async function boot() {
     endingStats:      dom.endingStats,
     endingActionBtn:  dom.endingActionBtn,
     levelUpOverlay:   dom.levelUpOverlay,
+    storeOverlay:     dom.storeOverlay,
     fetchTextFile,
     scheduleStatsRender,
     trapFocus,
@@ -585,6 +588,7 @@ async function boot() {
   try {
     await parseStartup(fetchTextFile, evalValue);
     await parseSkills(fetchTextFile);
+    await parseItems(fetchTextFile);
 
     const title = playerState.game_title || 'System Awakening';
     if (dom.gameTitle)   dom.gameTitle.textContent = title;

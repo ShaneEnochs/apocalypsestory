@@ -20,6 +20,7 @@
      15. Ending Screens (overlay + inline)
      16. Level-Up / Stat Allocation
      17. Skill System (merged from skill_styles.css)
+     17b. Store System (Phase 3)
      18. Input Prompt
      19. Journal / Achievements
      20. Toast Notification
@@ -1485,6 +1486,286 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 
 /* ============================================================
+   17b. STORE SYSTEM (Phase 3)
+   ============================================================ */
+
+/* --- Status panel Store button --- */
+.status-store-row {
+  padding: 8px 12px 4px;
+}
+
+.status-store-btn {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-normal);
+  text-transform: uppercase;
+  color: var(--amber);
+  background: transparent;
+  border: 1px solid var(--amber-dim);
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.status-store-btn:hover {
+  background: var(--amber-glow);
+  border-color: var(--amber);
+  box-shadow: 0 0 12px var(--amber-glow);
+  color: #fff;
+}
+
+.status-store-btn:active {
+  transform: scale(0.98);
+}
+
+/* --- Store overlay --- */
+#store-overlay {
+  transition: opacity 0.25s ease;
+}
+
+.store-modal-box {
+  max-width: 560px;
+  width: 92%;
+  padding: 0;
+  border: 1px solid var(--amber-dim);
+  box-shadow: 0 0 40px var(--amber-glow), inset 0 0 20px rgba(0, 0, 0, 0.4);
+  background: var(--bg-panel);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* --- Store header --- */
+.store-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-dim);
+  background: rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.store-header .system-block-label {
+  color: rgba(240, 165, 0, 0.6);
+}
+
+.store-essence-pool {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.store-essence-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--ls-normal);
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.store-essence-val {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  color: var(--amber);
+  font-weight: 600;
+  min-width: 18px;
+  text-align: right;
+}
+
+.store-close-btn {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+  background: transparent;
+  border: 1px solid var(--border-dim);
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.store-close-btn:hover {
+  color: var(--amber);
+  border-color: var(--amber-dim);
+}
+
+/* --- Tabs --- */
+.store-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-dim);
+  flex-shrink: 0;
+}
+
+.store-tab {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-normal);
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.store-tab:hover {
+  color: var(--text-dim);
+  background: rgba(240, 165, 0, 0.04);
+}
+
+.store-tab--active {
+  color: var(--amber);
+  border-bottom-color: var(--amber);
+  background: rgba(240, 165, 0, 0.06);
+}
+
+/* --- Store content scrollable area --- */
+.store-content {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* --- Section labels --- */
+.store-section-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 8px 14px 4px;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.store-section-label--owned {
+  color: rgba(76, 220, 138, 0.4);
+  border-top: 1px solid var(--border-dim);
+  margin-top: 4px;
+}
+
+/* --- Store card --- */
+.store-card {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-dim);
+  transition: background var(--transition-fast);
+}
+
+.store-card:last-child { border-bottom: none; }
+.store-card:hover:not(.store-card--owned):not(.store-card--unaffordable) { background: rgba(240, 165, 0, 0.04); }
+.store-card--unaffordable { opacity: 0.45; }
+.store-card--owned        { opacity: 0.55; }
+
+.store-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+}
+
+.store-card-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--amber);
+  letter-spacing: var(--ls-tight);
+  flex: 1;
+  min-width: 0;
+}
+
+.store-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.store-cost-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--ls-tight);
+  color: var(--text-faint);
+  border: 1px solid var(--border-dim);
+  border-radius: 2px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  background: var(--bg-deep);
+}
+
+.store-cost-badge--can-afford {
+  color: var(--amber);
+  border-color: var(--amber-dim);
+  background: var(--amber-glow);
+}
+
+.store-card-desc {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+
+.store-owned-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--ls-normal);
+  color: var(--green);
+  border: 1px solid rgba(76, 220, 138, 0.3);
+  border-radius: 2px;
+  padding: 3px 9px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: rgba(76, 220, 138, 0.06);
+}
+
+.store-purchase-btn {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-normal);
+  text-transform: uppercase;
+  color: var(--bg-deep);
+  background: var(--amber);
+  border: none;
+  padding: 5px 16px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.store-purchase-btn:hover:not(:disabled) {
+  background: #fff;
+  box-shadow: 0 0 14px var(--amber-glow);
+}
+
+.store-purchase-btn:disabled {
+  background: transparent;
+  color: var(--text-faint);
+  border: 1px solid var(--border-dim);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.store-empty {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  padding: 24px 14px;
+  text-align: center;
+}
+
+
+/* ============================================================
    18. INPUT PROMPT
    ============================================================ */
 
@@ -1794,6 +2075,14 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   .skill-browser              { margin-top: 10px; }
   .skill-browser-card         { padding: 10px 12px; }
   .skill-browser-header       { padding: 6px 10px; }
+
+  /* Store */
+  .store-modal-box         { max-width: 100%; max-height: 85vh; }
+  .store-card-top          { flex-wrap: wrap; gap: 8px; }
+  .store-card-actions      { width: 100%; justify-content: flex-end; }
+  .store-card              { padding: 10px 12px; }
+  .store-header            { padding: 10px 12px; }
+  .store-tab               { font-size: var(--text-2xs); padding: 8px 12px; }
 
   /* Choice buttons */
   .choice-btn { padding: 12px 16px; font-size: 0.95rem; }
