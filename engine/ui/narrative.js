@@ -13,6 +13,24 @@
 //   Plain author-written narrative text and markdown (**bold** / *italic*)
 //   are NOT escaped — only the dynamic values injected from state are.
 //   This preserves all existing formatting behaviour for authored content.
+//
+// FIX Main + A + B (sweep 4): Choice click handler rewritten.
+//   - awaitingChoice is now read directly from state.js (no circular import).
+//   - setAwaitingChoice(null) is called before executeBlock so the stale
+//     truthy value doesn't cause executeBlock to bail immediately.
+//   - The correct resume IP (awaitingChoice.end — the whole choice block end)
+//     is captured before clearing, not choice.end (individual option end).
+//   - executeBlock and runInterpreter are received via init() callbacks
+//     to avoid a circular import with interpreter.js.
+//
+// BUG F fix (sweep 6): animationDelay now uses idx * 80ms only, not
+//   (delayIndex + idx) * 80ms. After a long passage the old formula
+//   buried buttons 1+ seconds into the future.
+// BUG J fix (sweep 6): choice container gets role="group" + aria-label;
+//   disabled buttons get aria-disabled="true"; first enabled button
+//   receives focus after render via requestAnimationFrame.
+// BUG K fix (sweep 6): choiceMade guard prevents double-click / rapid-tap
+//   race on touch devices.
 // ---------------------------------------------------------------------------
 
 import {
@@ -20,6 +38,7 @@ import {
   pendingLevelUpDisplay, pendingStatPoints,
   delayIndex, setDelayIndex, advanceDelayIndex,
   normalizeKey,
+  awaitingChoice, setAwaitingChoice,
 } from '../core/state.js';
 
 import { applySystemRewards } from '../systems/leveling.js';
@@ -47,14 +66,22 @@ let _onShowLevelUp     = null;
 let _scheduleStats     = null;
 let _onBeforeChoice    = null;
 
+// FIX Main/A/B (sweep 4): interpreter functions injected via init() to avoid
+// circular import (narrative.js → interpreter.js → [via callbacks] → narrative.js).
+let _executeBlock      = null;
+let _runInterpreter    = null;
+
 export function init({ narrativeContent, choiceArea, narrativePanel,
-                       onShowLevelUp, scheduleStatsRender, onBeforeChoice }) {
+                       onShowLevelUp, scheduleStatsRender, onBeforeChoice,
+                       executeBlock, runInterpreter }) {
   _narrativeContent = narrativeContent;
   _choiceArea       = choiceArea;
   _narrativePanel   = narrativePanel;
   _onShowLevelUp    = onShowLevelUp    || (() => {});
   _scheduleStats    = scheduleStatsRender || (() => {});
   _onBeforeChoice   = onBeforeChoice   || (() => {});
+  _executeBlock     = executeBlock     || null;
+  _runInterpreter   = runInterpreter   || null;
 }
 
 export function setChoiceArea(el) { _choiceArea = el; }
@@ -83,121 +110,35 @@ export function pushNarrativeLogEntry(e) { _narrativeLog.push(e); }
 export function clearNarrativeLog()      { _narrativeLog = []; }
 
 // ---------------------------------------------------------------------------
-// renderFromLog — paints the DOM from a log array with zero side effects.
-//
-// This is the heart of the new save/load and undo approach: instead of
-// re-executing scene code, we replay the visible record of what was shown.
-// No rewards are re-applied, no interpreter runs, no state changes occur.
-//
-// opts.skipAnimations (default true): renders elements without CSS animation
-// delay so the screen fills instantly on restore.
-// ---------------------------------------------------------------------------
-export function renderFromLog(log, { skipAnimations = true } = {}) {
-  // Clear DOM — but do NOT touch _narrativeLog here; we're about to adopt
-  // the incoming log as the new current log at the end of this function.
-  for (const el of [..._narrativeContent.children]) {
-    if (el !== _choiceArea) el.remove();
-  }
-  _choiceArea.innerHTML = '';
-  _narrativeContent.scrollTop = 0;
-
-  if (skipAnimations) setDelayIndex(0);
-
-  for (const entry of log) {
-    switch (entry.type) {
-
-      case 'paragraph': {
-        const p = document.createElement('p');
-        p.className = 'narrative-paragraph';
-        if (skipAnimations) {
-          p.style.opacity   = '1';
-          p.style.transform = 'none';
-          p.style.animation = 'none';
-        } else {
-          p.style.animationDelay = `${delayIndex * 80}ms`;
-        }
-        p.innerHTML = formatText(entry.text);
-        _narrativeContent.insertBefore(p, _choiceArea);
-        if (!skipAnimations) advanceDelayIndex();
-        break;
-      }
-
-      case 'system': {
-        const div       = document.createElement('div');
-        const isXP      = /XP\s+gained|bonus\s+XP|\+\d+\s+XP/i.test(entry.text);
-        const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(entry.text);
-        div.className = `system-block${isXP ? ' xp-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
-        if (skipAnimations) {
-          div.style.opacity   = '1';
-          div.style.transform = 'none';
-          div.style.animation = 'none';
-        } else {
-          div.style.animationDelay = `${delayIndex * 80}ms`;
-        }
-        const formatted = formatText(entry.text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
-        div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
-        _narrativeContent.insertBefore(div, _choiceArea);
-        if (!skipAnimations) advanceDelayIndex();
-        break;
-      }
-
-      case 'input': {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'input-prompt-block input-prompt-block--submitted';
-        if (skipAnimations) {
-          wrapper.style.opacity   = '1';
-          wrapper.style.animation = 'none';
-        }
-        const safe = escapeHtml(entry.value ?? '');
-        wrapper.innerHTML = `<span class="system-block-label">[ INPUT ]</span><span class="system-block-text">${formatText(entry.prompt)}: <strong>${safe}</strong></span>`;
-        _narrativeContent.insertBefore(wrapper, _choiceArea);
-        break;
-      }
-
-      case 'levelup_confirmed': {
-        const block = document.createElement('div');
-        block.className = 'system-block levelup-inline-block levelup-inline-block--confirmed';
-        if (skipAnimations) {
-          block.style.opacity   = '0.55';
-          block.style.animation = 'none';
-        }
-        block.innerHTML = `<span class="system-block-label">[ LEVEL UP ]</span><span class="system-block-text levelup-confirmed-text">Level ${entry.level} reached — stats allocated.</span>`;
-        _narrativeContent.insertBefore(block, _choiceArea);
-        break;
-      }
-    }
-  }
-
-  // Adopt the incoming log as the live log going forward.
-  _narrativeLog = Array.isArray(log) ? [...log] : [];
-}
-
-// ---------------------------------------------------------------------------
-// Pronoun resolution helpers
+// Pronoun resolver
 // ---------------------------------------------------------------------------
 function resolvePronoun(lower, isCapital) {
-  const pronouns = playerState.pronouns || 'they/them';
+  const pronouns = playerState.pronouns || {};
   const map = {
-    'he/him':   { they: 'he',   them: 'him',  their: 'his',   themself: 'himself' },
-    'she/her':  { they: 'she',  them: 'her',  their: 'her',   themself: 'herself' },
-    'they/them':{ they: 'they', them: 'them', their: 'their', themself: 'themself'},
+    they:     pronouns.subject   || 'they',
+    them:     pronouns.object    || 'them',
+    their:    pronouns.possessive || 'their',
+    themself: pronouns.reflexive  || 'themself',
   };
-  const set = map[pronouns] || map['they/them'];
-  const word = set[lower] || lower;
-  return isCapital ? word.charAt(0).toUpperCase() + word.slice(1) : word;
+  const resolved = map[lower] || lower;
+  return isCapital
+    ? resolved.charAt(0).toUpperCase() + resolved.slice(1)
+    : resolved;
 }
 
 // ---------------------------------------------------------------------------
-// formatText — resolves variable interpolation, pronouns, and markdown
+// formatText — resolves ${var} interpolation, pronoun tokens, and markdown.
 // ---------------------------------------------------------------------------
-export function formatText(text) {
+function formatText(text) {
   if (!text) return '';
   let result = String(text);
 
   // 1. Variable interpolation: ${varName}
   result = result.replace(/\$\{([a-zA-Z_][\w]*)\}/g, (_, v) => {
     const k   = normalizeKey(v);
-    const val = tempState[k] !== undefined ? tempState[k] : (playerState[k] ?? '');
+    const val = tempState[k] !== undefined
+      ? tempState[k]
+      : (playerState[k] ?? '');
     return escapeHtml(val);
   });
 
@@ -287,7 +228,16 @@ export function applyTransition() {
 // renderChoices — builds choice buttons and wires click → executeBlock
 //
 // Called by the interpreter (via the cb.renderChoices callback registered
-// in main.js). Disables choices while a level-up is pending.
+// in engine.js). Disables choices while a level-up is pending.
+//
+// BUG F fix: animationDelay uses idx * 80ms, not (delayIndex + idx) * 80ms.
+//   Previously, after a long passage (high delayIndex), buttons were
+//   invisible for 1+ seconds before sliding in.
+// BUG J fix: choice container gets role="group" + aria-label; permanently-
+//   and temporarily-disabled buttons get aria-disabled="true"; first enabled
+//   button receives focus after render via requestAnimationFrame.
+// BUG K fix: choiceMade guard prevents double-click / rapid-tap executing
+//   the same choice twice.
 // ---------------------------------------------------------------------------
 export function renderChoices(choices) {
   // Show level-up UI before choices if points are still unspent
@@ -296,10 +246,20 @@ export function renderChoices(choices) {
   const levelUpActive = pendingStatPoints > 0;
   _choiceArea.innerHTML = '';
 
+  // BUG J: mark container as a labelled group for screen readers
+  _choiceArea.setAttribute('role', 'group');
+  _choiceArea.setAttribute('aria-label', 'Story choices');
+
+  // BUG K: single-fire guard — set true on the first click; all subsequent
+  // clicks/taps in this choice round are silently dropped.
+  let choiceMade = false;
+
   choices.forEach((choice, idx) => {
     const btn = document.createElement('button');
     btn.className = 'choice-btn';
-    btn.style.animationDelay = `${(delayIndex + idx) * 80}ms`;
+    // BUG F: use idx alone so buttons always slide in immediately,
+    // regardless of how many paragraphs preceded them.
+    btn.style.animationDelay = `${idx * 80}ms`;
     btn.innerHTML = `<span>${formatText(choice.text)}</span>`;
 
     // ENH-09: Render inline stat requirement badge if the choice has one.
@@ -313,36 +273,92 @@ export function renderChoices(choices) {
         : (playerState[key] !== undefined ? playerState[key] : null);
       const met = val !== null && Number(val) >= requirement;
       const badge = document.createElement('span');
-      badge.className = `stat-requirement-badge ${met ? 'stat-req--met' : 'stat-req--unmet'}`;
+      badge.className = `choice-stat-badge ${met ? 'choice-stat-badge--met' : 'choice-stat-badge--unmet'}`;
       badge.textContent = `${label} ${requirement}`;
       btn.appendChild(badge);
     }
 
-    if (!choice.selectable || levelUpActive) {
+    if (!choice.selectable) {
+      // FIX BUG-6 (sweep 5): Mark permanently-unselectable buttons so the
+      // level-up confirm handler knows not to re-enable them.
       btn.disabled = true;
       btn.classList.add('choice-btn--disabled');
+      btn.dataset.unselectable = 'true';
+      // BUG J: communicate the disabled state to assistive technology
+      btn.setAttribute('aria-disabled', 'true');
+    } else if (levelUpActive) {
+      // Temporarily disabled until level-up is confirmed — no data marker,
+      // so the confirm handler WILL re-enable these.
+      btn.disabled = true;
+      btn.classList.add('choice-btn--disabled');
+      // BUG J: communicate the disabled state to assistive technology
+      btn.setAttribute('aria-disabled', 'true');
     } else {
       btn.addEventListener('click', () => {
+        // BUG K: ignore any click after the first in this choice round
+        if (choiceMade) return;
+        choiceMade = true;
+
         _onBeforeChoice();
         btn.disabled = true;
         _choiceArea.querySelectorAll('.choice-btn').forEach(b => { b.disabled = true; });
-        // FIX: actually execute the chosen option's block and resume the interpreter.
-        // Previously this import resolved but the .then() body was empty (just a
-        // comment), so clicking a choice button did nothing — the game froze.
-        // _savedIp is the ip to resume at after the choice block completes;
-        // it is stashed on awaitingChoice by executeBlock when a *choice is
-        // encountered mid-block, or falls back to choice.end for top-level choices.
-        import('../core/interpreter.js').then(({ executeBlock, runInterpreter, awaitingChoice: ac }) => {
-          const savedIp = ac?._savedIp ?? choice.end;
-          executeBlock(choice.start, choice.end, savedIp)
-            .then(() => runInterpreter())
-            .catch(err => console.error('[narrative] choice execution error:', err));
-        });
+
+        // FIX Main + A + B (sweep 4):
+        //
+        // Main/B: awaitingChoice is still set from the *choice handler that
+        // rendered these buttons. We MUST clear it before calling executeBlock,
+        // otherwise executeBlock's inner loop sees the truthy awaitingChoice on
+        // the very first iteration and bails immediately — the choice body
+        // never executes and the game freezes.
+        //
+        // A: The correct resume IP after the choice body finishes is the end of
+        // the entire *choice block (awaitingChoice.end), NOT choice.end (which
+        // is only the end of this individual option's body). For nested choices
+        // inside *if blocks, _savedIp was stashed by executeBlock on the
+        // awaitingChoice object — capture it before clearing.
+        //
+        // B: awaitingChoice and setAwaitingChoice are imported directly from
+        // state.js (no circular import). executeBlock and runInterpreter are
+        // received via init() callbacks to avoid circular imports with
+        // interpreter.js.
+        const choiceBlockEnd = awaitingChoice?.end ?? choice.end;
+        const savedIp = awaitingChoice?._savedIp ?? choiceBlockEnd;
+        setAwaitingChoice(null);
+
+        _executeBlock(choice.start, choice.end, savedIp)
+          .then(() => _runInterpreter())
+          .catch(err => console.error('[narrative] choice execution error:', err));
       });
     }
 
     _choiceArea.appendChild(btn);
   });
+
+  // BUG J: move keyboard focus to the first enabled button after the DOM
+  // has painted, so tab-key users and screen readers land in the right place.
+  requestAnimationFrame(() => {
+    const firstEnabled = _choiceArea.querySelector('.choice-btn:not(:disabled)');
+    if (firstEnabled) firstEnabled.focus();
+  });
+}
+
+// ---------------------------------------------------------------------------
+// showPageBreak — inserts a "Continue" button that clears the screen.
+// Used by the *page_break directive. The button text is configurable
+// (e.g. "The next day..."). Clicking clears the screen and resumes.
+//
+// Page breaks are intentionally NOT logged: clicking one clears the narrative
+// and starts a fresh screen, so the log resets via clearNarrative() anyway.
+// ---------------------------------------------------------------------------
+export function showPageBreak(btnText, onContinue) {
+  const btn = document.createElement('button');
+  btn.className = 'choice-btn page-break-btn';
+  btn.textContent = btnText || 'Continue';
+  btn.addEventListener('click', () => {
+    btn.disabled = true;
+    onContinue();
+  });
+  _choiceArea.appendChild(btn);
 }
 
 // ---------------------------------------------------------------------------
@@ -361,7 +377,6 @@ export function showInputPrompt(varName, prompt, onSubmit) {
   wrapper.className = 'input-prompt-block';
   wrapper.style.animationDelay = `${delayIndex * 80}ms`;
   advanceDelayIndex();
-
   wrapper.innerHTML = `
     <span class="system-block-label">[ INPUT ]</span>
     <label class="input-prompt-label">${formatText(prompt)}</label>
@@ -369,7 +384,6 @@ export function showInputPrompt(varName, prompt, onSubmit) {
       <input type="text" class="input-prompt-field" autocomplete="off" spellcheck="false" maxlength="60" />
       <button class="input-prompt-submit" disabled>Submit</button>
     </div>`;
-
   _narrativeContent.insertBefore(wrapper, _choiceArea);
 
   const field  = wrapper.querySelector('.input-prompt-field');
@@ -382,41 +396,121 @@ export function showInputPrompt(varName, prompt, onSubmit) {
   function doSubmit() {
     const value = field.value.trim();
     if (!value) return;
-    field.disabled  = true;
-    submit.disabled = true;
-    wrapper.classList.add('input-prompt-block--submitted');
-    // Sanitize the displayed value — user input must never be injected raw into innerHTML
-    const safe = escapeHtml(value);
-    wrapper.innerHTML = `<span class="system-block-label">[ INPUT ]</span><span class="system-block-text">${formatText(prompt)}: <strong>${safe}</strong></span>`;
 
-    // Record the submitted value in the existing log entry so that any undo
-    // snapshot taken after this point captures the completed input correctly.
+    // Mutate the log entry so renderFromLog can show the submitted value
     logEntry.value = value;
+
+    // Collapse the input widget to a read-only display
+    wrapper.classList.add('input-prompt-block--submitted');
+    wrapper.innerHTML = `
+      <span class="system-block-label">[ INPUT ]</span>
+      <span class="input-prompt-label">${formatText(prompt)}</span>
+      <span class="input-prompt-submitted-value">${escapeHtml(value)}</span>`;
 
     onSubmit(value);
   }
 
-  field.addEventListener('keydown', e => { if (e.key === 'Enter') doSubmit(); });
   submit.addEventListener('click', doSubmit);
+  field.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doSubmit();
+  });
 
-  requestAnimationFrame(() => { try { field.focus(); } catch (_) {} });
+  // Auto-focus the input field
+  requestAnimationFrame(() => field.focus());
 }
 
 // ---------------------------------------------------------------------------
-// showPageBreak — renders a full-width "Continue" button in the choice area.
-// Used by the *page_break directive. The button text is configurable
-// (e.g. "The next day..."). Clicking clears the screen and resumes.
+// renderFromLog — paints the DOM from a log array with zero side effects.
 //
-// Page breaks are intentionally NOT logged: clicking one clears the narrative
-// and starts a fresh screen, so the log resets via clearNarrative() anyway.
+// This is the heart of the new save/load and undo approach: instead of
+// re-executing scene code, we replay the visible record of what was shown.
+// No rewards are re-applied, no interpreter runs, no state changes occur.
+//
+// opts.skipAnimations (default true): renders elements without CSS animation
+// delay so the screen fills instantly on restore.
 // ---------------------------------------------------------------------------
-export function showPageBreak(btnText, onContinue) {
-  const btn = document.createElement('button');
-  btn.className = 'choice-btn page-break-btn';
-  btn.textContent = btnText || 'Continue';
-  btn.addEventListener('click', () => {
-    btn.disabled = true;
-    onContinue();
-  });
-  _choiceArea.appendChild(btn);
+export function renderFromLog(log, { skipAnimations = true } = {}) {
+  // Clear DOM — but do NOT touch _narrativeLog here; we're about to adopt
+  // the incoming log as the new current log at the end of this function.
+  for (const el of [..._narrativeContent.children]) {
+    if (el !== _choiceArea) el.remove();
+  }
+  _choiceArea.innerHTML = '';
+  _narrativeContent.scrollTop = 0;
+
+  if (skipAnimations) setDelayIndex(0);
+
+  for (const entry of log) {
+    switch (entry.type) {
+
+      case 'paragraph': {
+        const p = document.createElement('p');
+        p.className = 'narrative-paragraph';
+        if (skipAnimations) {
+          p.style.opacity   = '1';
+          p.style.transform = 'none';
+          p.style.animation = 'none';
+        } else {
+          p.style.animationDelay = `${delayIndex * 80}ms`;
+        }
+        p.innerHTML = formatText(entry.text);
+        _narrativeContent.insertBefore(p, _choiceArea);
+        if (!skipAnimations) advanceDelayIndex();
+        break;
+      }
+
+      case 'system': {
+        const div       = document.createElement('div');
+        const isXP      = /XP\s+gained|bonus\s+XP|\+\d+\s+XP/i.test(entry.text);
+        const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(entry.text);
+        div.className = `system-block${isXP ? ' xp-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
+        if (skipAnimations) {
+          div.style.opacity   = '1';
+          div.style.transform = 'none';
+          div.style.animation = 'none';
+        } else {
+          div.style.animationDelay = `${delayIndex * 80}ms`;
+        }
+        const formatted = formatText(entry.text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
+        div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
+        _narrativeContent.insertBefore(div, _choiceArea);
+        if (!skipAnimations) advanceDelayIndex();
+        break;
+      }
+
+      case 'input': {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'input-prompt-block input-prompt-block--submitted';
+        if (skipAnimations) {
+          wrapper.style.opacity   = '1';
+          wrapper.style.animation = 'none';
+        }
+        const safe = escapeHtml(entry.value ?? '—');
+        wrapper.innerHTML = `
+          <span class="system-block-label">[ INPUT ]</span>
+          <span class="input-prompt-label">${formatText(entry.prompt)}</span>
+          <span class="input-prompt-submitted-value">${safe}</span>`;
+        _narrativeContent.insertBefore(wrapper, _choiceArea);
+        break;
+      }
+
+      case 'levelup_confirmed': {
+        const block = document.createElement('div');
+        block.className = 'system-block levelup-block levelup-inline-block levelup-inline-block--confirmed';
+        if (skipAnimations) {
+          block.style.opacity   = '0.55';
+          block.style.animation = 'none';
+        }
+        block.innerHTML = `<span class="system-block-label">[ LEVEL UP ]</span><span class="system-block-text levelup-confirmed-text">Level ${entry.level} reached — stats allocated.</span>`;
+        _narrativeContent.insertBefore(block, _choiceArea);
+        break;
+      }
+
+      default:
+        console.warn('[narrative] renderFromLog: unknown entry type:', entry.type);
+    }
+  }
+
+  // Adopt the incoming log as the current live log.
+  _narrativeLog = [...log];
 }
