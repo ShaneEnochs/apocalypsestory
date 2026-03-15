@@ -4,16 +4,48 @@
 // Stacking inventory: duplicate items are tracked as "Item (2)", "Item (3)",
 // etc. All functions operate directly on playerState.inventory.
 //
-// BUG-07 fix: parseInventoryUpdateText no longer requires item names to start
-// with an uppercase letter. The restriction silently dropped valid lowercase
-// names like "rusty dagger" or "ancient map". The filter now relies only on
-// the word-exclusion list and length check.
+// BUG-07 fix (original sweep): parseInventoryUpdateText no longer requires
+//   item names to start with an uppercase letter.
+//
+// FIX #6 (sweep 2): addInventoryItem and removeInventoryItem now use an
+//   explicit extractStackCount() helper instead of the fragile sparse-array
+//   fallback pattern `(match || [, 1])[1]`.
+//
+//   OLD (fragile):
+//     const c = (item.match(/\((\d+)\)$/) || [, 1])[1];
+//     // relies on JS sparse array: [undefined, 1] — the [1] is a hole,
+//     // not a real element. Works in practice but is a well-known footgun:
+//     // minifiers can legally transform [, 1] to [undefined, 1] but the
+//     // behaviour depends on the sparse-array semantics of [, N][1] === N.
+//
+//   NEW (explicit):
+//     function extractStackCount(itemStr) {
+//       const m = String(itemStr).match(/\((\d+)\)$/);
+//       return m ? Number(m[1]) : 1;
+//     }
+//     const qty = extractStackCount(item);
+//
+//   Behaviour is identical — just no longer relies on sparse-array indexing.
 // ---------------------------------------------------------------------------
 
 import { playerState } from '../core/state.js';
 
 // ---------------------------------------------------------------------------
-// itemBaseName — strips the trailing stack count from an item name
+// extractStackCount — returns the numeric stack count from an inventory
+// string, or 1 if no "(N)" suffix is present.
+//
+// Examples:
+//   "Sword"      → 1
+//   "Sword (2)"  → 2
+//   "Sword (10)" → 10
+// ---------------------------------------------------------------------------
+function extractStackCount(itemStr) {
+  const m = String(itemStr).match(/\((\d+)\)$/);
+  return m ? Number(m[1]) : 1;
+}
+
+// ---------------------------------------------------------------------------
+// itemBaseName — strips the trailing stack count from an item name.
 // e.g. "Sword (3)" → "Sword"
 // ---------------------------------------------------------------------------
 export function itemBaseName(item) {
@@ -33,8 +65,9 @@ export function addInventoryItem(item) {
   if (idx === -1) {
     playerState.inventory.push(normalized);
   } else {
-    const c = (playerState.inventory[idx].match(/\((\d+)\)$/) || [, 1])[1];
-    playerState.inventory[idx] = `${normalized} (${Number(c) + 1})`;
+    // FIX #6: use extractStackCount() instead of (match || [, 1])[1]
+    const count = extractStackCount(playerState.inventory[idx]);
+    playerState.inventory[idx] = `${normalized} (${count + 1})`;
   }
   return true;
 }
@@ -55,11 +88,11 @@ export function removeInventoryItem(item) {
     return false;
   }
 
-  const c   = (playerState.inventory[idx].match(/\((\d+)\)$/) || [, 1])[1];
-  const qty = Number(c);
-  if (qty <= 1)      playerState.inventory.splice(idx, 1);
+  // FIX #6: use extractStackCount() instead of (match || [, 1])[1]
+  const qty = extractStackCount(playerState.inventory[idx]);
+  if (qty <= 1)       playerState.inventory.splice(idx, 1);
   else if (qty === 2) playerState.inventory[idx] = normalized;
-  else               playerState.inventory[idx] = `${normalized} (${qty - 1})`;
+  else                playerState.inventory[idx] = `${normalized} (${qty - 1})`;
   return true;
 }
 
