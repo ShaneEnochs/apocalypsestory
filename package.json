@@ -7,9 +7,13 @@
   "scripts": {
     "build": "node build.js",
     "test": "node tests/test_runner.mjs",
-    "dev": "echo 'Open index.html in a browser — ES modules work natively with type=module'"
+    "test:e2e": "npx playwright test",
+    "test:all": "node tests/test_runner.mjs && npx playwright test",
+    "dev": "npx serve . -l 3000 -s"
   },
   "devDependencies": {
-    "esbuild": "^0.21.0"
+    "@playwright/test": "^1.44.0",
+    "esbuild": "^0.21.0",
+    "serve": "^14.2.0"
   }
 }

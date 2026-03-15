@@ -37,14 +37,16 @@ let _choiceArea       = null;
 let _narrativePanel   = null;
 let _onShowLevelUp    = null;   // () → void  — wired to panels.showInlineLevelUp
 let _scheduleStats    = null;   // () → void  — wired to main.scheduleStatsRender
+let _onBeforeChoice   = null;   // () → void  — wired to main.pushUndoSnapshot
 
 export function init({ narrativeContent, choiceArea, narrativePanel,
-                       onShowLevelUp, scheduleStatsRender }) {
+                       onShowLevelUp, scheduleStatsRender, onBeforeChoice }) {
   _narrativeContent = narrativeContent;
   _choiceArea       = choiceArea;
   _narrativePanel   = narrativePanel;
   _onShowLevelUp    = onShowLevelUp;
   _scheduleStats    = scheduleStatsRender;
+  _onBeforeChoice   = onBeforeChoice || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -175,6 +177,8 @@ export function renderChoices(choices) {
     }
 
     btn.addEventListener('click', async () => {
+      // Snapshot state before this choice for undo
+      if (_onBeforeChoice) _onBeforeChoice();
       _choiceArea.querySelectorAll('button').forEach(b => b.disabled = true);
       // Snapshot awaitingChoice before clearing then clear it
       setAwaitingChoice(null);
@@ -243,4 +247,22 @@ export function showInputPrompt(varName, prompt, onSubmit) {
   submit.addEventListener('click', doSubmit);
 
   requestAnimationFrame(() => { try { field.focus(); } catch (_) {} });
+}
+
+// ---------------------------------------------------------------------------
+// showPageBreak — renders a full-width "Continue" button in the choice area.
+// Used by the *page_break directive. The button text is configurable
+// (e.g. "The next day..."). Clicking clears the screen and resumes.
+// ---------------------------------------------------------------------------
+export function showPageBreak(btnText, onContinue) {
+  _choiceArea.innerHTML = '';
+  const btn = document.createElement('button');
+  btn.className = 'choice-btn page-break-btn';
+  btn.style.animationDelay = `${delayIndex * 80}ms`;
+  btn.innerHTML = `<span>${formatText(btnText)}</span>`;
+  btn.addEventListener('click', () => {
+    btn.disabled = true;
+    onContinue();
+  });
+  _choiceArea.appendChild(btn);
 }

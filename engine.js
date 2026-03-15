@@ -24,16 +24,22 @@
 
 import {
   playerState, tempState, statRegistry, startup,
-  currentScene, pendingStatPoints,
+  currentScene, currentLines, ip, pendingStatPoints,
+  awaitingChoice, delayIndex,
   patchPlayerState, parseStartup,
+  setPlayerState, setTempState, setPendingStatPoints,
+  setCurrentScene, setCurrentLines, setIp, setDelayIndex,
+  setAwaitingChoice,
 } from './engine/core/state.js';
 
 import { evalValue }       from './engine/core/expression.js';
 
 import {
   registerCallbacks, registerCaches,
-  gotoScene,
+  gotoScene, runInterpreter,
 } from './engine/core/interpreter.js';
+
+import { parseLines, indexLabels } from './engine/core/parser.js';
 
 import {
   loadSaveFromSlot, saveGameToSlot,
@@ -45,7 +51,7 @@ import { parseSkills } from './engine/systems/skills.js';
 import {
   init      as initNarrative,
   addParagraph, addSystem, clearNarrative, applyTransition,
-  renderChoices, showInputPrompt,
+  renderChoices, showInputPrompt, showPageBreak,
 } from './engine/ui/narrative.js';
 
 import {
@@ -121,7 +127,7 @@ let _statsRenderPending = false;
 function scheduleStatsRender() {
   if (_statsRenderPending) return;
   _statsRenderPending = true;
-  Promise.resolve().then(() => { _statsRenderPending = false; runStatsScene(); });
+  Promise.resolve().then(() => { _statsRenderPending = false; runStatsScene(); refreshDebug(); });
 }
 
 // ---------------------------------------------------------------------------
@@ -156,6 +162,103 @@ function showEngineError(message) {
 // ---------------------------------------------------------------------------
 function getEngineState() {
   return { playerState, tempState, statRegistry, startup, currentScene, pendingStatPoints };
+}
+
+// ---------------------------------------------------------------------------
+// Undo system — snapshots state on each choice, allows stepping back.
+// Limited to 10 entries. Each snapshot captures everything needed to
+// fully restore the game to the moment before a choice was made.
+// ---------------------------------------------------------------------------
+const _undoStack = [];
+const UNDO_MAX = 10;
+
+function pushUndoSnapshot() {
+  _undoStack.push({
+    playerState:      JSON.parse(JSON.stringify(playerState)),
+    tempState:        JSON.parse(JSON.stringify(tempState)),
+    pendingStatPoints,
+    scene:            currentScene,
+    ip:               ip,
+    narrativeHTML:     dom.narrativeContent.innerHTML,
+    chapterTitle:      dom.chapterTitle.textContent,
+  });
+  if (_undoStack.length > UNDO_MAX) _undoStack.shift();
+  updateUndoBtn();
+}
+
+function popUndo() {
+  if (_undoStack.length === 0) return;
+  const snap = _undoStack.pop();
+
+  setPlayerState(JSON.parse(JSON.stringify(snap.playerState)));
+  setTempState(JSON.parse(JSON.stringify(snap.tempState)));
+  setPendingStatPoints(snap.pendingStatPoints);
+
+  // Restore scene — need to re-parse lines so the interpreter can run
+  setCurrentScene(snap.scene);
+  const text = sceneCache.get(snap.scene.endsWith('.txt') ? snap.scene : `${snap.scene}.txt`);
+  if (text) {
+    setCurrentLines(parseLines(text));
+    indexLabels(snap.scene, currentLines, labelsCache);
+  }
+  setIp(snap.ip);
+  setDelayIndex(0);
+  setAwaitingChoice(null);
+
+  // Restore the DOM exactly as it was
+  dom.narrativeContent.innerHTML = snap.narrativeHTML;
+  dom.chapterTitle.textContent   = snap.chapterTitle;
+
+  // Re-run the interpreter from the saved ip — this will hit the *choice
+  // and re-render the choice buttons with fresh click handlers
+  runInterpreter();
+  runStatsScene();
+  updateUndoBtn();
+}
+
+function updateUndoBtn() {
+  const btn = document.getElementById('undo-btn');
+  if (btn) btn.disabled = _undoStack.length === 0;
+}
+
+// ---------------------------------------------------------------------------
+// Debug overlay — toggled by backtick (`) key. Shows live engine state.
+// Only visible during gameplay; hidden on splash/overlays.
+// ---------------------------------------------------------------------------
+let _debugVisible = false;
+
+function toggleDebug() {
+  _debugVisible = !_debugVisible;
+  const el = document.getElementById('debug-overlay');
+  if (el) el.classList.toggle('hidden', !_debugVisible);
+  if (_debugVisible) refreshDebug();
+}
+
+function refreshDebug() {
+  const el = document.getElementById('debug-overlay');
+  if (!el || !_debugVisible) return;
+
+  const ps = { ...playerState };
+  // Truncate long arrays for display
+  if (Array.isArray(ps.inventory) && ps.inventory.length > 5) ps.inventory = [...ps.inventory.slice(0, 5), `... +${ps.inventory.length - 5}`];
+  if (Array.isArray(ps.skills) && ps.skills.length > 5) ps.skills = [...ps.skills.slice(0, 5), `... +${ps.skills.length - 5}`];
+  if (Array.isArray(ps.journal) && ps.journal.length > 3) ps.journal = [`(${ps.journal.length} entries)`];
+
+  const currentLine = currentLines[ip];
+  const linePreview = currentLine ? currentLine.trimmed.slice(0, 80) : '(end)';
+
+  el.innerHTML = `<div class="debug-header">DEBUG <button class="debug-close" onclick="this.parentElement.parentElement.classList.add('hidden')">&times;</button></div>
+<div class="debug-body"><pre>scene:  ${currentScene || '(none)'}
+ip:     ${ip} / ${currentLines.length}
+line:   ${linePreview}
+await:  ${awaitingChoice ? 'choice pending' : 'none'}
+undo:   ${_undoStack.length} snapshots
+
+playerState:
+${JSON.stringify(ps, null, 2)}
+
+tempState:
+${JSON.stringify(tempState, null, 2)}</pre></div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -250,6 +353,7 @@ function wireUI() {
       pronouns:   charData.pronouns,
     });
     dom.saveBtn.classList.remove('hidden');
+    document.getElementById('undo-btn')?.classList.remove('hidden');
     await runStatsScene();
     await gotoScene(startup.sceneList[0] || 'prologue');
   });
@@ -293,6 +397,15 @@ function wireUI() {
 
   // Character creation input wiring lives in overlays.js — call once here
   wireCharCreation();
+
+  // Undo button
+  const undoBtn = document.getElementById('undo-btn');
+  if (undoBtn) undoBtn.addEventListener('click', popUndo);
+
+  // Debug overlay — toggle with backtick key
+  document.addEventListener('keydown', e => {
+    if (e.key === '`') { e.preventDefault(); toggleDebug(); }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -311,6 +424,7 @@ async function boot() {
     narrativePanel:   dom.narrativePanel,
     onShowLevelUp:    showInlineLevelUp,
     scheduleStatsRender,
+    onBeforeChoice:   pushUndoSnapshot,
   });
 
   initPanels({
@@ -359,6 +473,7 @@ async function boot() {
     showEndingScreen,
     showEngineError,
     showInputPrompt,
+    showPageBreak,
     scheduleStatsRender,
     setChapterTitle: (t) => { dom.chapterTitle.textContent = t; },
     runStatsScene,

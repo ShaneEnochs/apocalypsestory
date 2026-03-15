@@ -23,6 +23,7 @@
   <div id="header-top">
     <div id="game-title">System Awakening</div>
     <div style="display:flex;align-items:center;gap:10px;">
+      <button id="undo-btn" class="header-btn hidden" title="Undo last choice" disabled>↩ Undo</button>
       <button id="save-btn" class="header-btn hidden" title="Save / Load game">Save·Load</button>
       <button id="status-toggle" aria-label="Toggle status panel">Status</button>
     </div>
@@ -259,6 +260,11 @@
      TOAST NOTIFICATION
      ═══════════════════════════════════════════════════ -->
 <div id="toast" class="toast hidden" aria-live="polite"></div>
+
+<!-- ═══════════════════════════════════════════════════
+     DEBUG OVERLAY (toggle with backtick key)
+     ═══════════════════════════════════════════════════ -->
+<div id="debug-overlay" class="hidden"></div>
 
 </body>
 </html> 

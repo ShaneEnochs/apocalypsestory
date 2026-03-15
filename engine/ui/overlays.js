@@ -212,6 +212,8 @@ export function refreshAllSlotCards() {
 // ---------------------------------------------------------------------------
 export async function loadAndResume(save) {
   _saveBtn.classList.remove('hidden');
+  const undoBtn = document.getElementById('undo-btn');
+  if (undoBtn) undoBtn.classList.remove('hidden');
   await restoreFromSave(save, {
     gotoScene:      _gotoScene,
     runStatsScene:  _runStatsScene,

@@ -59,6 +59,7 @@ const cb = {
   scheduleStatsRender:null,
   setChapterTitle:    null,   // (title: string) → void
   showInputPrompt:    null,   // (varName, prompt, onSubmit) → void
+  showPageBreak:      null,   // (btnText, onContinue) → void
   runStatsScene:      null,
   fetchTextFile:      null,
 };
@@ -181,9 +182,22 @@ export async function gotoScene(name, label = null, isRestore = false, savedIp =
   cb.applyTransition();
   cb.setChapterTitle(name.toUpperCase());
 
-  // Restore position: savedIp (exact line) takes priority over label (named jump)
+  // Restore position: when loading a save, we can't jump directly to the
+  // saved ip (e.g. a *choice line) because the narrative text rendered by
+  // earlier lines would be missing — the screen would be blank except for
+  // choice buttons. Instead, find the nearest *label before savedIp and
+  // replay from there. This re-renders the text section leading up to the
+  // choice. State mutations between the label and savedIp re-fire, but
+  // playerState was already restored from the save so *set overwrites with
+  // the same values.
   if (savedIp !== null && savedIp >= 0 && savedIp < currentLines.length) {
-    setIp(savedIp);
+    // Scan backward for the nearest *label
+    let replayFrom = 0;
+    for (let i = savedIp - 1; i >= 0; i--) {
+      const t = currentLines[i].trimmed;
+      if (t && t.startsWith('*label')) { replayFrom = i; break; }
+    }
+    setIp(replayFrom);
   } else if (label) {
     const labels = _labelsCache.get(name) || {};
     setIp(labels[label] ?? 0);
@@ -531,6 +545,34 @@ registerCommand('*loop', async (t, line) => {
   }
   if (guard >= 100) console.warn(`[interpreter] *loop guard tripped in "${currentScene}"`);
   setIp(blockEnd);
+});
+
+// *page_break [text] — clears the screen and shows a "Continue" button.
+// If text is provided, the button shows that text (e.g. "The next day...").
+// Pauses the interpreter until the player clicks; resumes from the next line.
+registerCommand('*page_break', (t) => {
+  const btnText = t.replace(/^\*page_break\s*/, '').trim().replace(/^"|"$/g, '') || 'Continue';
+  const resumeIp = ip + 1;
+  // Jump past end to stop the interpreter loop
+  setIp(currentLines.length);
+  cb.showPageBreak(btnText, () => {
+    cb.clearNarrative();
+    cb.applyTransition();
+    setIp(resumeIp);
+    runInterpreter();
+  });
+});
+
+// *delay ms — pauses the interpreter for the given number of milliseconds.
+// Text before the delay renders normally; after the pause, execution continues.
+registerCommand('*delay', (t) => {
+  const ms = Number(t.replace(/^\*delay\s*/, '').trim()) || 500;
+  const resumeIp = ip + 1;
+  setIp(currentLines.length);
+  setTimeout(() => {
+    setIp(resumeIp);
+    runInterpreter();
+  }, ms);
 });
 
 // *choice
