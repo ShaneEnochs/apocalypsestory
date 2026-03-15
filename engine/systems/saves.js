@@ -24,7 +24,7 @@ import {
   awaitingChoice,                          // FIX #S6: needed for save payload
   setPlayerState, setPendingStatPoints, setPendingLevelUpDisplay,
   setStatRegistry,
-  setCurrentScene, setCurrentLines, setIp, setDelayIndex,
+  setCurrentScene, setCurrentLines, setIp,
   setAwaitingChoice,
   clearTempState, parseStartup,
   pauseState, setPauseState, clearPauseState,
@@ -218,7 +218,6 @@ export async function restoreFromSave(save, {
   await parseAndCacheScene(save.scene);
   setCurrentScene(save.scene);
   setIp(save.ip ?? 0);
-  setDelayIndex(0);
   setAwaitingChoice(null);
   clearPauseState();
 
