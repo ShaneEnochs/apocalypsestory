@@ -319,8 +319,7 @@ function wireUI() {
   });
 
   document.addEventListener('click', e => {
-    if (window.innerWidth <= 768 &&
-        !dom.statusPanel.contains(e.target) &&
+    if (!dom.statusPanel.contains(e.target) &&
         e.target !== dom.statusToggle) {
       dom.statusPanel.classList.remove('status-visible');
       dom.statusPanel.classList.add('status-hidden');

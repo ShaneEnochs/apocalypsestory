@@ -75,6 +75,9 @@ export function init({ statusPanel,
 // ---------------------------------------------------------------------------
 const styleState = { colors: {}, icons: {} };
 
+// Active tab for the status panel — persists across re-renders
+let _activeStatusTab = 'stats';
+
 // ---------------------------------------------------------------------------
 // runStatsScene — parses stats.txt and rebuilds the status sidebar HTML.
 //
@@ -89,10 +92,10 @@ const styleState = { colors: {}, icons: {} };
 export async function runStatsScene() {
   const text  = await _fetchTextFile('stats');
   const lines = text.split(/\r?\n/).map(raw => ({ raw, trimmed: raw.trim() }));
-  let html = '';
   styleState.colors = {};
   styleState.icons  = {};
 
+  // --- Parse stats.txt entries ---
   const entries = [];
   lines.forEach(line => {
     const t = line.trimmed;
@@ -123,112 +126,136 @@ export async function runStatsScene() {
     }
   });
 
+  // --- Build tab content HTML ---
+
+  // STATS TAB
+  let statsHtml = '';
   let inGroup = false;
   entries.forEach(e => {
     if (e.type === 'group') {
-      if (inGroup) html += `</div>`;
-      // FIX #5: escape group name (from stats.txt — author-controlled)
-      html += `<div class="status-section"><div class="status-label status-section-header">${escapeHtml(e.name)}</div>`;
+      if (inGroup) statsHtml += `</div>`;
+      statsHtml += `<div class="status-section"><div class="status-label status-section-header">${escapeHtml(e.name)}</div>`;
       inGroup = true;
     }
     if (e.type === 'stat') {
       const cc = styleState.colors[e.key] || '';
       const ic = styleState.icons[e.key]  ?? '';
       const rawVal = playerState[e.key] ?? '—';
-      // FIX #5: escape both the label and the value. Label is author-controlled;
-      // value can be player-controlled (e.g. first_name set via *input).
-      html += `<div class="status-row"><span class="status-label">${ic ? ic + ' ' : ''}${escapeHtml(e.label)}</span><span class="status-value ${cc}">${escapeHtml(rawVal)}</span></div>`;
-
-      // Insert Level Up button directly after the "To Next Level" row
+      statsHtml += `<div class="status-row"><span class="status-label">${ic ? ic + ' ' : ''}${escapeHtml(e.label)}</span><span class="status-value ${cc}">${escapeHtml(rawVal)}</span></div>`;
       if (e.key === 'essence_to_next' && canLevelUp() && !levelUpInProgress) {
-        html += `<div class="status-levelup-row"><button class="status-levelup-btn" id="status-levelup-btn">Level Up Available</button></div>`;
-      }
-    }
-    if (e.type === 'inventory') {
-      if (inGroup) { html += `</div>`; inGroup = false; }
-      const items = Array.isArray(playerState.inventory) && playerState.inventory.length
-        // FIX #5: escape each inventory item name
-        ? playerState.inventory.map(i => `<li>${escapeHtml(i)}</li>`).join('')
-        : '<li class="tag-empty">Empty</li>';
-      html += `<div class="status-section"><div class="status-label status-section-header">Inventory</div><ul class="tag-list">${items}</ul></div>`;
-    }
-    if (e.type === 'skills') {
-      if (inGroup) { html += `</div>`; inGroup = false; }
-      const owned = Array.isArray(playerState.skills) ? playerState.skills : [];
-      if (owned.length === 0 && skillRegistry.length === 0) {
-        // No skills defined and none owned — skip the section entirely
-      } else {
-        const skillItems = owned.length
-          ? owned.map(k => {
-              const entry = skillRegistry.find(s => s.key === k);
-              // FIX #5: escape skill label and description (from skills.txt)
-              const label = escapeHtml(entry ? entry.label : k);
-              const desc  = escapeHtml(entry ? entry.description : '');
-              return `<li class="skill-accordion"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name">${label}</span><span class="skill-accordion-chevron">▾</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
-            }).join('')
-          : '<li class="tag-empty">No skills learned</li>';
-        html += `<div class="status-section"><div class="status-label status-section-header">Skills</div><ul class="skill-accordion-list">${skillItems}</ul></div>`;
-      }
-    }
-    if (e.type === 'achievements') {
-      if (inGroup) { html += `</div>`; inGroup = false; }
-      const achvs = getAchievements();
-      if (achvs.length > 0) {
-        // FIX #5: escape achievement text (from *achievement directive in scene files)
-        const items = achvs.map(a => `<li class="journal-entry journal-entry--achievement"><span class="journal-achievement-icon">◆</span> ${escapeHtml(a.text)}</li>`).join('');
-        html += `<div class="status-section"><div class="status-label status-section-header">Achievements</div><ul class="journal-list">${items}</ul></div>`;
-      }
-    }
-    if (e.type === 'journal') {
-      if (inGroup) { html += `</div>`; inGroup = false; }
-      const jentries = getJournalEntries();
-      if (jentries.length > 0) {
-        // Show newest first in the sidebar
-        const items = [...jentries].reverse().map(j => {
-          const cls    = j.type === 'achievement' ? 'journal-entry journal-entry--achievement' : 'journal-entry';
-          // FIX #5: escape journal text (from *journal directive in scene files)
-          const prefix = j.type === 'achievement' ? '<span class="journal-achievement-icon">◆</span> ' : '';
-          return `<li class="${cls}">${prefix}${escapeHtml(j.text)}</li>`;
-        }).join('');
-        html += `<div class="status-section"><div class="status-label status-section-header">Journal</div><ul class="journal-list">${items}</ul></div>`;
+        statsHtml += `<div class="status-levelup-row"><button class="status-levelup-btn" id="status-levelup-btn">Level Up Available</button></div>`;
       }
     }
   });
-  if (inGroup) html += `</div>`;
+  if (inGroup) statsHtml += `</div>`;
 
-  // Store button — shown when there are skills or items to buy
+  // Store button lives at the bottom of stats tab
   const hasStoreContent = skillRegistry.length > 0 || itemRegistry.length > 0;
   if (hasStoreContent) {
-    html += `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn">◈ Store</button></div>`;
+    statsHtml += `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn">◈ Store</button></div>`;
   }
 
-  _statusPanel.innerHTML = html;
-
-  // Wire Level Up button
-  const lvlBtn = _statusPanel.querySelector('#status-levelup-btn');
-  if (lvlBtn) {
-    lvlBtn.addEventListener('click', () => {
-      showLevelUpModal();
-    });
+  // SKILLS TAB
+  let skillsHtml = '';
+  const ownedSkills = Array.isArray(playerState.skills) ? playerState.skills : [];
+  if (ownedSkills.length === 0) {
+    skillsHtml = `<p class="tag-empty" style="padding:0;border:none;background:none;">No skills learned yet.</p>`;
+  } else {
+    const skillItems = ownedSkills.map(k => {
+      const entry = skillRegistry.find(s => s.key === k);
+      const label = escapeHtml(entry ? entry.label : k);
+      const desc  = escapeHtml(entry ? entry.description : '');
+      return `<li class="skill-accordion"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name">${label}</span><span class="skill-accordion-chevron">▾</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
+    }).join('');
+    skillsHtml = `<ul class="skill-accordion-list">${skillItems}</ul>`;
   }
 
-  // Wire Store button
-  const storeBtn = _statusPanel.querySelector('#status-store-btn');
-  if (storeBtn) {
-    storeBtn.addEventListener('click', () => {
-      showStore();
-    });
+  // INVENTORY TAB
+  let inventoryHtml = '';
+  const invItems = Array.isArray(playerState.inventory) && playerState.inventory.length
+    ? playerState.inventory.map(i => `<li>${escapeHtml(i)}</li>`).join('')
+    : '<li class="tag-empty">Nothing here yet.</li>';
+  inventoryHtml = `<ul class="tag-list">${invItems}</ul>`;
+
+  // ACHIEVEMENTS TAB — includes journal entries too
+  let achievementsHtml = '';
+  const achvs = getAchievements();
+  const jentries = getJournalEntries().filter(j => j.type !== 'achievement');
+
+  if (achvs.length === 0 && jentries.length === 0) {
+    achievementsHtml = `<p class="tag-empty" style="padding:0;border:none;background:none;">Nothing recorded yet.</p>`;
+  } else {
+    if (achvs.length > 0) {
+      const achvItems = achvs.map(a =>
+        `<li class="journal-entry journal-entry--achievement"><span class="journal-achievement-icon">◆</span> ${escapeHtml(a.text)}</li>`
+      ).join('');
+      achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;">Achievements</div><ul class="journal-list" style="margin-bottom:14px;">${achvItems}</ul>`;
+    }
+    if (jentries.length > 0) {
+      const journalItems = [...jentries].reverse().map(j =>
+        `<li class="journal-entry">${escapeHtml(j.text)}</li>`
+      ).join('');
+      achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;">Journal</div><ul class="journal-list">${journalItems}</ul>`;
+    }
   }
 
-  // Wire skill accordion toggles in the status panel
-  _statusPanel.querySelectorAll('.skill-accordion-btn').forEach(btn => {
+  // --- Build full panel HTML with tab bar ---
+  const tabs = [
+    { key: 'stats',        label: 'Stats' },
+    { key: 'skills',       label: 'Skills' },
+    { key: 'inventory',    label: 'Inv' },
+    { key: 'achievements', label: 'Log' },
+  ];
+
+  const tabBarHtml = `<div class="status-tabs" id="status-tab-bar">
+    ${tabs.map(t => `<button class="status-tab ${_activeStatusTab === t.key ? 'status-tab--active' : ''}" data-tab="${t.key}">${t.label}</button>`).join('')}
+  </div>`;
+
+  const contentMap = {
+    stats:        statsHtml,
+    skills:       skillsHtml,
+    inventory:    inventoryHtml,
+    achievements: achievementsHtml,
+  };
+
+  const panelHtml = `${tabBarHtml}<div class="status-tab-content" id="status-tab-pane">${contentMap[_activeStatusTab]}</div>`;
+
+  _statusPanel.innerHTML = panelHtml;
+
+  // --- Wire tab switching ---
+  _statusPanel.querySelectorAll('.status-tab').forEach(btn => {
     btn.addEventListener('click', () => {
-      const desc = btn.nextElementSibling;
-      const isOpen = desc.style.display !== 'none';
-      desc.style.display = isOpen ? 'none' : 'block';
-      btn.classList.toggle('skill-accordion-btn--open', !isOpen);
+      _activeStatusTab = btn.dataset.tab;
+      _statusPanel.querySelectorAll('.status-tab').forEach(b =>
+        b.classList.toggle('status-tab--active', b.dataset.tab === _activeStatusTab)
+      );
+      const pane = _statusPanel.querySelector('#status-tab-pane');
+      if (pane) pane.innerHTML = contentMap[_activeStatusTab];
+      wireTabContent();
     });
   });
+
+  wireTabContent();
+
+  function wireTabContent() {
+    // Level Up button
+    const lvlBtn = _statusPanel.querySelector('#status-levelup-btn');
+    if (lvlBtn) lvlBtn.addEventListener('click', () => showLevelUpModal());
+
+    // Store button
+    const storeBtn = _statusPanel.querySelector('#status-store-btn');
+    if (storeBtn) storeBtn.addEventListener('click', () => showStore());
+
+    // Skill accordions
+    _statusPanel.querySelectorAll('.skill-accordion-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const desc = btn.nextElementSibling;
+        const isOpen = desc.style.display !== 'none';
+        desc.style.display = isOpen ? 'none' : 'block';
+        btn.classList.toggle('skill-accordion-btn--open', !isOpen);
+      });
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
