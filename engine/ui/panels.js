@@ -27,6 +27,7 @@ import {
 import { getAllocatableStatKeys, canLevelUp, performLevelUp } from '../systems/leveling.js';
 import { skillRegistry, playerHasSkill, purchaseSkill } from '../systems/skills.js';
 import { itemRegistry, purchaseItem } from '../systems/items.js';
+import { itemBaseName } from '../systems/inventory.js';
 import { getJournalEntries, getAchievements } from '../systems/journal.js';
 import { escapeHtml } from './narrative.js'; // FIX #5: reuse shared sanitizer
 
@@ -170,12 +171,27 @@ export async function runStatsScene() {
     skillsHtml = `<ul class="skill-accordion-list">${skillItems}</ul>`;
   }
 
-  // INVENTORY TAB
+  // INVENTORY TAB — accordion cards matching Skills style
   let inventoryHtml = '';
-  const invItems = Array.isArray(playerState.inventory) && playerState.inventory.length
-    ? playerState.inventory.map(i => `<li>${escapeHtml(i)}</li>`).join('')
-    : '<li class="tag-empty">Nothing here yet.</li>';
-  inventoryHtml = `<ul class="tag-list">${invItems}</ul>`;
+  const invItems = Array.isArray(playerState.inventory) ? playerState.inventory : [];
+  if (invItems.length === 0) {
+    inventoryHtml = `<p class="tag-empty" style="padding:0;border:none;background:none;">Nothing here yet.</p>`;
+  } else {
+    const invAccordions = invItems.map(invEntry => {
+      const baseName = itemBaseName(invEntry);
+      const regEntry = itemRegistry.find(r => r.label === baseName);
+      const label    = escapeHtml(invEntry);  // includes "(2)" stack count if present
+      const desc     = escapeHtml(regEntry ? regEntry.description : '');
+      return `<li class="skill-accordion">
+        <button class="skill-accordion-btn">
+          <span class="skill-accordion-name">${label}</span>
+          <span class="skill-accordion-chevron">▾</span>
+        </button>
+        <div class="skill-accordion-desc" style="display:none;">${desc || '<em style="color:var(--text-faint)">No description available.</em>'}</div>
+      </li>`;
+    }).join('');
+    inventoryHtml = `<ul class="skill-accordion-list">${invAccordions}</ul>`;
+  }
 
   // ACHIEVEMENTS TAB — includes journal entries too
   let achievementsHtml = '';

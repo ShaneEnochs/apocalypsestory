@@ -1350,7 +1350,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 .skill-accordion-chevron {
   font-size: var(--text-sm);
-  color: var(--text-faint);
+  color: var(--cyan-dim);
   transition: transform var(--transition-fast);
   flex-shrink: 0;
   display: inline-block;
