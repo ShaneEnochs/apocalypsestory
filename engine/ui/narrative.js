@@ -187,7 +187,7 @@ export function addSystem(text) {
   const div       = document.createElement('div');
   const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(text);
   const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(text);
-  div.className = `system-block${isEssence ? ' xp-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
+  div.className = `system-block${isEssence ? ' essence-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
 
   const formatted = formatText(text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
   div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
@@ -422,7 +422,7 @@ export function renderFromLog(log, { skipAnimations = true } = {}) {  // eslint-
         const div       = document.createElement('div');
         const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(entry.text);
         const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(entry.text);
-        div.className = `system-block${isEssence ? ' xp-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
+        div.className = `system-block${isEssence ? ' essence-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
         const formatted = formatText(entry.text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
         div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
         _narrativeContent.insertBefore(div, _choiceArea);

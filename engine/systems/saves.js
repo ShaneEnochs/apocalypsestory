@@ -1,10 +1,9 @@
 // ---------------------------------------------------------------------------
 // systems/saves.js — Save / load / slot management
 //
-// SAVE_VERSION 7: Essence replaces XP/skill_points. New playerState keys:
-//   essence, essence_to_next, essence_up_mult (replaces xp, xp_to_next, xp_up_mult).
-//   skill_points removed; skills purchased with Essence.
-//   game_title added for editable game name.
+// SAVE_VERSION history:
+//   v7: Essence replaces XP/skill_points. game_title added.
+//   v8: Store system (items.txt, item purchases).
 //
 // FIX #S6 (sweep 5): buildSavePayload now persists awaitingChoice in the
 //   payload. Previously, loading a save taken at a choice point would show
@@ -14,8 +13,8 @@
 //
 // (All earlier fix comments preserved below.)
 //
-// FIX #S4 (sweep 3): SAVE_VERSION bumped to 5. buildSavePayload now persists
-//   sessionState and statRegistry in the save payload.
+// FIX #S4 (sweep 3): buildSavePayload now persists sessionState and
+//   statRegistry in the save payload.
 // FIX #S5 (sweep 3): All three runInterpreter() calls in the pauseState
 //   resume branches of restoreFromSave now use .catch().
 // FIX #12 (sweep 2): exportSaveSlot no longer appends <a> to document.body.
@@ -57,7 +56,7 @@ export function clearStaleSaveFound() { _staleSaveFound = false; }
 export function setStaleSaveFound()   { _staleSaveFound = true;  }
 
 // ---------------------------------------------------------------------------
-// buildSavePayload — constructs the v7 object written to localStorage.
+// buildSavePayload — constructs the v8 object written to localStorage.
 //
 // FIX #S6: now includes awaitingChoice so that loading a save taken at a
 //   choice point can re-render the buttons via restoreFromSave step 8.
@@ -180,7 +179,7 @@ export function importSaveFromJSON(json, targetSlot) {
 }
 
 // ---------------------------------------------------------------------------
-// restoreFromSave — applies a v7 save payload to live engine state.
+// restoreFromSave — applies a v8 save payload to live engine state.
 // ---------------------------------------------------------------------------
 export async function restoreFromSave(save, {
   runStatsScene,

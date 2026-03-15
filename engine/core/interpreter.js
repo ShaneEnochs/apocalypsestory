@@ -16,7 +16,7 @@
 //     → expression.js   (evaluate conditions / rhs values)
 //     → parser.js       (parseChoice, parseSystemBlock, parseLines, indexLabels)
 //     → inventory.js    (addInventoryItem, removeInventoryItem, itemBaseName)
-//     → leveling.js     (checkAndApplyLevelUp)
+//     → leveling.js     (canLevelUp, performLevelUp, applySystemRewards)
 //     → saves.js        (saveGameToSlot)
 //     → skills.js       (grantSkill, revokeSkill, playerHasSkill)
 //     ← engine.js       (injects UI callbacks at boot via registerCallbacks)
