@@ -19,7 +19,7 @@ import { addInventoryItem } from './inventory.js';
 
 // ---------------------------------------------------------------------------
 // Item registry — populated by parseItems from items.txt
-// [{ key, label, essenceCost, description }]
+// [{ key, label, essenceCost, description, rarity, condition }]
 // ---------------------------------------------------------------------------
 export let itemRegistry = [];
 
@@ -52,8 +52,8 @@ export async function parseItems(fetchTextFileFn) {
     // Skip empty lines and comments
     if (!trimmed || trimmed.startsWith('//')) continue;
 
-    // New item directive
-    const m = trimmed.match(/^\*item\s+([\w]+)\s+"([^"]+)"\s+(\d+)\s*$/);
+    // New item directive — supports optional rarity: *item key "Label" cost [rarity]
+    const m = trimmed.match(/^\*item\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?\s*$/i);
     if (m) {
       // Finalise previous item if any
       if (current) parsed.push(current);
@@ -61,8 +61,16 @@ export async function parseItems(fetchTextFileFn) {
         key:          normalizeKey(m[1]),
         label:        m[2],
         essenceCost:  Number(m[3]),
+        rarity:       m[4] ? m[4].toLowerCase() : 'common',
         description:  '',
+        condition:    null,   // set by *require line
       };
+      continue;
+    }
+
+    // *require expression — store visibility condition on current item
+    if (current && trimmed.startsWith('*require ')) {
+      current.condition = trimmed.replace(/^\*require\s+/, '').trim();
       continue;
     }
 
