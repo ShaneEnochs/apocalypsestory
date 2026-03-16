@@ -16,7 +16,7 @@ import { playerState, normalizeKey } from '../core/state.js';
 
 // ---------------------------------------------------------------------------
 // Skill registry — populated by parseSkills from skills.txt
-// [{ key, label, essenceCost, description }]
+// [{ key, label, essenceCost, description, rarity, condition }]
 // ---------------------------------------------------------------------------
 export let skillRegistry = [];
 
@@ -49,8 +49,8 @@ export async function parseSkills(fetchTextFileFn) {
     // Skip empty lines and comments
     if (!trimmed || trimmed.startsWith('//')) continue;
 
-    // New skill directive
-    const m = trimmed.match(/^\*skill\s+([\w]+)\s+"([^"]+)"\s+(\d+)\s*$/);
+    // New skill directive — supports optional rarity: *skill key "Label" cost [rarity]
+    const m = trimmed.match(/^\*skill\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?\s*$/i);
     if (m) {
       // Finalise previous skill if any
       if (current) parsed.push(current);
@@ -58,8 +58,16 @@ export async function parseSkills(fetchTextFileFn) {
         key:          normalizeKey(m[1]),
         label:        m[2],
         essenceCost:  Number(m[3]),
+        rarity:       m[4] ? m[4].toLowerCase() : 'common',
         description:  '',
+        condition:    null,   // set by *require line
       };
+      continue;
+    }
+
+    // *require expression — store visibility condition on current skill
+    if (current && trimmed.startsWith('*require ')) {
+      current.condition = trimmed.replace(/^\*require\s+/, '').trim();
       continue;
     }
 
