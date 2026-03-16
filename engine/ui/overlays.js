@@ -168,17 +168,27 @@ export function trapFocus(overlayEl, triggerEl = null) {
 }
 
 // ---------------------------------------------------------------------------
-// showToast — transient notification that fades out after durationMs
+// showToast — transient notification that fades out after durationMs.
+// Pass an optional extraClass (e.g. 'toast--levelup') to apply a modifier.
 // ---------------------------------------------------------------------------
 let _toastTimer = null;
-export function showToast(message, durationMs = 2200) {
+export function showToast(message, durationMs = 2200, extraClass = '') {
   _toast.textContent = message;
+  // Remove any previously added modifier classes before applying new one
+  _toast.className = _toast.className
+    .split(' ')
+    .filter(c => c === 'toast' || c === 'hidden')
+    .join(' ');
   _toast.classList.remove('hidden', 'toast-hide');
+  if (extraClass) _toast.classList.add(extraClass);
   _toast.classList.add('toast-show');
   if (_toastTimer) clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => {
     _toast.classList.replace('toast-show', 'toast-hide');
-    setTimeout(() => _toast.classList.add('hidden'), 300);
+    setTimeout(() => {
+      _toast.classList.add('hidden');
+      if (extraClass) _toast.classList.remove(extraClass);
+    }, 300);
   }, durationMs);
 }
 

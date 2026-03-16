@@ -1956,8 +1956,24 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   white-space: nowrap;
 }
 
+/* Level-up toast — centered, larger, more prominent */
+.toast--levelup {
+  bottom: auto;
+  top: 50%;
+  transform: translateX(-50%) translateY(calc(-50% + 8px));
+  font-size: var(--text-base);
+  padding: 16px 36px;
+  border-color: var(--cyan);
+  box-shadow: 0 0 30px var(--cyan-glow-md), 0 0 60px var(--cyan-glow);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
 .toast-show { opacity: 0; animation: toastIn 0.25s ease forwards; }
 .toast-hide { animation: toastOut 0.3s ease forwards; }
+
+.toast--levelup.toast-show { animation: toastInCenter 0.25s ease forwards; }
+.toast--levelup.toast-hide { animation: toastOutCenter 0.3s ease forwards; }
 
 
 /* ============================================================
@@ -2064,6 +2080,9 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 @keyframes toastIn  { to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 @keyframes toastOut { to { opacity: 0; transform: translateX(-50%) translateY(8px); } }
+
+@keyframes toastInCenter  { to { opacity: 1; transform: translateX(-50%) translateY(-50%); } }
+@keyframes toastOutCenter { to { opacity: 0; transform: translateX(-50%) calc(-50% + 8px); } }
 
 @keyframes slotSaveFlash {
   0%   { border-color: var(--border-dim); }

@@ -122,7 +122,7 @@ function scheduleStatsRender() {
       dom.statusToggle.classList.toggle('levelup-ready', ready);
     }
     if (ready && !_wasLevelUpReady) {
-      showToast('You have enough Essence to level up.', 1000);
+      showToast('You have enough Essence to level up.', 2000, 'toast--levelup');
     }
     _wasLevelUpReady = ready;
   });
