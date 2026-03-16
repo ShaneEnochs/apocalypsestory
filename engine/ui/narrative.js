@@ -128,7 +128,7 @@ function resolvePronoun(lower, isCapital) {
 // ---------------------------------------------------------------------------
 // formatText — resolves ${var} interpolation, pronoun tokens, and markdown.
 // ---------------------------------------------------------------------------
-function formatText(text) {
+export function formatText(text) {
   if (!text) return '';
   let result = String(text);
 
