@@ -441,6 +441,8 @@ A world that has not yet learned to scream.
 
 *journal You arrived. T-minus 8 years, 3 days. The blade made it through. The Priory is northeast. Three days to end this before it begins.
 
+*journal This is a second journal entry. 
+
 *if_skill system_reader
   The silence where the System should be feels like a missing tooth — your mind keeps probing the gap, expecting notifications that aren't there. You force yourself to stop. Here, the System is not yet law. Here, you can win.
 
