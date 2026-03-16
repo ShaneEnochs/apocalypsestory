@@ -58,13 +58,11 @@
 
 import {
   playerState, tempState, currentLines, ip, currentScene,
-  _gotoJumped, awaitingChoice,
+  awaitingChoice, startup,
   statRegistry, setStatRegistry,
   setCurrentScene, setCurrentLines, setIp, advanceIp,
-  setGotoJumped, setAwaitingChoice, clearTempState,
-  normalizeKey, setVar, setStatClamped, declareTemp, patchPlayerState,
-  setPauseState, clearPauseState, pauseState,
-  sessionState, patchSessionState,
+  setAwaitingChoice, clearTempState,
+  normalizeKey, resolveStore, setVar, setStatClamped, declareTemp, patchPlayerState,
   chapterTitle, setChapterTitleState,
 } from './state.js';
 
@@ -99,6 +97,9 @@ export function registerCaches(sceneCache, labelsCache) {
   _sceneCache  = sceneCache;
   _labelsCache = labelsCache;
 }
+
+// Gosub call stack — stores return addresses for *gosub/*return
+const _gosubStack = [];
 
 // ---------------------------------------------------------------------------
 // isDirective — exact prefix match that prevents *goto matching *goto_scene.
@@ -151,9 +152,8 @@ export function evaluateCondition(raw) {
 
 // ---------------------------------------------------------------------------
 // executeBlock — runs lines [start, end) then sets ip to resumeAfter.
-// If a *choice is encountered mid-block, stashes _blockEnd and _savedIp on
-// the awaitingChoice object so runInterpreter can resume correctly after the
-// choice is resolved.
+// Returns a reason string: 'choice', 'goto', or 'normal'.
+// 'goto' is detected by ip being relocated outside the block range.
 // ---------------------------------------------------------------------------
 export async function executeBlock(start, end, resumeAfter = end) {
   setIp(start);
@@ -164,14 +164,15 @@ export async function executeBlock(start, end, resumeAfter = end) {
       ac._blockEnd = end;
       ac._savedIp  = resumeAfter;
       setAwaitingChoice(ac);
-      return;
+      return 'choice';
     }
-    if (_gotoJumped) {
-      setGotoJumped(false);
-      return;
+    // If *goto relocated ip outside this block, honour it
+    if (ip < start || ip >= end) {
+      return 'goto';
     }
   }
   setIp(resumeAfter);
+  return 'normal';
 }
 
 // ---------------------------------------------------------------------------
@@ -196,7 +197,6 @@ export async function executeBlock(start, end, resumeAfter = end) {
 // flash of an unpolished filename at scene load time.
 // ---------------------------------------------------------------------------
 export async function gotoScene(name, label = null) {
-  if (cb.debugLog) cb.debugLog('GOTO_SCENE', `"${name}"${label ? ' @' + label : ''}`);
   let text;
   try {
     text = await cb.fetchTextFile(name);
@@ -208,6 +208,7 @@ export async function gotoScene(name, label = null) {
   const prevChapterTitle = chapterTitle;
 
   clearTempState();
+  _gosubStack.length = 0;
   setCurrentScene(name);
   setCurrentLines(parseLines(text));
   indexLabels(name, currentLines, _labelsCache);
@@ -221,8 +222,6 @@ export async function gotoScene(name, label = null) {
   }
 
   setAwaitingChoice(null);
-  setGotoJumped(false);
-  clearPauseState();
 
   await runInterpreter();
 
@@ -233,18 +232,13 @@ export async function gotoScene(name, label = null) {
 }
 
 export async function runInterpreter({ suppressAutoSave = false } = {}) {
-  if (cb.debugLog) cb.debugLog('RUN_INTERP', `start ip=${ip} scene="${currentScene}"`);
   while (ip < currentLines.length) {
     await executeCurrentLine();
     if (awaitingChoice) break;
   }
-  if (cb.debugLog) cb.debugLog('RUN_INTERP', `halted ip=${ip} awaitingChoice=${!!awaitingChoice} pauseState=${pauseState?.type ?? 'none'}`);
   cb.runStatsScene();
 
   // BUG-B fix: don't auto-save when called from a save-restore callback.
-  // Restoring from a save already sets state correctly; firing an auto-save
-  // immediately would overwrite the player's real save with the mid-restore
-  // state before they have done anything.
   if (!suppressAutoSave && cb.getNarrativeLog) {
     saveGameToSlot('auto', null, cb.getNarrativeLog());
   }
@@ -348,7 +342,7 @@ registerCommand('*goto', (t) => {
     return;
   }
   setIp(labels[label]);
-  setGotoJumped(true);
+  // executeBlock detects ip relocation via range check — no flag needed
 });
 
 // *system [text] / *system … *end_system
@@ -508,7 +502,7 @@ registerCommand('*if_skill', async (t, line) => {
   const cond = playerHasSkill(key);
   if (cond) {
     const bs = ip + 1, be = findBlockEnd(bs, line.indent);
-    await executeBlock(bs, be);
+    await executeBlock(bs, be, be);
   } else {
     setIp(findBlockEnd(ip + 1, line.indent));
   }
@@ -531,9 +525,8 @@ registerCommand('*notify', (t) => {
   if (m) {
     const raw      = m[1];
     const duration = m[2] ? Number(m[2]) : 2000;
-    // Resolve variable interpolation — strip any HTML tags since toasts are textContent
     const message  = cb.formatText ? cb.formatText(raw).replace(/<[^>]+>/g, '') : raw;
-    if (cb.showToast) cb.showToast(message, duration, 'toast--levelup');
+    if (cb.showToast) cb.showToast(message, duration);
   }
   advanceIp();
 });
@@ -542,15 +535,6 @@ registerCommand('*notify', (t) => {
 registerCommand('*achievement', (t) => {
   const text = t.replace(/^\*achievement\s*/, '').trim();
   if (text) { addJournalEntry(text, 'achievement', true); cb.scheduleStatsRender(); }
-  advanceIp();
-});
-
-// *session_set key value  (ENH-08)
-registerCommand('*session_set', (t) => {
-  const m = t.match(/^\*session_set\s+([a-zA-Z_][\w]*)\s+(.+)$/);
-  if (!m) { advanceIp(); return; }
-  const key = normalizeKey(m[1]);
-  patchSessionState({ [key]: evalValue(m[2]) });
   advanceIp();
 });
 
@@ -563,45 +547,17 @@ registerCommand('*save_point', (t) => {
 
 // *page_break [btnText]
 registerCommand('*page_break', (t) => {
-  // BUG-08 guard
-  if (pauseState !== null) {
-    console.warn(`[interpreter] *page_break fired while pauseState is already "${pauseState.type}" — overwriting. Check scene "${currentScene}" near line ${ip}.`);
-  }
-
   const btnText  = t.replace(/^\*page_break\s*/, '').trim() || 'Continue';
   const resumeIp = ip + 1;
 
-  setPauseState({ type: 'page_break', btnText, resumeIp });
+  // Halt the interpreter — callback resumes execution.
   setIp(currentLines.length);
 
   cb.showPageBreak(btnText, () => {
-    clearPauseState();
     cb.clearNarrative();
     setIp(resumeIp);
-    runInterpreter().catch(err => cb.showEngineError(err.message)); // FIX #2
-  });
-});
-
-// *delay N  (milliseconds)
-registerCommand('*delay', (t) => {
-  // BUG-08 guard
-  if (pauseState !== null) {
-    console.warn(`[interpreter] *delay fired while pauseState is already "${pauseState.type}" — overwriting. Check scene "${currentScene}" near line ${ip}.`);
-  }
-
-  const ms       = Number(t.replace(/^\*delay\s*/, '').trim()) || 500;
-  const resumeIp = ip + 1;
-
-  setPauseState({ type: 'delay', ms, resumeIp });
-  setIp(currentLines.length);
-
-  // FIX #2: runInterpreter is async — must .catch() so errors are not swallowed
-  // as silent unhandled promise rejections.
-  setTimeout(() => {
-    clearPauseState();
-    setIp(resumeIp);
     runInterpreter().catch(err => cb.showEngineError(err.message));
-  }, ms);
+  });
 });
 
 // *input varName "Prompt text" — inline text input that pauses the interpreter.
@@ -613,41 +569,22 @@ registerCommand('*input', (t) => {
     return;
   }
 
-  // BUG-08 guard
-  if (pauseState !== null) {
-    console.warn(`[interpreter] *input fired while pauseState is already "${pauseState.type}" — overwriting. Check scene "${currentScene}" near line ${ip}.`);
-  }
-
   const varName  = normalizeKey(m[1]);
   const prompt   = m[2];
   const resumeIp = ip + 1;
 
-  setPauseState({ type: 'input', varName, prompt, resumeIp });
+  // Halt the interpreter — callback resumes execution.
   setIp(currentLines.length);
 
-  // FIX #2: runInterpreter is async — must .catch() so errors are not swallowed.
   cb.showInputPrompt(varName, prompt, (value) => {
-    clearPauseState();
-
-    // BUG-K fix: mirror the setVar lookup order (temp → session → player) and
-    // refuse to write to a variable that was never declared, matching the
-    // behaviour of *set.  Previously *input would silently create a new key in
-    // playerState for any mistyped variable name, with no warning to the author.
-    const inTemp    = Object.prototype.hasOwnProperty.call(tempState,    varName);
-    const inSession = Object.prototype.hasOwnProperty.call(sessionState, varName);
-    const inPlayer  = Object.prototype.hasOwnProperty.call(playerState,  varName);
-
-    if (!inTemp && !inSession && !inPlayer) {
+    const store = resolveStore(varName);
+    if (!store) {
       cb.showEngineError(`*input: variable "${varName}" is not declared. Add *create ${varName} or *temp ${varName} before using *input.`);
       setIp(resumeIp);
       runInterpreter().catch(err => cb.showEngineError(err.message));
       return;
     }
-
-    if (inTemp)         tempState[varName]    = value;
-    else if (inSession) sessionState[varName] = value;
-    else                playerState[varName]  = value;
-
+    store[varName] = value;
     setIp(resumeIp);
     runInterpreter().catch(err => cb.showEngineError(err.message));
   });
@@ -700,15 +637,18 @@ registerCommand('*if', async (t, line) => {
     if (isDirective(c.trimmed, '*if') || isDirective(c.trimmed, '*elseif')) {
       const bs = cursor + 1, be = findBlockEnd(bs, c.indent);
       if (!executed && evaluateCondition(c.trimmed)) {
-        await executeBlock(bs, be, chainEnd);
+        const reason = await executeBlock(bs, be, chainEnd);
         executed = true;
-        if (awaitingChoice) return;
+        if (reason === 'choice' || reason === 'goto') return;
       }
       cursor = be; continue;
     }
     if (isDirective(c.trimmed, '*else')) {
       const bs = cursor + 1, be = findBlockEnd(bs, c.indent);
-      if (!executed) { await executeBlock(bs, be, chainEnd); if (awaitingChoice) return; }
+      if (!executed) {
+        const reason = await executeBlock(bs, be, chainEnd);
+        if (reason === 'choice' || reason === 'goto') return;
+      }
       cursor = be; continue;
     }
     cursor += 1;
@@ -730,14 +670,12 @@ registerCommand('*loop', async (t, line) => {
   const blockStart = ip + 1, blockEnd = findBlockEnd(blockStart, line.indent);
   let guard = 0;
   while (evaluateCondition(t) && guard < LOOP_GUARD) {
-    await executeBlock(blockStart, blockEnd);
-    if (awaitingChoice) {
-      // BUG-F fix: override _savedIp so resume lands after the entire loop.
+    const reason = await executeBlock(blockStart, blockEnd);
+    if (reason === 'choice') {
       awaitingChoice._savedIp = blockEnd;
       return;
     }
-    // If a *goto inside the loop body relocated ip, honour it and exit the loop.
-    if (_gotoJumped) { setGotoJumped(false); return; }
+    if (reason === 'goto') return;
     guard += 1;
   }
   if (guard >= LOOP_GUARD) {
@@ -752,4 +690,42 @@ registerCommand('*patch_state', (t) => {
   if (!m) { advanceIp(); return; }
   patchPlayerState({ [normalizeKey(m[1])]: evalValue(m[2]) });
   advanceIp();
+});
+
+// *gosub label — call a subroutine within the current scene, push return address
+// *gosub must be registered before *goto_scene and *goto to avoid prefix issues
+registerCommand('*gosub', (t) => {
+  const label  = t.replace(/^\*gosub\s*/, '').trim();
+  const labels = _labelsCache.get(currentScene) || {};
+  if (labels[label] === undefined) {
+    cb.showEngineError(`*gosub: Unknown label "${label}" in scene "${currentScene}".`);
+    setIp(currentLines.length);
+    return;
+  }
+  // Push the return address (the line after *gosub)
+  _gosubStack.push(ip + 1);
+  setIp(labels[label]);
+});
+
+// *return — return from a *gosub subroutine
+registerCommand('*return', () => {
+  if (_gosubStack.length === 0) {
+    cb.showEngineError(`*return without matching *gosub in scene "${currentScene}".`);
+    setIp(currentLines.length);
+    return;
+  }
+  setIp(_gosubStack.pop());
+});
+
+// *finish — advance to the next scene in scene_list
+registerCommand('*finish', async () => {
+  const list = startup.sceneList;
+  const currentIdx = list.indexOf(currentScene.replace(/\.txt$/i, ''));
+  const nextIdx = currentIdx + 1;
+  if (nextIdx >= list.length) {
+    cb.showEngineError(`*finish: no next scene after "${currentScene}" in scene_list.`);
+    setIp(currentLines.length);
+    return;
+  }
+  await gotoScene(list[nextIdx]);
 });

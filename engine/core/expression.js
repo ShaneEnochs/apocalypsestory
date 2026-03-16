@@ -14,7 +14,7 @@
 //   applied, matching how all other binary operators are handled.
 // ---------------------------------------------------------------------------
 
-import { playerState, tempState, sessionState, normalizeKey } from './state.js';
+import { playerState, tempState, normalizeKey, resolveStore } from './state.js';
 
 const TT = {
   NUM: 'NUM', STR: 'STR', BOOL: 'BOOL', IDENT: 'IDENT',
@@ -213,9 +213,8 @@ function makeParser(tokens) {
         return parseFunction(tok.value);
       }
       const key = normalizeKey(tok.value);
-      if (Object.prototype.hasOwnProperty.call(tempState,    key)) return tempState[key];
-      if (Object.prototype.hasOwnProperty.call(sessionState, key)) return sessionState[key]; // ENH-08
-      if (Object.prototype.hasOwnProperty.call(playerState,  key)) return playerState[key];
+      const store = resolveStore(key);
+      if (store !== null) return store[key];
       // FIX H (sweep 4): Return 0 (falsy) for unknown identifiers instead of
       // the raw string (which was truthy, causing *if conditions with typos to
       // silently evaluate to true — the same "fail open" class of bug as FIX #7).

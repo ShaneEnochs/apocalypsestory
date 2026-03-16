@@ -22,24 +22,22 @@
 // ---------------------------------------------------------------------------
 
 import {
-  playerState, tempState, pendingStatPoints, currentScene, ip,
+  playerState, tempState, currentScene, ip,
   chapterTitle, statRegistry,
-  awaitingChoice, levelUpInProgress,
-  setPlayerState, setPendingStatPoints,
+  awaitingChoice,
+  setPlayerState,
   setStatRegistry,
   setCurrentScene, setCurrentLines, setIp,
   setAwaitingChoice,
   clearTempState, parseStartup,
-  pauseState, setPauseState, clearPauseState,
   setChapterTitleState,
-  sessionState, setSessionState,
 } from '../core/state.js';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 // FIX #S6: bumped to 8 — Phase 3: Store system (items.txt, item purchases).
-export const SAVE_VERSION  = 8;
+export const SAVE_VERSION  = 9;
 
 export const SAVE_KEY_AUTO  = 'sa_save_auto';
 export const SAVE_KEY_SLOTS = { 1: 'sa_save_slot_1', 2: 'sa_save_slot_2', 3: 'sa_save_slot_3' };
@@ -56,10 +54,7 @@ export function clearStaleSaveFound() { _staleSaveFound = false; }
 export function setStaleSaveFound()   { _staleSaveFound = true;  }
 
 // ---------------------------------------------------------------------------
-// buildSavePayload — constructs the v8 object written to localStorage.
-//
-// FIX #S6: now includes awaitingChoice so that loading a save taken at a
-//   choice point can re-render the buttons via restoreFromSave step 8.
+// buildSavePayload — constructs the v9 object written to localStorage.
 // ---------------------------------------------------------------------------
 export function buildSavePayload(slot, label, narrativeLog) {
   return {
@@ -69,15 +64,12 @@ export function buildSavePayload(slot, label, narrativeLog) {
     label:          label ?? null,
     ip,
     chapterTitle,
-    pauseState:     pauseState ?? null,
     awaitingChoice: awaitingChoice
       ? JSON.parse(JSON.stringify(awaitingChoice))
-      : null,                                            // FIX #S6
+      : null,
     characterName:  `${playerState.first_name || ''} ${playerState.last_name || ''}`.trim() || 'Unknown',
     playerState:    JSON.parse(JSON.stringify(playerState)),
-    sessionState:   JSON.parse(JSON.stringify(sessionState)),
     statRegistry:   JSON.parse(JSON.stringify(statRegistry)),
-    pendingStatPoints,
     narrativeLog:   JSON.parse(JSON.stringify(narrativeLog ?? [])),
     timestamp:      Date.now(),
   };
@@ -87,10 +79,6 @@ export function buildSavePayload(slot, label, narrativeLog) {
 // saveGameToSlot
 // ---------------------------------------------------------------------------
 export function saveGameToSlot(slot, label = null, narrativeLog = []) {
-  if (levelUpInProgress) {
-    console.warn('[saves] Save blocked — level-up in progress.');
-    return;
-  }
   const key = saveKeyForSlot(slot);
   if (!key) { console.warn(`[saves] Unknown save slot: "${slot}"`); return; }
   try {
@@ -202,26 +190,12 @@ export async function restoreFromSave(save, {
   await parseStartup(fetchTextFileFn, evalValueFn);
 
   // 2. Merge saved playerState over fresh defaults.
-  //
-  // BUG-E fix: the previous approach whitelisted only keys present in the
-  // post-startup playerState, which silently dropped any variable *create'd
-  // at runtime inside a scene file (those keys only appear in the save, not
-  // in the startup-derived defaults).
-  //
-  // New approach: start with the fresh startup defaults (so variables added
-  // to startup.txt since the save was made get their default values), then
-  // overlay the full saved playerState on top.  Every saved value —
-  // including runtime-created ones — is preserved.  Keys removed from
-  // startup.txt since the save was written will survive in the restored
-  // state, which is the safer trade-off compared to silently losing data.
   setPlayerState({ ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) });
 
-  // 3. Restore pending stat points.
-  const savedPoints = save.pendingStatPoints ?? 0;
-  setPendingStatPoints(savedPoints);
+  // 3. Clear temp state.
   clearTempState();
 
-  // Restore statRegistry from save (FIX #S4).
+  // Restore statRegistry from save.
   if (Array.isArray(save.statRegistry) && save.statRegistry.length > 0) {
     const freshStatKeys = new Set(statRegistry.map(e => e.key));
     const extra = save.statRegistry.filter(e => !freshStatKeys.has(e.key));
@@ -230,17 +204,11 @@ export async function restoreFromSave(save, {
     }
   }
 
-  // Restore sessionState from save (FIX #S4).
-  if (save.sessionState && typeof save.sessionState === 'object' && !Array.isArray(save.sessionState)) {
-    setSessionState(JSON.parse(JSON.stringify(save.sessionState)));
-  }
-
   // 4. Parse and cache the saved scene.
   await parseAndCacheScene(save.scene);
   setCurrentScene(save.scene);
   setIp(save.ip ?? 0);
   setAwaitingChoice(null);
-  clearPauseState();
 
   // 5. Restore chapter title.
   if (save.chapterTitle) {
@@ -260,51 +228,7 @@ export async function restoreFromSave(save, {
   // 7. Run stats panel.
   await runStatsScene();
 
-  // 8. Re-present pause UI or choices.
-  if (save.pauseState) {
-    const ps = save.pauseState;
-    setPauseState(ps);
-    setIp(ps.resumeIp);
-
-    switch (ps.type) {
-      case 'page_break':
-        showPageBreak(ps.btnText, () => {
-          clearPauseState();
-          clearNarrative();
-          applyTransition();
-          // BUG-B fix: suppress auto-save — this is a restore-path resume,
-          // not a fresh navigation that should overwrite the player's save.
-          runInterpreter({ suppressAutoSave: true }).catch(err => console.error('[saves] runInterpreter error after page_break restore:', err));
-        });
-        break;
-
-      case 'input':
-        showInputPrompt(ps.varName, ps.prompt, (value) => {
-          clearPauseState();
-          if (Object.prototype.hasOwnProperty.call(tempState, ps.varName)) {
-            tempState[ps.varName] = value;
-          } else {
-            playerState[ps.varName] = value;
-          }
-          setIp(ps.resumeIp);
-          // BUG-B fix: suppress auto-save on restore-path resume.
-          runInterpreter({ suppressAutoSave: true }).catch(err => console.error('[saves] runInterpreter error after input restore:', err));
-        });
-        break;
-
-      case 'delay':
-        clearPauseState();
-        setIp(ps.resumeIp);
-        // BUG-B fix: suppress auto-save on restore-path resume.
-        runInterpreter({ suppressAutoSave: true }).catch(err => console.error('[saves] runInterpreter error after delay restore:', err));
-        break;
-    }
-    return;
-  }
-
-  // FIX #S6: If the save had awaitingChoice, re-render the choice buttons
-  // with live click handlers. This was previously dead code because
-  // awaitingChoice was never included in the save payload.
+  // 8. Re-render choices if save was taken at a choice point.
   if (save.awaitingChoice) {
     setAwaitingChoice(save.awaitingChoice);
     renderChoices(save.awaitingChoice.choices);

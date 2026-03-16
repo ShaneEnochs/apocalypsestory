@@ -13,14 +13,13 @@
 
 import {
   playerState, tempState, statRegistry, startup,
-  currentScene, currentLines, ip, pendingStatPoints,
-  awaitingChoice, pauseState, levelUpInProgress,
+  currentScene, currentLines, ip,
+  awaitingChoice,
   patchPlayerState, parseStartup,
-  setPlayerState, setTempState, setPendingStatPoints,
+  setPlayerState, setTempState,
   setCurrentScene, setCurrentLines, setIp,
   setAwaitingChoice,
-  setChapterTitleState, clearPauseState,
-  sessionState, clearSessionState,
+  setChapterTitleState,
 } from './engine/core/state.js';
 
 import { evalValue }       from './engine/core/expression.js';
@@ -40,19 +39,18 @@ import {
 
 import { parseSkills } from './engine/systems/skills.js';
 import { parseItems }  from './engine/systems/items.js';
-import { canLevelUp }  from './engine/systems/leveling.js';
 
 import {
   init      as initNarrative,
   addParagraph, addSystem, clearNarrative, applyTransition,
   renderChoices, showInputPrompt, showPageBreak, setChoiceArea,
-  getNarrativeLog, renderFromLog, pushNarrativeLogEntry,
+  getNarrativeLog, renderFromLog,
   formatText,
 } from './engine/ui/narrative.js';
 
 import {
   init      as initPanels,
-  runStatsScene, showLevelUpModal, showEndingScreen,
+  runStatsScene, showEndingScreen,
 } from './engine/ui/panels.js';
 
 import {
@@ -96,7 +94,6 @@ const dom = {
   endingContent:      document.getElementById('ending-content'),
   endingStats:        document.getElementById('ending-stats'),
   endingActionBtn:    document.getElementById('ending-action-btn'),
-  levelUpOverlay:     document.getElementById('levelup-overlay'),
   storeOverlay:       document.getElementById('store-overlay'),
   toast:              document.getElementById('toast'),
 };
@@ -109,7 +106,6 @@ const sceneCache  = new Map();
 const labelsCache = new Map();
 
 let _statsRenderPending = false;
-let _wasLevelUpReady = false;
 
 function scheduleStatsRender() {
   if (_statsRenderPending) return;
@@ -118,24 +114,6 @@ function scheduleStatsRender() {
     _statsRenderPending = false;
     runStatsScene();
     updateUndoBtn();
-
-    // Level-up glow on the Status button + one-shot toast
-    const ready = canLevelUp() && !levelUpInProgress;
-    if (dom.statusToggle) {
-      dom.statusToggle.classList.toggle('levelup-ready', ready);
-    }
-    // Only fire the toast when transitioning from not-ready to ready,
-    // AND only when the level-up modal is not already open (levelUpInProgress).
-    // We also keep _wasLevelUpReady true while the modal is open so that
-    // closing the modal doesn't re-trigger the toast.
-    if (levelUpInProgress) {
-      // Don't touch _wasLevelUpReady while modal is open — freeze the state
-    } else if (ready && !_wasLevelUpReady) {
-      showToast('You have enough Essence to level up.', 2000, 'toast--levelup');
-      _wasLevelUpReady = true;
-    } else if (!ready) {
-      _wasLevelUpReady = false;
-    }
   });
 }
 
@@ -177,14 +155,10 @@ function pushUndoSnapshot() {
   _undoStack.push({
     playerState:      JSON.parse(JSON.stringify(playerState)),
     tempState:        JSON.parse(JSON.stringify(tempState)),
-    sessionState:     JSON.parse(JSON.stringify(sessionState)),
-    pendingStatPoints,
     scene:            currentScene,
     ip,
     narrativeLog:     JSON.parse(JSON.stringify(getNarrativeLog())),
     chapterTitle:     dom.chapterTitle.textContent,
-    // FIX #S6: capture awaitingChoice so popUndo can re-render choices
-    // directly without re-running the interpreter.
     awaitingChoice:   awaitingChoice
       ? JSON.parse(JSON.stringify(awaitingChoice))
       : null,
@@ -199,13 +173,6 @@ async function popUndo() {
 
   setPlayerState(JSON.parse(JSON.stringify(snap.playerState)));
   setTempState(JSON.parse(JSON.stringify(snap.tempState)));
-  if (snap.sessionState !== undefined) {
-    clearSessionState();
-    Object.assign(sessionState, JSON.parse(JSON.stringify(snap.sessionState)));
-  } else {
-    clearSessionState();
-  }
-  setPendingStatPoints(snap.pendingStatPoints);
   setCurrentScene(snap.scene);
 
   const text = sceneCache.get(snap.scene.endsWith('.txt') ? snap.scene : `${snap.scene}.txt`);
@@ -215,7 +182,6 @@ async function popUndo() {
   }
   setIp(snap.ip);
   setAwaitingChoice(null);
-  clearPauseState();
 
   dom.chapterTitle.textContent = snap.chapterTitle;
   setChapterTitleState(snap.chapterTitle);
@@ -243,93 +209,7 @@ async function popUndo() {
 function updateUndoBtn() {
   const btn = document.getElementById('undo-btn');
   if (!btn) return;
-  btn.disabled = _undoStack.length === 0 || pauseState !== null;
-}
-
-// ---------------------------------------------------------------------------
-// Debug overlay — enhanced to show choice state, awaitingChoice details,
-// pauseState, a live event log, and auto-refreshes every 250ms while open.
-// ---------------------------------------------------------------------------
-let _debugVisible = false;
-let _debugRefreshTimer = null;
-const _debugEventLog = [];   // rolling log of engine events
-const DEBUG_LOG_MAX = 30;
-
-export function debugLog(tag, detail = '') {
-  const ts = performance.now().toFixed(0);
-  _debugEventLog.unshift(`[${ts}ms] ${tag}${detail ? ': ' + detail : ''}`);
-  if (_debugEventLog.length > DEBUG_LOG_MAX) _debugEventLog.pop();
-  if (_debugVisible) refreshDebug();
-}
-
-function toggleDebug() {
-  _debugVisible = !_debugVisible;
-  const el = document.getElementById('debug-overlay');
-  if (el) el.classList.toggle('hidden', !_debugVisible);
-  if (_debugVisible) {
-    refreshDebug();
-    _debugRefreshTimer = setInterval(refreshDebug, 250);
-  } else {
-    clearInterval(_debugRefreshTimer);
-    _debugRefreshTimer = null;
-  }
-}
-
-function refreshDebug() {
-  const el = document.getElementById('debug-overlay');
-  if (!el || !_debugVisible) return;
-
-  const ps = { ...playerState };
-  if (Array.isArray(ps.inventory) && ps.inventory.length > 5) ps.inventory = [...ps.inventory.slice(0, 5), `... +${ps.inventory.length - 5}`];
-  if (Array.isArray(ps.skills)    && ps.skills.length > 5)    ps.skills    = [...ps.skills.slice(0, 5),    `... +${ps.skills.length - 5}`];
-  if (Array.isArray(ps.journal)   && ps.journal.length > 3)   ps.journal   = [`(${ps.journal.length} entries)`];
-
-  const currentLine = currentLines[ip];
-  const linePreview = currentLine ? currentLine.trimmed.slice(0, 80) : '(end of scene)';
-
-  // awaitingChoice detail
-  let acDetail = 'none';
-  if (awaitingChoice) {
-    const opts = (awaitingChoice.choices || []).map((c, i) =>
-      `  [${i}] selectable=${c.selectable} start=${c.start} end=${c.end} "${(c.text || '').slice(0, 40)}"`
-    ).join('\n');
-    acDetail = `end=${awaitingChoice.end} _savedIp=${awaitingChoice._savedIp ?? 'unset'} _blockEnd=${awaitingChoice._blockEnd ?? 'unset'}\n${opts}`;
-  }
-
-  // pauseState detail
-  const psDetail = pauseState
-    ? `type=${pauseState.type} resumeIp=${pauseState.resumeIp}`
-    : 'none';
-
-  // choice buttons currently in DOM
-  const choiceArea = document.getElementById('choice-area');
-  const btns = choiceArea ? [...choiceArea.querySelectorAll('.choice-btn')] : [];
-  const btnDetail = btns.length
-    ? btns.map((b, i) => `  [${i}] disabled=${b.disabled} unselectable=${b.dataset.unselectable || 'false'} "${b.textContent.trim().slice(0, 40)}"`).join('\n')
-    : '  (none)';
-
-  el.innerHTML = `<div class="debug-header">DEBUG <button class="debug-close" onclick="this.parentElement.parentElement.classList.add('hidden')">&times;</button></div>
-<div class="debug-body"><pre>── ENGINE ──────────────────────────
-scene:      ${currentScene || '(none)'}
-ip:         ${ip} / ${currentLines.length}
-line:       ${linePreview}
-pauseState: ${psDetail}
-undo stack: ${_undoStack.length} snapshots
-
-── CHOICE STATE ────────────────────
-awaitingChoice: ${acDetail}
-
-── DOM BUTTONS ─────────────────────
-${btnDetail}
-
-── EVENT LOG ───────────────────────
-${_debugEventLog.slice(0, 20).join('\n') || '  (none yet)'}
-
-── PLAYER STATE ────────────────────
-${JSON.stringify(ps, null, 2)}
-
-── TEMP STATE ──────────────────────
-${JSON.stringify(tempState, null, 2)}</pre></div>`;
+  btn.disabled = _undoStack.length === 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -339,7 +219,6 @@ function wireUI() {
   dom.statusToggle.addEventListener('click', () => {
     const visible = dom.statusPanel.classList.toggle('status-visible');
     dom.statusPanel.classList.toggle('status-hidden', !visible);
-    if (visible) dom.statusToggle.classList.remove('levelup-ready');
     runStatsScene();
   });
 
@@ -352,7 +231,6 @@ function wireUI() {
   });
 
   dom.saveBtn.addEventListener('click', () => {
-    if (levelUpInProgress) { showToast('Cannot save during level-up.'); return; }
     showSaveMenu();
   });
 
@@ -360,7 +238,6 @@ function wireUI() {
     const btn = document.getElementById(`save-to-${slot}`);
     if (!btn) return;
     btn.addEventListener('click', () => {
-      if (levelUpInProgress) { showToast('Cannot save during level-up.'); return; }
       const existing = loadSaveFromSlot(slot);
       if (existing && !confirm(`Overwrite Slot ${slot}?`)) return;
       saveGameToSlot(slot, null, getNarrativeLog());
@@ -411,15 +288,19 @@ function wireUI() {
     hideSplash();
     const charData = await showCharacterCreation();
     patchPlayerState({
-      first_name: charData.firstName,
-      last_name:  charData.lastName,
-      pronouns:   charData.pronouns,
+      first_name:                  charData.firstName,
+      last_name:                   charData.lastName,
+      pronouns_subject:            charData.pronouns_subject,
+      pronouns_object:             charData.pronouns_object,
+      pronouns_possessive:         charData.pronouns_possessive,
+      pronouns_possessive_pronoun: charData.pronouns_possessive_pronoun,
+      pronouns_reflexive:          charData.pronouns_reflexive,
+      pronouns_label:              charData.pronouns_label,
     });
     dom.saveBtn.classList.remove('hidden');
     document.getElementById('undo-btn')?.classList.remove('hidden');
     _undoStack.splice(0);
     updateUndoBtn();
-    clearSessionState();
     await runStatsScene();
     await gotoScene(startup.sceneList[0] || 'prologue');
   });
@@ -462,10 +343,6 @@ function wireUI() {
 
   const undoBtn = document.getElementById('undo-btn');
   if (undoBtn) undoBtn.addEventListener('click', popUndo);
-
-  document.addEventListener('keydown', e => {
-    if (e.key === '`') { e.preventDefault(); toggleDebug(); }
-  });
 
   [1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`save-export-${slot}`);
@@ -514,11 +391,7 @@ async function boot() {
     onBeforeChoice:   pushUndoSnapshot,
     executeBlock,
     runInterpreter,
-    debugLog,
   });
-
-  // Expose ip to the debug overlay via a thin accessor (avoids circular import)
-  window._dbgIp = () => ip;
 
   initPanels({
     statusPanel:      dom.statusPanel,
@@ -527,15 +400,11 @@ async function boot() {
     endingContent:    dom.endingContent,
     endingStats:      dom.endingStats,
     endingActionBtn:  dom.endingActionBtn,
-    levelUpOverlay:   dom.levelUpOverlay,
     storeOverlay:     dom.storeOverlay,
     fetchTextFile,
     scheduleStatsRender,
     trapFocus,
     showToast,
-    onLevelUpConfirmed: (level) => {
-      pushNarrativeLogEntry({ type: 'levelup_confirmed', level });
-    },
   });
 
   initOverlays({
@@ -575,7 +444,6 @@ async function boot() {
     clearUndoStack: () => {
       _undoStack.splice(0);
       updateUndoBtn();
-      clearSessionState();
     },
     setGameTitle: (t) => {
       if (dom.gameTitle)   dom.gameTitle.textContent = t;
@@ -609,7 +477,6 @@ async function boot() {
     runStatsScene,
     fetchTextFile,
     getNarrativeLog,
-    debugLog,
   });
 
   wireUI();

@@ -61,8 +61,6 @@ Eight years ago, when the System first spoke, it asked one question before the m
 
 *notify "Class registered: ${class_name}"
 
-*delay 600
-
 Good. The System has always known what you are. It simply wanted to hear you say it.
 
 *choice

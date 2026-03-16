@@ -35,12 +35,10 @@
 // ---------------------------------------------------------------------------
 
 import {
-  playerState, tempState, sessionState,
-  normalizeKey,
+  playerState, tempState,
+  normalizeKey, resolveStore,
   awaitingChoice, setAwaitingChoice,
 } from '../core/state.js';
-
-import { applySystemRewards } from '../systems/leveling.js';
 
 // ---------------------------------------------------------------------------
 // escapeHtml — sanitizes a runtime value for safe insertion into innerHTML.
@@ -68,11 +66,10 @@ let _onBeforeChoice    = null;
 // circular import (narrative.js → interpreter.js → [via callbacks] → narrative.js).
 let _executeBlock      = null;
 let _runInterpreter    = null;
-let _debugLog          = null;   // optional: (tag, detail) → void
 
 export function init({ narrativeContent, choiceArea, narrativePanel,
                        scheduleStatsRender, onBeforeChoice,
-                       executeBlock, runInterpreter, debugLog }) {
+                       executeBlock, runInterpreter }) {
   _narrativeContent = narrativeContent;
   _choiceArea       = choiceArea;
   _narrativePanel   = narrativePanel;
@@ -80,7 +77,6 @@ export function init({ narrativeContent, choiceArea, narrativePanel,
   _onBeforeChoice   = onBeforeChoice   || (() => {});
   _executeBlock     = executeBlock     || null;
   _runInterpreter   = runInterpreter   || null;
-  _debugLog         = debugLog         || null;
 }
 
 export function setChoiceArea(el) { _choiceArea = el; }
@@ -109,17 +105,17 @@ export function pushNarrativeLogEntry(e) { _narrativeLog.push(e); }
 export function clearNarrativeLog()      { _narrativeLog = []; }
 
 // ---------------------------------------------------------------------------
-// Pronoun resolver
+// Pronoun resolver — reads from flat playerState keys set at char creation
 // ---------------------------------------------------------------------------
 function resolvePronoun(lower, isCapital) {
-  const pronouns = playerState.pronouns || {};
   const map = {
-    they:     pronouns.subject   || 'they',
-    them:     pronouns.object    || 'them',
-    their:    pronouns.possessive || 'their',
-    themself: pronouns.reflexive  || 'themself',
+    they:     playerState.pronouns_subject            || 'they',
+    them:     playerState.pronouns_object             || 'them',
+    their:    playerState.pronouns_possessive         || 'their',
+    theirs:   playerState.pronouns_possessive_pronoun || 'theirs',
+    themself: playerState.pronouns_reflexive          || 'themself',
   };
-  const resolved = map[lower] || lower;
+  const resolved = escapeHtml(map[lower] || lower);
   return isCapital
     ? resolved.charAt(0).toUpperCase() + resolved.slice(1)
     : resolved;
@@ -134,21 +130,14 @@ export function formatText(text) {
 
   // 1. Variable interpolation: ${varName}
   result = result.replace(/\$\{([a-zA-Z_][\w]*)\}/g, (_, v) => {
-    const k   = normalizeKey(v);
-    // BUG-I fix: mirror evalValue lookup order (temp → session → player) so
-    // session variables declared via *session_set render correctly in narrative
-    // text.  Previously sessionState was skipped, causing ${sessionVar} to
-    // render as an empty string even though the same variable worked fine in
-    // *if conditions.
-    const val = tempState[k] !== undefined
-      ? tempState[k]
-      : (sessionState[k] !== undefined ? sessionState[k] : (playerState[k] ?? ''));
-    return escapeHtml(val);
+    const k     = normalizeKey(v);
+    const store = resolveStore(k);
+    return escapeHtml(store ? store[k] : '');
   });
 
-  // 2. Pronoun tokens: {they}, {Them}, {their}, etc.
+  // 2. Pronoun tokens: {they}, {Them}, {their}, {theirs}, etc.
   result = result.replace(
-    /\{(They|Them|Their|Themself|they|them|their|themself)\}/g,
+    /\{(They|Them|Their|Theirs|Themself|they|them|their|theirs|themself)\}/g,
     (_, token) => {
       const lower     = token.toLowerCase();
       const isCapital = token.charCodeAt(0) >= 65 && token.charCodeAt(0) <= 90;
@@ -182,8 +171,6 @@ export function addParagraph(text, cls = 'narrative-paragraph') {
 // addSystem — renders a system block, applies rewards, triggers level-up UI
 // ---------------------------------------------------------------------------
 export function addSystem(text) {
-  applySystemRewards(text, _scheduleStats);
-
   const div       = document.createElement('div');
   const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(text);
   const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(text);
@@ -271,31 +258,19 @@ export function renderChoices(choices) {
       btn.setAttribute('aria-disabled', 'true');
     } else {
       btn.addEventListener('click', () => {
-        if (choiceMade) {
-          if (_debugLog) _debugLog('CHOICE BLOCKED', `choiceMade already true — btn="${choice.text.slice(0,30)}"`);
-          return;
-        }
+        if (choiceMade) return;
         choiceMade = true;
-        if (_debugLog) _debugLog('CHOICE CLICKED', `"${choice.text.slice(0,40)}" start=${choice.start} end=${choice.end}`);
 
         _onBeforeChoice();
         clearNarrative();
 
         const choiceBlockEnd = awaitingChoice?.end ?? choice.end;
         const savedIp = awaitingChoice?._savedIp ?? choiceBlockEnd;
-        if (_debugLog) _debugLog('CHOICE EXEC', `choiceBlockEnd=${choiceBlockEnd} savedIp=${savedIp} awaitingChoice.end=${awaitingChoice?.end} _savedIp=${awaitingChoice?._savedIp}`);
         setAwaitingChoice(null);
 
         _executeBlock(choice.start, choice.end, savedIp)
-          .then(() => {
-            if (_debugLog) _debugLog('EXEC DONE', `ip now=${window._dbgIp?.() ?? '?'} — calling runInterpreter`);
-            return _runInterpreter();
-          })
-          .then(() => {
-            if (_debugLog) _debugLog('RUN DONE', `interpreter finished`);
-          })
+          .then(() => _runInterpreter())
           .catch(err => {
-            if (_debugLog) _debugLog('CHOICE ERROR', err.message);
             console.error('[narrative] choice execution error:', err);
           });
       });
@@ -438,15 +413,6 @@ export function renderFromLog(log, { skipAnimations = true } = {}) {  // eslint-
           <span class="input-prompt-label">${formatText(entry.prompt)}</span>
           <span class="input-prompt-submitted-value">${safe}</span>`;
         _narrativeContent.insertBefore(wrapper, _choiceArea);
-        break;
-      }
-
-      case 'levelup_confirmed': {
-        const block = document.createElement('div');
-        block.className = 'system-block levelup-block levelup-inline-block levelup-inline-block--confirmed';
-        block.style.opacity = '0.55';
-        block.innerHTML = `<span class="system-block-label">[ LEVEL UP ]</span><span class="system-block-text levelup-confirmed-text">Level ${entry.level} reached — stats allocated.</span>`;
-        _narrativeContent.insertBefore(block, _choiceArea);
         break;
       }
 

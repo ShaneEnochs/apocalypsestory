@@ -453,9 +453,14 @@ export function wireCharCreation() {
     }
     if (typeof _charOverlay._resolve === 'function') {
       _charOverlay._resolve({
-        firstName: _inputFirstName.value.trim(),
-        lastName:  _inputLastName.value.trim(),
-        pronouns:  selected.dataset.pronouns,
+        firstName:                _inputFirstName.value.trim(),
+        lastName:                 _inputLastName.value.trim(),
+        pronouns_subject:         selected.dataset.subject,
+        pronouns_object:          selected.dataset.object,
+        pronouns_possessive:      selected.dataset.possessive,
+        pronouns_possessive_pronoun: selected.dataset.possessivePronoun,
+        pronouns_reflexive:       selected.dataset.reflexive,
+        pronouns_label:           selected.dataset.pronouns,
       });
     }
   });

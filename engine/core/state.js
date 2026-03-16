@@ -19,11 +19,6 @@ export let playerState   = {};
 export let tempState     = {};
 export let statRegistry  = [];   // [{ key, label, defaultVal }, ...]
 
-// ENH-08: sessionState — survives *goto_scene (clearTempState) but is NOT
-// saved to localStorage. Cleared on new game and on page reload.
-// Lookup order in evalValue: tempState → sessionState → playerState.
-export let sessionState  = {};
-
 // ---------------------------------------------------------------------------
 // Interpreter position / flow
 // ---------------------------------------------------------------------------
@@ -31,20 +26,10 @@ export let currentScene  = null;
 export let currentLines  = [];
 export let ip            = 0;
 
-// _gotoJumped: set true by the *goto handler so executeBlock knows ip was
-// deliberately relocated and must not be overwritten with resumeAfter.
-export let _gotoJumped   = false;
-
 // ---------------------------------------------------------------------------
 // Choice state
 // ---------------------------------------------------------------------------
 export let awaitingChoice = null;
-
-// ---------------------------------------------------------------------------
-// Level-up / stat allocation
-// ---------------------------------------------------------------------------
-export let pendingStatPoints     = 0;
-export let levelUpInProgress     = false;
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -54,22 +39,7 @@ export let levelUpInProgress     = false;
 // ---------------------------------------------------------------------------
 // Startup metadata
 // ---------------------------------------------------------------------------
-export let startup = { sceneList: [], onLevelUpLines: [] };
-
-// ---------------------------------------------------------------------------
-// pauseState — tracks which directive has halted the interpreter and carries
-// all context needed to re-present its UI on save/load restore.
-//
-// Shapes (one of):
-//   { type: 'page_break', btnText: string, resumeIp: number }
-//   { type: 'delay',      ms: number,      resumeIp: number }
-//   { type: 'input',      varName: string, prompt: string, resumeIp: number }
-//
-// null when the interpreter is not paused at a directive.
-// ---------------------------------------------------------------------------
-export let pauseState = null;
-export function setPauseState(s)  { pauseState = s; }
-export function clearPauseState() { pauseState = null; }
+export let startup = { sceneList: [] };
 
 // ---------------------------------------------------------------------------
 // chapterTitle — state-side mirror of the DOM #chapter-title text.
@@ -87,22 +57,12 @@ export function setTempState(s)             { tempState = s; }
 export function setStatRegistry(r)          { statRegistry = r; }
 export function setStartup(s)               { startup = s; }
 
-// ENH-08: sessionState setters
-export function setSessionState(s)          { sessionState = s; }
-export function clearSessionState()         { sessionState = {}; }
-export function patchSessionState(p)        { Object.assign(sessionState, p); }
-
 export function setCurrentScene(s)          { currentScene = s; }
 export function setCurrentLines(l)          { currentLines = l; }
 export function setIp(n)                    { ip = n; }
 export function advanceIp()                 { ip += 1; }
-export function setGotoJumped(v)            { _gotoJumped = v; }
 
 export function setAwaitingChoice(c)        { awaitingChoice = c; }
-
-export function setPendingStatPoints(n)     { pendingStatPoints = n; }
-export function addPendingStatPoints(n)     { pendingStatPoints += n; }
-export function setLevelUpInProgress(v)     { levelUpInProgress = v; }
 
 // setDelayIndex / advanceDelayIndex removed — animation stagger system eliminated
 
@@ -121,6 +81,18 @@ export function normalizeKey(k) {
 }
 
 // ---------------------------------------------------------------------------
+// resolveStore — returns the store object (tempState or playerState) that
+// owns the given key, or null if the key is undeclared in both.
+//
+// This is the single source of truth for variable lookup order: temp → player.
+// ---------------------------------------------------------------------------
+export function resolveStore(key) {
+  if (Object.prototype.hasOwnProperty.call(tempState,   key)) return tempState;
+  if (Object.prototype.hasOwnProperty.call(playerState, key)) return playerState;
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // setVar — handles the *set directive
 //
 // Supports arithmetic shorthand: *set xp +100  →  xp = xp + 100
@@ -132,18 +104,9 @@ export function setVar(command, evalValueFn) {
   if (!m) return;
   const [, rawKey, rhs] = m;
   const key = normalizeKey(rawKey);
+  const store = resolveStore(key);
 
-  const inTemp    = Object.prototype.hasOwnProperty.call(tempState,    key);
-  const inSession = Object.prototype.hasOwnProperty.call(sessionState, key);
-  const inPlayer  = Object.prototype.hasOwnProperty.call(playerState,  key);
-
-  // BUG-C fix: mirror the evalValue lookup order (temp → session → player)
-  // so *set can write to sessionState variables declared via *session_set.
-  // Previously only tempState and playerState were checked, causing *set on
-  // a session variable to silently do nothing.
-  const store = inTemp ? tempState : (inSession ? sessionState : playerState);
-
-  if (!inTemp && !inSession && !inPlayer) {
+  if (!store) {
     console.warn(`[state] *set on undeclared variable "${key}" — did you mean *create or *temp?`);
     return; // Don't silently create garbage keys in persistent state
   }
@@ -151,9 +114,6 @@ export function setVar(command, evalValueFn) {
   // Arithmetic shorthand — validate result is finite before committing.
   if (/^[+\-*/]\s*/.test(rhs) && typeof store[key] === 'number') {
     const result = evalValueFn(`${store[key]} ${rhs}`);
-    // BUG-03 fix: normalise -0 → 0 so JSON serialisation and comparisons
-    // behave consistently. Object.is(-0, 0) is false, which could silently
-    // break equality checks after a round-trip through JSON.stringify.
     const coerced = Number.isFinite(result) ? result : evalValueFn(rhs);
     store[key] = coerced === 0 ? 0 : coerced;
   } else {
@@ -173,15 +133,9 @@ export function setStatClamped(command, evalValueFn) {
   if (!m) return;
   const [, rawKey, rest] = m;
   const key = normalizeKey(rawKey);
+  const store = resolveStore(key);
 
-  const inTemp    = Object.prototype.hasOwnProperty.call(tempState,    key);
-  const inSession = Object.prototype.hasOwnProperty.call(sessionState, key);
-  const inPlayer  = Object.prototype.hasOwnProperty.call(playerState,  key);
-
-  // BUG-D fix: mirror setVar's corrected lookup order (temp → session → player).
-  const store = inTemp ? tempState : (inSession ? sessionState : playerState);
-
-  if (!inTemp && !inSession && !inPlayer) {
+  if (!store) {
     console.warn(`[state] *set_stat on undeclared variable "${key}" — did you mean *create or *temp?`);
     return;
   }
@@ -246,43 +200,12 @@ export async function parseStartup(fetchTextFileFn, evalValueFn) {
   playerState  = {};
   tempState    = {};
   statRegistry = [];
-  startup      = { sceneList: [], onLevelUpLines: [] };
+  startup      = { sceneList: [] };
 
-  let inSceneList    = false;
-  let inOnLevelUp    = false;
-  let onLevelUpIndent = -1;
+  let inSceneList = false;
 
   for (const line of lines) {
     if (!line.trimmed || line.trimmed.startsWith('//')) continue;
-
-    // *on_level_up — collect indented block that follows
-    if (line.trimmed === '*on_level_up') {
-      inSceneList  = false;
-      inOnLevelUp  = true;
-      onLevelUpIndent = -1;   // will be set by first non-empty indented line
-      continue;
-    }
-
-    // If we're inside *on_level_up, collect lines until we hit a new top-level directive
-    if (inOnLevelUp) {
-      // A non-empty line at indent 0 (or a new *directive at root) ends the block
-      if (line.trimmed.startsWith('*') && line.indent === 0) {
-        inOnLevelUp = false;
-        // Fall through to process this line normally
-      } else {
-        // Track minimum indent so we can strip it for the mini-interpreter
-        if (line.trimmed) {
-          if (onLevelUpIndent === -1) onLevelUpIndent = line.indent;
-          // Store as a trimmed line object (same shape as parseLines output)
-          startup.onLevelUpLines.push({
-            raw:     line.raw,
-            trimmed: line.trimmed,
-            indent:  Math.max(0, line.indent - onLevelUpIndent),
-          });
-        }
-        continue;
-      }
-    }
 
     if (line.trimmed.startsWith('*create_stat')) {
       inSceneList = false;
@@ -312,19 +235,7 @@ export async function parseStartup(fetchTextFileFn, evalValueFn) {
   }
 
   if (statRegistry.length === 0 && !_statRegistryWarningFired) {
-    console.warn('[state] No *create_stat entries found — level-up allocation will be empty.');
+    console.warn('[state] No *create_stat entries found in startup.txt.');
     _statRegistryWarningFired = true;
-  }
-
-  // ENH-04: warn if any level-up config variables are missing from startup.txt.
-  // Without them the engine silently falls back to hardcoded defaults in
-  // performLevelUp, which may not match the game's intended design.
-  const _LVL_CONFIG_KEYS = ['essence_up_mult', 'lvl_up_stat_gain', 'essence_to_next'];
-  const _missingConfig   = _LVL_CONFIG_KEYS.filter(k => !Object.prototype.hasOwnProperty.call(playerState, k));
-  if (_missingConfig.length > 0) {
-    console.warn(
-      `[state] startup.txt is missing level-up config variable(s): ${_missingConfig.join(', ')}. ` +
-      `The engine will use hardcoded fallback values. Add the missing *create declarations to startup.txt.`
-    );
   }
 }

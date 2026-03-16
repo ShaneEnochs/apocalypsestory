@@ -4,37 +4,33 @@
 *create game_title "Sample Game"
 *create game_byline "Eight years of the apocalypse.<br>One door back."
 
-*comment --- Core identity (plain *create, not stats) ---
+*comment --- Core identity ---
 *comment first_name, last_name, and pronouns are set by the character creation screen.
-*comment They are declared here so the engine has them in playerState from the start.
 *create first_name "Alex"
 *create last_name  ""
-*create pronouns   "they/them"
+*create pronouns_subject            "they"
+*create pronouns_object             "them"
+*create pronouns_possessive         "their"
+*create pronouns_possessive_pronoun "theirs"
+*create pronouns_reflexive          "themself"
+*create pronouns_label              "they/them"
 *create class_name "Unclassed"
 
-*comment --- Level / Essence progress ---
+*comment --- Progress ---
 *create level 1
 *create essence 0
-*create essence_to_next 10
-
-*comment --- Level-up configuration ---
-*comment essence_up_mult:       multiplier applied to essence_to_next on each level-up
-*comment lvl_up_stat_gain: stat points awarded per level-up
-*create essence_up_mult 1.2
-*create lvl_up_stat_gain 2
 
 *comment --- Skills and journal ---
 *create skills []
 *create journal []
 *create inventory []
 
-*comment --- Vitals (plain *create; shown in stats panel but not allocatable) ---
+*comment --- Vitals ---
 *create health "Healthy"
 *create mana 50
 *create max_mana 50
 
-*comment --- Allocatable stats (registered via *create_stat) ---
-*comment Format: *create_stat key "Human-Readable Label" defaultValue
+*comment --- Allocatable stats ---
 *create_stat strength "Strength" 1
 *create_stat fortitude "Fortitude" 1
 *create_stat agility "Agility" 1
@@ -44,16 +40,6 @@
 
 *comment --- Misc ---
 *create loop_counter 0
-
-*on_level_up
-  *if class_name = "Unclassed"
-    *set strength strength + 1
-    *set fortitude fortitude + 1
-    *set agility agility + 1
-    *set precision precision + 1
-    *set mind mind + 1
-    *set magic_power magic_power + 1
-
 
 *scene_list
   prologue

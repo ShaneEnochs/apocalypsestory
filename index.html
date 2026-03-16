@@ -202,20 +202,14 @@
     <div class="char-field-group">
       <label class="char-label">Pronouns</label>
       <div class="pronoun-cards" role="radiogroup" aria-label="Select pronouns">
-        <button class="pronoun-card" data-pronouns="he/him" data-subject="he" data-object="him" data-possessive="his" data-reflexive="himself" role="radio" aria-checked="false" tabindex="-1">
+        <button class="pronoun-card" data-pronouns="he/him" data-subject="he" data-object="him" data-possessive="his" data-possessive-pronoun="his" data-reflexive="himself" role="radio" aria-checked="false" tabindex="-1">
           he / him
         </button>
-        <button class="pronoun-card" data-pronouns="she/her" data-subject="she" data-object="her" data-possessive="her" data-reflexive="herself" role="radio" aria-checked="false" tabindex="-1">
+        <button class="pronoun-card" data-pronouns="she/her" data-subject="she" data-object="her" data-possessive="her" data-possessive-pronoun="hers" data-reflexive="herself" role="radio" aria-checked="false" tabindex="-1">
           she / her
         </button>
-        <button class="pronoun-card" data-pronouns="they/them" data-subject="they" data-object="them" data-possessive="their" data-reflexive="themself" role="radio" aria-checked="true" tabindex="-1">
+        <button class="pronoun-card" data-pronouns="they/them" data-subject="they" data-object="them" data-possessive="their" data-possessive-pronoun="theirs" data-reflexive="themself" role="radio" aria-checked="true" tabindex="-1">
           they / them
-        </button>
-        <button class="pronoun-card" data-pronouns="xe/xem" data-subject="xe" data-object="xem" data-possessive="xyr" data-reflexive="xemself" role="radio" aria-checked="false" tabindex="-1">
-          xe / xem
-        </button>
-        <button class="pronoun-card" data-pronouns="ze/zir" data-subject="ze" data-object="zir" data-possessive="zir" data-reflexive="zirself" role="radio" aria-checked="false" tabindex="-1">
-          ze / zir
         </button>
       </div>
     </div>
@@ -229,13 +223,6 @@
      ═══════════════════════════════════════════════════ -->
 <div id="store-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Store — Skills and Items" style="opacity:0;">
   <div class="overlay-box store-modal-box"></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════
-     LEVEL-UP MODAL
-     ═══════════════════════════════════════════════════ -->
-<div id="levelup-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Level Up — Stat Allocation" style="opacity:0;">
-  <div class="overlay-box levelup-modal-box"></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════
@@ -255,11 +242,6 @@
      TOAST NOTIFICATION
      ═══════════════════════════════════════════════════ -->
 <div id="toast" class="toast hidden" aria-live="polite"></div>
-
-<!-- ═══════════════════════════════════════════════════
-     DEBUG OVERLAY (toggle with backtick key)
-     ═══════════════════════════════════════════════════ -->
-<div id="debug-overlay" class="hidden"></div>
 
 </body>
 </html>

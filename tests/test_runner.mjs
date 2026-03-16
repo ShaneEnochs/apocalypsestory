@@ -90,15 +90,14 @@ import {
   playerState, tempState, setPlayerState, setTempState,
   normalizeKey, setVar, setStatClamped, declareTemp,
   setStatRegistry, statRegistry,
-  sessionState, clearSessionState, patchSessionState,
   setCurrentScene, parseStartup,
-  pendingStatPoints, setPendingStatPoints,
+  resolveStore,
 } from '../engine/core/state.js';
 
 import { evalValue } from '../engine/core/expression.js';
 import { parseLines, indexLabels, parseChoice, parseSystemBlock } from '../engine/core/parser.js';
 import { addInventoryItem, removeInventoryItem, itemBaseName, parseInventoryUpdateText } from '../engine/systems/inventory.js';
-import { performLevelUp, canLevelUp, applySystemRewards, getAllocatableStatKeys } from '../engine/systems/leveling.js';
+import { getAllocatableStatKeys } from '../engine/systems/leveling.js';
 import { importSaveFromJSON, SAVE_VERSION, buildSavePayload, loadSaveFromSlot } from '../engine/systems/saves.js';
 
 // Skills and journal need dynamic import because they depend on state being set up
@@ -110,9 +109,11 @@ const { addJournalEntry, getJournalEntries, getAchievements } = await import('..
 // ---------------------------------------------------------------------------
 function resetState() {
   setPlayerState({
-    first_name: 'Test', last_name: 'Player', pronouns: 'they/them',
-    class_name: 'Warrior', level: 1, essence: 0, essence_to_next: 1000,
-    essence_up_mult: 1.2, lvl_up_stat_gain: 2,
+    first_name: 'Test', last_name: 'Player',
+    pronouns_subject: 'they', pronouns_object: 'them',
+    pronouns_possessive: 'their', pronouns_possessive_pronoun: 'theirs',
+    pronouns_reflexive: 'themself', pronouns_label: 'they/them',
+    class_name: 'Warrior', level: 1, essence: 0,
     health: 'Healthy', mana: 100, max_mana: 100,
     body: 10, mind: 10, spirit: 10, social: 10,
     inventory: [], skills: [], journal: [],
@@ -348,54 +349,40 @@ const invExcluded = parseInventoryUpdateText('Inventory updated: assembled');
 assertDeepEq(invExcluded, [], 'excluded word "assembled" still filtered out');
 
 // ---------------------------------------------------------------------------
-group('Leveling — canLevelUp and performLevelUp (manual system)');
+group('Leveling — getAllocatableStatKeys (stub)');
 // ---------------------------------------------------------------------------
 resetState();
 
-setPendingStatPoints(0);
-
-// Give enough essence to cross multiple thresholds
-playerState.essence = 1500;
-playerState.essence_to_next = 1000;
-
-// canLevelUp should return true
-assert(canLevelUp(), 'canLevelUp returns true when essence >= essence_to_next');
-
-// canLevelUp should return true, but no auto-leveling occurs
-let changed = false;
-assert(canLevelUp(), 'canLevelUp returns true before manual level-up');
-
-// performLevelUp executes exactly one level-up
-const newLevel = performLevelUp(() => {});
-assertEq(newLevel, 2, 'performLevelUp returns new level 2');
-assertEq(playerState.level, 2, 'level incremented to 2');
-assert(playerState.essence < 1500, 'essence deducted after performLevelUp');
-assert(playerState.essence_to_next > 1000, 'essence_to_next scaled up');
-assert(pendingStatPoints > 0, 'stat points awarded by performLevelUp');
+// The leveling system is removed; getAllocatableStatKeys returns keys from statRegistry
+const allocKeys = getAllocatableStatKeys();
+assertEq(allocKeys.length, 4, 'getAllocatableStatKeys returns all statRegistry keys');
+assert(allocKeys.includes('body'),   'body in allocatable keys');
+assert(allocKeys.includes('mind'),   'mind in allocatable keys');
+assert(allocKeys.includes('spirit'), 'spirit in allocatable keys');
+assert(allocKeys.includes('social'), 'social in allocatable keys');
 
 // ---------------------------------------------------------------------------
-group('Leveling — applySystemRewards');
+group('State — resolveStore helper');
 // ---------------------------------------------------------------------------
 resetState();
-setPendingStatPoints(0);
 
-playerState.essence = 0;
-applySystemRewards('Essence gained: +500', () => {});
-assertEq(playerState.essence, 500, 'Essence reward applied');
+// resolveStore returns tempState when key is in temp
+tempState.temp_var = 42;
+assertEq(resolveStore('temp_var'), tempState, 'resolveStore returns tempState for temp key');
 
-playerState.body = 10;
-applySystemRewards('+3 to all stats', () => {});
-assertEq(playerState.body, 13, '+3 to all stats applied to body');
-assertEq(playerState.mind, 13, '+3 to all stats applied to mind');
+// resolveStore returns playerState when key is in player only
+assertEq(resolveStore('body'), playerState, 'resolveStore returns playerState for player key');
 
-playerState.health = 'Healthy';
-applySystemRewards('+50 mana', () => {});
-assertEq(playerState.mana, 150, '+50 mana applied');
+// resolveStore returns null for unknown key
+assertEq(resolveStore('totally_unknown_key_xyz'), null, 'resolveStore returns null for unknown key');
 
-// Inventory via system rewards
-resetState();
-applySystemRewards('Inventory updated: Magic Ring', () => {});
-assert(playerState.inventory.some(i => itemBaseName(i) === 'Magic Ring'), 'inventory item added via system rewards');
+// tempState takes priority over playerState
+playerState.prio_test = 'player';
+tempState.prio_test   = 'temp';
+assertEq(resolveStore('prio_test'), tempState, 'resolveStore: tempState wins over playerState');
+delete tempState.prio_test;
+assertEq(resolveStore('prio_test'), playerState, 'resolveStore: playerState used when no temp');
+delete playerState.prio_test;
 
 // ---------------------------------------------------------------------------
 group('State — setVar and declareTemp');
@@ -535,7 +522,7 @@ setStatClamped('*set_stat body -10 min:-5', evalValue);
 assertEq(playerState.body, -5, '*set_stat with negative min clamps to -5');
 
 // ---------------------------------------------------------------------------
-group('ENH-04 — Boot warning for missing level-up config');
+group('parseStartup — sceneList and playerState population');
 // ---------------------------------------------------------------------------
 
 // Capture console.warn calls
@@ -543,30 +530,28 @@ const warnMessages = [];
 const origWarn = console.warn;
 console.warn = (...args) => { warnMessages.push(args.join(' ')); origWarn(...args); };
 
-// Startup with all config keys present — no config warning
-const fullStartupText = `*create essence_up_mult 1.2
-*create lvl_up_stat_gain 2
-*create essence_to_next 1000
+const fullStartupText = `*create level 1
+*create essence 0
 *create_stat body "Body" 10
 *scene_list
-  prologue`;
+  prologue
+  chapter_two`;
 
 await parseStartup(async () => fullStartupText, evalValue);
-const warnsBefore = warnMessages.length;
-const hasConfigWarn = warnMessages.some(m => m.includes('Missing level-up config') || m.includes('missing level-up config'));
-assertEq(hasConfigWarn, false, 'no level-up config warning when all keys present');
 
-// Startup missing essence_up_mult — should warn
-warnMessages.length = 0;
-const missingKeyStartup = `*create lvl_up_stat_gain 2
-*create essence_to_next 1000
-*create_stat body "Body" 10
-*scene_list
-  prologue`;
+assertEq(playerState.level,   1,  'parseStartup populates level');
+assertEq(playerState.essence, 0,  'parseStartup populates essence');
+assertEq(playerState.body,    10, 'parseStartup populates *create_stat key');
 
-await parseStartup(async () => missingKeyStartup, evalValue);
-const hasMissingWarn = warnMessages.some(m => m.includes('essence_up_mult'));
-assert(hasMissingWarn, 'warns about missing essence_up_mult after parseStartup');
+// sceneList parsed correctly
+const { startup } = await import('../engine/core/state.js');
+assertEq(startup.sceneList.length, 2,          'sceneList has 2 entries');
+assertEq(startup.sceneList[0],     'prologue',  'first scene is prologue');
+assertEq(startup.sceneList[1],     'chapter_two', 'second scene is chapter_two');
+
+// No on_level_up or LVL_CONFIG warnings — those blocks are deleted
+const hasLevelUpWarn = warnMessages.some(m => m.includes('level-up config') || m.includes('on_level_up'));
+assertEq(hasLevelUpWarn, false, 'no level-up config warnings after simplification');
 
 // Restore console.warn
 console.warn = origWarn;
@@ -622,53 +607,38 @@ simulateFlagCheck('seen_boss', 'temp_dest');
 assertEq(tempState.temp_dest, false,   'destKey in tempState false on second call');
 
 // ---------------------------------------------------------------------------
-group('ENH-08 — Session state (*persist)');
+// ---------------------------------------------------------------------------
+group('Two-way variable lookup (tempState → playerState)');
 // ---------------------------------------------------------------------------
 resetState();
-clearSessionState();
 
-// FIX H: unknown identifiers now return 0 (falsy) instead of the raw string
-assertEq(evalValue('session_var'), 0, 'unknown session var → 0 (falsy, FIX H) before assignment');
+// Unknown identifier returns 0 (FIX H)
+assertEq(evalValue('totally_unknown_var'), 0, 'unknown var → 0 (falsy)');
 
-// Manual session state simulation (promotion logic)
-function simulatePersist(key) {
-  if (Object.prototype.hasOwnProperty.call(tempState, key)) {
-    patchSessionState({ [key]: tempState[key] });
-    delete tempState[key];
-  } else if (!Object.prototype.hasOwnProperty.call(sessionState, key)) {
-    console.warn(`[test] *persist: "${key}" not in tempState`);
-  }
-}
+// playerState readable via evalValue
+assertEq(evalValue('body'), 10, 'playerState var readable via evalValue');
 
-// Promote temp var into session
-tempState.cutscene_mode = true;
-simulatePersist('cutscene_mode');
-assertEq(Object.prototype.hasOwnProperty.call(tempState, 'cutscene_mode'), false, 'key removed from tempState after persist');
-assertEq(sessionState.cutscene_mode, true, 'key promoted into sessionState');
-
-// evalValue can read it
-assertEq(evalValue('cutscene_mode'), true, 'evalValue reads from sessionState');
-
-// tempState takes priority over sessionState
-tempState.cutscene_mode = false;
-assertEq(evalValue('cutscene_mode'), false, 'tempState shadows sessionState in evalValue');
-delete tempState.cutscene_mode;
-assertEq(evalValue('cutscene_mode'), true, 'sessionState readable again after temp deleted');
-
-// clearSessionState wipes it
-clearSessionState();
-// FIX H: unknown identifiers now return 0 (falsy) instead of the raw string
-assertEq(evalValue('cutscene_mode'), 0, 'clearSessionState empties session layer (FIX H: unknown → 0)');
-
-// playerState still lower priority than both temp and session
+// tempState shadows playerState
 playerState.prio_test = 'player';
-sessionState.prio_test = 'session';
-tempState.prio_test    = 'temp';
-assertEq(evalValue('prio_test'), 'temp',    'tempState > sessionState > playerState');
+tempState.prio_test   = 'temp';
+assertEq(evalValue('prio_test'), 'temp', 'tempState shadows playerState in evalValue');
 delete tempState.prio_test;
-assertEq(evalValue('prio_test'), 'session', 'sessionState > playerState when no temp');
-delete sessionState.prio_test;
-assertEq(evalValue('prio_test'), 'player',  'playerState used when temp and session absent');
+assertEq(evalValue('prio_test'), 'player', 'playerState used when no temp');
+delete playerState.prio_test;
+
+// setVar writes to correct store
+playerState.my_stat = 5;
+setVar('*set my_stat 10', evalValue);
+assertEq(playerState.my_stat, 10, 'setVar writes to playerState when declared there');
+
+tempState.my_temp = 1;
+setVar('*set my_temp 99', evalValue);
+assertEq(tempState.my_temp, 99, 'setVar writes to tempState when declared there');
+
+// setVar on unknown key is a no-op (warns but does not create)
+const keysBefore = Object.keys(playerState).length;
+setVar('*set nonexistent_key 42', evalValue);
+assertEq(Object.keys(playerState).length, keysBefore, 'setVar on undeclared key does not create new key');
 
 // ---------------------------------------------------------------------------
 group('ENH-10 — Save export/import (importSaveFromJSON)');
