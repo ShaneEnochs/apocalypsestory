@@ -1402,10 +1402,21 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 }
 
 /* Rarity colors — applied to skill/item names in sidebar and store */
-.skill-rarity--uncommon { color: #4cdc8a; }   /* green   */
-.skill-rarity--rare      { color: #4a9eff; }   /* blue    */
-.skill-rarity--epic      { color: #b06aff; }   /* purple  */
-.skill-rarity--legendary { color: #f0a500; }   /* gold    */
+.skill-rarity--uncommon,
+.store-card-name.skill-rarity--uncommon,
+.skill-accordion-name.skill-rarity--uncommon { color: #4cdc8a; }   /* green   */
+
+.skill-rarity--rare,
+.store-card-name.skill-rarity--rare,
+.skill-accordion-name.skill-rarity--rare     { color: #4a9eff; }   /* blue    */
+
+.skill-rarity--epic,
+.store-card-name.skill-rarity--epic,
+.skill-accordion-name.skill-rarity--epic     { color: #b06aff; }   /* purple  */
+
+.skill-rarity--legendary,
+.store-card-name.skill-rarity--legendary,
+.skill-accordion-name.skill-rarity--legendary { color: #f0a500; }  /* gold    */
 
 /* Achievement accordion variant */
 .skill-accordion--achievement .skill-accordion-name { color: var(--cyan); }
