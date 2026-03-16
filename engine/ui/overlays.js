@@ -170,11 +170,11 @@ export function trapFocus(overlayEl, triggerEl = null) {
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // Toast queue — messages are displayed one at a time.
-// The level-up notification (extraClass 'toast--levelup') always jumps to the
-// front of the queue. All other toasts queue in call order behind it.
-// Processing is deferred by one setTimeout(0) tick so that all toasts
-// queued synchronously in the same interpreter pass accumulate before
-// the first one starts — guaranteeing level-up always shows first.
+// ---------------------------------------------------------------------------
+// showToast — transient notification banner.
+// Toasts queue in call order. Processing is deferred by one setTimeout(0)
+// tick so toasts queued synchronously in the same interpreter pass
+// accumulate before the first one starts displaying.
 // ---------------------------------------------------------------------------
 const _toastQueue = [];
 let   _toastActive = false;
@@ -183,7 +183,7 @@ function _processToastQueue() {
   if (_toastActive || _toastQueue.length === 0) return;
   _toastActive = true;
 
-  const { message, durationMs, extraClass } = _toastQueue.shift();
+  const { message, durationMs } = _toastQueue.shift();
 
   _toast.textContent = message;
   _toast.className = _toast.className
@@ -191,31 +191,20 @@ function _processToastQueue() {
     .filter(c => c === 'toast' || c === 'hidden')
     .join(' ');
   _toast.classList.remove('hidden', 'toast-hide');
-  if (extraClass) _toast.classList.add(extraClass);
   _toast.classList.add('toast-show');
 
   setTimeout(() => {
     _toast.classList.replace('toast-show', 'toast-hide');
     setTimeout(() => {
       _toast.classList.add('hidden');
-      if (extraClass) _toast.classList.remove(extraClass);
       _toastActive = false;
       _processToastQueue();   // show next in queue
     }, 300);
   }, durationMs);
 }
 
-export function showToast(message, durationMs = 2200, extraClass = '') {
-  const entry = { message, durationMs, extraClass };
-  // Level-up toasts always jump to the front
-  if (extraClass === 'toast--levelup') {
-    _toastQueue.unshift(entry);
-  } else {
-    _toastQueue.push(entry);
-  }
-  // Defer processing by one tick so all toasts queued in the same
-  // synchronous pass (e.g. *award_essence then *notify on the next line)
-  // are accumulated before the first one starts displaying.
+export function showToast(message, durationMs = 4000) {
+  _toastQueue.push({ message, durationMs });
   setTimeout(_processToastQueue, 0);
 }
 
