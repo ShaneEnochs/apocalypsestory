@@ -47,6 +47,8 @@ The monsters came three days later.
 *choice
   #Eight years later... 
     *goto ramparts
+  *selectable_if (strength>8) #Nine Years Later [Strength 9)
+    *goto ramparts
 
 *label ramparts
 
