@@ -113,6 +113,8 @@ export function loadSaveFromSlot(slot) {
     if (save.version !== SAVE_VERSION) {
       console.warn(`[saves] Slot "${slot}" version mismatch (v${save.version}) — discarding.`);
       setStaleSaveFound();
+      // Delete the stale save so the notice doesn't re-appear on every reload
+      try { localStorage.removeItem(key); } catch (_) {}
       return null;
     }
     return save;
