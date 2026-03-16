@@ -35,18 +35,18 @@
   activated, it pulls the bearer toward a previously visited
   safe zone. Single use.
 
-*item commonitem "Common Item" 1
+*item commonitem "Common Item" 1 common
   This item is very common! 
 
-*item uncommonitem "Uncommon Item" 1
+*item uncommonitem "Uncommon Item" 1 uncommon
   This item is very uncommon! 
 
-*item rareitem "Rare Item" 1
+*item rareitem "Rare Item" 1 rare
   This item is very rare! 
 
 
-*item epicitem "Epic Item" 1
+*item epicitem "Epic Item" 1 epic
   This item is epic! 
 
-*item legendaryitem "Legendary Item" 1
+*item legendaryitem "Legendary Item" 1 legendary
   This item is legendary! 
