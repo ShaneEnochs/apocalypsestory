@@ -151,50 +151,75 @@ export async function runStatsScene() {
   });
   if (inGroup) statsHtml += `</div>`;
 
-  // Store button lives at the bottom of stats tab
-  const hasStoreContent = skillRegistry.length > 0 || itemRegistry.length > 0;
-  if (hasStoreContent) {
-    statsHtml += `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn">◈ Store</button></div>`;
+  // ACHIEVEMENTS as expandable accordions at bottom of stats tab
+  const achvsForStats = getAchievements();
+  if (achvsForStats.length > 0) {
+    const achvAccordions = achvsForStats.map(a => {
+      // Achievements may optionally have a title — text before " — " is the title
+      const dashIdx = a.text.indexOf(' — ');
+      const title   = dashIdx !== -1 ? escapeHtml(a.text.slice(0, dashIdx)) : escapeHtml(a.text);
+      const body    = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : '';
+      return `<li class="skill-accordion skill-accordion--achievement">
+        <button class="skill-accordion-btn">
+          <span class="skill-accordion-name"><span class="journal-achievement-icon">◆</span> ${title}</span>
+          ${body ? `<span class="skill-accordion-chevron">▾</span>` : ''}
+        </button>
+        ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ''}
+      </li>`;
+    }).join('');
+    statsHtml += `<div class="status-section"><div class="status-label status-section-header">Achievements</div><ul class="skill-accordion-list">${achvAccordions}</ul></div>`;
   }
 
-  // SKILLS TAB
-  let skillsHtml = '';
+  // SKILLS TAB — store button at top, then owned skills with rarity colors
+  const hasSkillStore = skillRegistry.length > 0;
+  let skillsHtml = hasSkillStore
+    ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-skills" data-store-tab="skills">◈ Skill Store</button></div>`
+    : '';
+
   const ownedSkills = Array.isArray(playerState.skills) ? playerState.skills : [];
   if (ownedSkills.length === 0) {
-    skillsHtml = `<p class="tag-empty" style="padding:0;border:none;background:none;">No skills learned yet.</p>`;
+    skillsHtml += `<p class="tag-empty" style="padding:0;border:none;background:none;margin-top:8px;">No skills learned yet.</p>`;
   } else {
     const skillItems = ownedSkills.map(k => {
-      const entry = skillRegistry.find(s => s.key === k);
-      const label = escapeHtml(entry ? entry.label : k);
-      const desc  = escapeHtml(entry ? entry.description : '');
-      return `<li class="skill-accordion"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name">${label}</span><span class="skill-accordion-chevron">▾</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
+      const entry   = skillRegistry.find(s => s.key === k);
+      const label   = escapeHtml(entry ? entry.label : k);
+      const desc    = escapeHtml(entry ? entry.description : '');
+      const rarity  = entry?.rarity || 'common';
+      const rarCls  = rarity !== 'common' ? ` skill-rarity--${rarity}` : '';
+      return `<li class="skill-accordion"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name${rarCls}">${label}</span><span class="skill-accordion-chevron">▾</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
     }).join('');
-    skillsHtml = `<ul class="skill-accordion-list">${skillItems}</ul>`;
+    skillsHtml += `<ul class="skill-accordion-list">${skillItems}</ul>`;
   }
 
-  // INVENTORY TAB — accordion cards matching Skills style
-  let inventoryHtml = '';
+  // INVENTORY TAB — store button at top, then items with rarity colors
+  const hasItemStore = itemRegistry.length > 0;
+  let inventoryHtml = hasItemStore
+    ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-inv" data-store-tab="items">◈ Item Store</button></div>`
+    : '';
+
   const invItems = Array.isArray(playerState.inventory) ? playerState.inventory : [];
   if (invItems.length === 0) {
-    inventoryHtml = `<p class="tag-empty" style="padding:0;border:none;background:none;">Nothing here yet.</p>`;
+    inventoryHtml += `<p class="tag-empty" style="padding:0;border:none;background:none;margin-top:8px;">Nothing here yet.</p>`;
   } else {
     const invAccordions = invItems.map(invEntry => {
       const baseName = itemBaseName(invEntry);
       const regEntry = itemRegistry.find(r => r.label === baseName);
-      const label    = escapeHtml(invEntry);  // includes "(2)" stack count if present
+      const label    = escapeHtml(invEntry);
       const desc     = escapeHtml(regEntry ? regEntry.description : '');
+      const rarity   = regEntry?.rarity || 'common';
+      const rarCls   = rarity !== 'common' ? ` skill-rarity--${rarity}` : '';
       return `<li class="skill-accordion">
         <button class="skill-accordion-btn">
-          <span class="skill-accordion-name">${label}</span>
+          <span class="skill-accordion-name${rarCls}">${label}</span>
           <span class="skill-accordion-chevron">▾</span>
         </button>
         <div class="skill-accordion-desc" style="display:none;">${desc || '<em style="color:var(--text-faint)">No description available.</em>'}</div>
       </li>`;
     }).join('');
-    inventoryHtml = `<ul class="skill-accordion-list">${invAccordions}</ul>`;
+    inventoryHtml += `<ul class="skill-accordion-list">${invAccordions}</ul>`;
   }
 
-  // ACHIEVEMENTS TAB — includes journal entries too
+  // ACHIEVEMENTS TAB — accordion achievements + flat journal entries
   let achievementsHtml = '';
   const achvs = getAchievements();
   const jentries = getJournalEntries().filter(j => j.type !== 'achievement');
@@ -203,10 +228,19 @@ export async function runStatsScene() {
     achievementsHtml = `<p class="tag-empty" style="padding:0;border:none;background:none;">Nothing recorded yet.</p>`;
   } else {
     if (achvs.length > 0) {
-      const achvItems = achvs.map(a =>
-        `<li class="journal-entry journal-entry--achievement"><span class="journal-achievement-icon">◆</span> ${escapeHtml(a.text)}</li>`
-      ).join('');
-      achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;">Achievements</div><ul class="journal-list" style="margin-bottom:14px;">${achvItems}</ul>`;
+      const achvAccordionItems = achvs.map(a => {
+        const dashIdx = a.text.indexOf(' — ');
+        const title   = dashIdx !== -1 ? escapeHtml(a.text.slice(0, dashIdx)) : escapeHtml(a.text);
+        const body    = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : '';
+        return `<li class="skill-accordion skill-accordion--achievement">
+          <button class="skill-accordion-btn">
+            <span class="skill-accordion-name"><span class="journal-achievement-icon">◆</span> ${title}</span>
+            ${body ? `<span class="skill-accordion-chevron">▾</span>` : ''}
+          </button>
+          ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ''}
+        </li>`;
+      }).join('');
+      achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;">Achievements</div><ul class="skill-accordion-list" style="margin-bottom:14px;">${achvAccordionItems}</ul>`;
     }
     if (jentries.length > 0) {
       const journalItems = [...jentries].reverse().map(j =>
@@ -259,14 +293,18 @@ export async function runStatsScene() {
     const lvlBtn = _statusPanel.querySelector('#status-levelup-btn');
     if (lvlBtn) lvlBtn.addEventListener('click', () => showLevelUpModal());
 
-    // Store button
-    const storeBtn = _statusPanel.querySelector('#status-store-btn');
-    if (storeBtn) storeBtn.addEventListener('click', () => showStore());
+    // Store buttons — skills tab opens skills store, inv tab opens items store
+    const skillsStoreBtn = _statusPanel.querySelector('#status-store-btn-skills');
+    if (skillsStoreBtn) skillsStoreBtn.addEventListener('click', () => showStore('skills'));
 
-    // Skill accordions
+    const invStoreBtn = _statusPanel.querySelector('#status-store-btn-inv');
+    if (invStoreBtn) invStoreBtn.addEventListener('click', () => showStore('items'));
+
+    // Skill/inventory/achievement accordions
     _statusPanel.querySelectorAll('.skill-accordion-btn').forEach(btn => {
+      const desc = btn.nextElementSibling;
+      if (!desc) return;  // achievements without body text have no desc element
       btn.addEventListener('click', () => {
-        const desc = btn.nextElementSibling;
         const isOpen = desc.style.display !== 'none';
         desc.style.display = isOpen ? 'none' : 'block';
         btn.classList.toggle('skill-accordion-btn--open', !isOpen);
@@ -420,8 +458,8 @@ function showLevelAgainPrompt(box, justReachedLevel) {
       </div>
     </div>
     <div class="levelup-modal-footer levelup-again-footer">
-      <button class="levelup-again-btn levelup-again-btn--yes" id="levelup-again-yes">Yes, Level Up</button>
-      <button class="levelup-again-btn levelup-again-btn--no" id="levelup-again-no">No, Done</button>
+      <button class="levelup-again-btn levelup-again-btn--yes" id="levelup-again-yes">Yes</button>
+      <button class="levelup-again-btn levelup-again-btn--no" id="levelup-again-no">No</button>
     </div>`;
 
   box.querySelector('#levelup-again-yes')?.addEventListener('click', () => {
@@ -460,8 +498,9 @@ function hideLevelUpModal() {
 let _storeTrapRelease = null;
 let _storeActiveTab   = 'skills';   // preserved across open/close
 
-export function showStore() {
+export function showStore(tab = null) {
   if (!_storeOverlay) return;
+  if (tab) _storeActiveTab = tab;
 
   _storeOverlay.classList.remove('hidden');
   requestAnimationFrame(() => {
@@ -535,9 +574,15 @@ function renderSkillsTab(container, essence) {
     return;
   }
 
+  // Filter by *require condition — hide skills whose condition evaluates false
+  const visible = skillRegistry.filter(s => {
+    if (!s.condition) return true;
+    try { return !!evalValue(s.condition); } catch { return true; }
+  });
+
   // Split into available vs owned
-  const available = skillRegistry.filter(s => !playerHasSkill(s.key));
-  const owned     = skillRegistry.filter(s => playerHasSkill(s.key));
+  const available = visible.filter(s => !playerHasSkill(s.key));
+  const owned     = visible.filter(s => playerHasSkill(s.key));
 
   let html = '';
 
@@ -547,10 +592,12 @@ function renderSkillsTab(container, essence) {
       const canAfford = essence >= skill.essenceCost;
       const cardCls   = canAfford ? '' : 'store-card--unaffordable';
       const badgeCls  = canAfford ? 'store-cost-badge--can-afford' : '';
+      const rarity    = skill.rarity || 'common';
+      const rarCls    = rarity !== 'common' ? ` skill-rarity--${rarity}` : '';
       html += `
         <div class="store-card ${cardCls}" data-key="${escapeHtml(skill.key)}" data-type="skill">
           <div class="store-card-top">
-            <span class="store-card-name">${escapeHtml(skill.label)}</span>
+            <span class="store-card-name${rarCls}">${escapeHtml(skill.label)}</span>
             <div class="store-card-actions">
               <span class="store-cost-badge ${badgeCls}">${skill.essenceCost} Essence</span>
               <button class="store-purchase-btn" ${canAfford ? '' : 'disabled'} data-key="${escapeHtml(skill.key)}" data-type="skill">Unlock</button>
@@ -564,10 +611,12 @@ function renderSkillsTab(container, essence) {
   if (owned.length > 0) {
     html += `<div class="store-section-label store-section-label--owned">Owned</div>`;
     owned.forEach(skill => {
+      const rarity = skill.rarity || 'common';
+      const rarCls = rarity !== 'common' ? ` skill-rarity--${rarity}` : '';
       html += `
         <div class="store-card store-card--owned" data-key="${escapeHtml(skill.key)}">
           <div class="store-card-top">
-            <span class="store-card-name">${escapeHtml(skill.label)}</span>
+            <span class="store-card-name${rarCls}">${escapeHtml(skill.label)}</span>
             <div class="store-card-actions">
               <span class="store-owned-badge">Owned</span>
             </div>
@@ -578,7 +627,7 @@ function renderSkillsTab(container, essence) {
   }
 
   if (available.length === 0 && owned.length === 0) {
-    html = `<div class="store-empty">No skills defined.</div>`;
+    html = `<div class="store-empty">No skills available.</div>`;
   }
 
   container.innerHTML = html;
@@ -589,7 +638,7 @@ function renderSkillsTab(container, essence) {
       const key = btn.dataset.key;
       if (purchaseSkill(key)) {
         _showToast(`Skill unlocked: ${skillRegistry.find(s => s.key === key)?.label || key}`);
-        renderStore();  // Re-render to reflect changes
+        renderStore();
       }
     });
   });
@@ -601,15 +650,28 @@ function renderItemsTab(container, essence) {
     return;
   }
 
+  // Filter by *require condition
+  const visible = itemRegistry.filter(item => {
+    if (!item.condition) return true;
+    try { return !!evalValue(item.condition); } catch { return true; }
+  });
+
+  if (visible.length === 0) {
+    container.innerHTML = `<div class="store-empty">No items available.</div>`;
+    return;
+  }
+
   let html = '';
-  itemRegistry.forEach(item => {
+  visible.forEach(item => {
     const canAfford = essence >= item.essenceCost;
     const cardCls   = canAfford ? '' : 'store-card--unaffordable';
     const badgeCls  = canAfford ? 'store-cost-badge--can-afford' : '';
+    const rarity    = item.rarity || 'common';
+    const rarCls    = rarity !== 'common' ? ` skill-rarity--${rarity}` : '';
     html += `
       <div class="store-card ${cardCls}" data-key="${escapeHtml(item.key)}" data-type="item">
         <div class="store-card-top">
-          <span class="store-card-name">${escapeHtml(item.label)}</span>
+          <span class="store-card-name${rarCls}">${escapeHtml(item.label)}</span>
           <div class="store-card-actions">
             <span class="store-cost-badge ${badgeCls}">${item.essenceCost} Essence</span>
             <button class="store-purchase-btn" ${canAfford ? '' : 'disabled'} data-key="${escapeHtml(item.key)}" data-type="item">Buy</button>
@@ -627,7 +689,7 @@ function renderItemsTab(container, essence) {
       const key = btn.dataset.key;
       if (purchaseItem(key)) {
         _showToast(`Purchased: ${itemRegistry.find(i => i.key === key)?.label || key}`);
-        renderStore();  // Re-render to reflect updated essence
+        renderStore();
       }
     });
   });
