@@ -1,3 +1,4 @@
+
 // ---------------------------------------------------------------------------
 // engine.js — System Awakening coordinator (Phase 4 complete)
 //
@@ -74,6 +75,7 @@ const dom = {
   saveBtn:            document.getElementById('save-btn'),
   gameTitle:          document.getElementById('game-title'),
   splashTitle:        document.querySelector('.splash-title'),
+  splashTagline: document.getElementById('splash-tagline'),
   splashOverlay:      document.getElementById('splash-overlay'),
   splashNewBtn:       document.getElementById('splash-new-btn'),
   splashLoadBtn:      document.getElementById('splash-load-btn'),
@@ -601,6 +603,9 @@ async function boot() {
       if (dom.splashTitle) dom.splashTitle.textContent = t;
       document.title = t;
     },
+    setGameByline: (t) => {
+      if (dom.splashTagline) dom.splashTagline.innerHTML = t;
+    },
     runStatsScene,
     fetchTextFile,
     getNarrativeLog,
@@ -615,10 +620,12 @@ async function boot() {
     await parseItems(fetchTextFile);
 
     const title = playerState.game_title || '';
-    if (dom.gameTitle)   dom.gameTitle.textContent = title;
+    if (dom.gameTitle) dom.gameTitle.textContent = title;
     if (dom.splashTitle) dom.splashTitle.textContent = title;
     document.title = title;
 
+    const byline = playerState.game_byline || '';
+    if (dom.splashTagline && byline) dom.splashTagline.innerHTML = byline;
     showSplash();
   } catch (err) {
     showEngineError(`Boot failed: ${err.message}`);
