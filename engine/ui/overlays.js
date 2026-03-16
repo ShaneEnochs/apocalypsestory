@@ -168,13 +168,21 @@ export function trapFocus(overlayEl, triggerEl = null) {
 }
 
 // ---------------------------------------------------------------------------
-// showToast — transient notification that fades out after durationMs.
-// Pass an optional extraClass (e.g. 'toast--levelup') to apply a modifier.
 // ---------------------------------------------------------------------------
-let _toastTimer = null;
-export function showToast(message, durationMs = 2200, extraClass = '') {
+// Toast queue — messages are displayed one at a time.
+// The level-up notification (extraClass 'toast--levelup') always jumps to the
+// front of the queue. All other toasts queue in call order behind it.
+// ---------------------------------------------------------------------------
+const _toastQueue = [];
+let   _toastActive = false;
+
+function _processToastQueue() {
+  if (_toastActive || _toastQueue.length === 0) return;
+  _toastActive = true;
+
+  const { message, durationMs, extraClass } = _toastQueue.shift();
+
   _toast.textContent = message;
-  // Remove any previously added modifier classes before applying new one
   _toast.className = _toast.className
     .split(' ')
     .filter(c => c === 'toast' || c === 'hidden')
@@ -182,14 +190,27 @@ export function showToast(message, durationMs = 2200, extraClass = '') {
   _toast.classList.remove('hidden', 'toast-hide');
   if (extraClass) _toast.classList.add(extraClass);
   _toast.classList.add('toast-show');
-  if (_toastTimer) clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => {
+
+  setTimeout(() => {
     _toast.classList.replace('toast-show', 'toast-hide');
     setTimeout(() => {
       _toast.classList.add('hidden');
       if (extraClass) _toast.classList.remove(extraClass);
+      _toastActive = false;
+      _processToastQueue();   // show next in queue
     }, 300);
   }, durationMs);
+}
+
+export function showToast(message, durationMs = 2200, extraClass = '') {
+  const entry = { message, durationMs, extraClass };
+  // Level-up toasts always jump to the front
+  if (extraClass === 'toast--levelup') {
+    _toastQueue.unshift(entry);
+  } else {
+    _toastQueue.push(entry);
+  }
+  _processToastQueue();
 }
 
 // ---------------------------------------------------------------------------
