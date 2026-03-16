@@ -584,6 +584,7 @@ async function boot() {
     showInputPrompt,
     showPageBreak,
     scheduleStatsRender,
+    showToast,
     setChapterTitle: (t) => { dom.chapterTitle.textContent = t; setChapterTitleState(t); },
     setGameTitle: (t) => {
       if (dom.gameTitle)   dom.gameTitle.textContent = t;
