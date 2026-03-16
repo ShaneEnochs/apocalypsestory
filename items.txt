@@ -16,7 +16,7 @@
   A small vial of crimson liquid that smells faintly of copper
   and warmth. Restores a modest amount of health when consumed.
 
-*item mana_crystal "Mana Crystal" 3
+*item mana_crystal "Mana Crystal" 3 uncommon
   A shard of condensed ambient mana, cool to the touch and
   faintly humming. Restores mana when crushed in the palm.
 
