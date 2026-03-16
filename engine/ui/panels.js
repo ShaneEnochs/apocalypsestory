@@ -14,6 +14,10 @@
 //   These are author-controlled rather than player-controlled, so the XSS
 //   risk is lower (a malicious author could inject via a scene file), but
 //   defensive escaping is correct practice and costs nothing.
+//
+// FIX #6: Common rarity items/skills now correctly receive the
+//   skill-rarity--common CSS class so they render white instead of
+//   inheriting the base cyan color from .store-card-name / .skill-accordion-name.
 // ---------------------------------------------------------------------------
 
 import {
@@ -185,7 +189,8 @@ export async function runStatsScene() {
       const label   = escapeHtml(entry ? entry.label : k);
       const desc    = escapeHtml(entry ? entry.description : '');
       const rarity  = entry?.rarity || 'common';
-      const rarCls  = rarity !== 'common' ? ` skill-rarity--${rarity}` : '';
+      // FIX #6: Always apply rarity class (including common) so CSS override works
+      const rarCls  = ` skill-rarity--${rarity}`;
       return `<li class="skill-accordion"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name${rarCls}">${label}</span><span class="skill-accordion-chevron">▾</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
     }).join('');
     skillsHtml += `<ul class="skill-accordion-list">${skillItems}</ul>`;
@@ -207,7 +212,8 @@ export async function runStatsScene() {
       const label    = escapeHtml(invEntry);
       const desc     = escapeHtml(regEntry ? regEntry.description : '');
       const rarity   = regEntry?.rarity || 'common';
-      const rarCls   = rarity !== 'common' ? ` skill-rarity--${rarity}` : '';
+      // FIX #6: Always apply rarity class (including common) so CSS override works
+      const rarCls   = ` skill-rarity--${rarity}`;
       return `<li class="skill-accordion">
         <button class="skill-accordion-btn">
           <span class="skill-accordion-name${rarCls}">${label}</span>
@@ -593,7 +599,8 @@ function renderSkillsTab(container, essence) {
       const cardCls   = canAfford ? '' : 'store-card--unaffordable';
       const badgeCls  = canAfford ? 'store-cost-badge--can-afford' : '';
       const rarity    = skill.rarity || 'common';
-      const rarCls    = rarity !== 'common' ? ` skill-rarity--${rarity}` : '';
+      // FIX #6: Always apply rarity class (including common) so CSS override works
+      const rarCls    = ` skill-rarity--${rarity}`;
       html += `
         <div class="store-card ${cardCls}" data-key="${escapeHtml(skill.key)}" data-type="skill">
           <div class="store-card-top">
@@ -612,7 +619,8 @@ function renderSkillsTab(container, essence) {
     html += `<div class="store-section-label store-section-label--owned">Owned</div>`;
     owned.forEach(skill => {
       const rarity = skill.rarity || 'common';
-      const rarCls = rarity !== 'common' ? ` skill-rarity--${rarity}` : '';
+      // FIX #6: Always apply rarity class (including common) so CSS override works
+      const rarCls = ` skill-rarity--${rarity}`;
       html += `
         <div class="store-card store-card--owned" data-key="${escapeHtml(skill.key)}">
           <div class="store-card-top">
@@ -667,7 +675,8 @@ function renderItemsTab(container, essence) {
     const cardCls   = canAfford ? '' : 'store-card--unaffordable';
     const badgeCls  = canAfford ? 'store-cost-badge--can-afford' : '';
     const rarity    = item.rarity || 'common';
-    const rarCls    = rarity !== 'common' ? ` skill-rarity--${rarity}` : '';
+    // FIX #6: Always apply rarity class (including common) so CSS override works
+    const rarCls    = ` skill-rarity--${rarity}`;
     html += `
       <div class="store-card ${cardCls}" data-key="${escapeHtml(item.key)}" data-type="item">
         <div class="store-card-top">
