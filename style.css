@@ -1970,7 +1970,10 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   padding: 10px 22px;
   z-index: 200;
   pointer-events: none;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: min(480px, 88vw);
+  text-align: center;
+  line-height: 1.5;
 }
 
 /* Level-up toast — centered, larger, more prominent */
@@ -1984,6 +1987,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   box-shadow: 0 0 30px var(--cyan-glow-md), 0 0 60px var(--cyan-glow);
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
+  max-width: min(560px, 88vw);
 }
 
 .toast-show { opacity: 0; animation: toastIn 0.25s ease forwards; }
