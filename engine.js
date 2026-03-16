@@ -46,6 +46,7 @@ import {
   addParagraph, addSystem, clearNarrative, applyTransition,
   renderChoices, showInputPrompt, showPageBreak, setChoiceArea,
   getNarrativeLog, renderFromLog, pushNarrativeLogEntry,
+  formatText,
 } from './engine/ui/narrative.js';
 
 import {
@@ -121,10 +122,18 @@ function scheduleStatsRender() {
     if (dom.statusToggle) {
       dom.statusToggle.classList.toggle('levelup-ready', ready);
     }
-    if (ready && !_wasLevelUpReady) {
+    // Only fire the toast when transitioning from not-ready to ready,
+    // AND only when the level-up modal is not already open (levelUpInProgress).
+    // We also keep _wasLevelUpReady true while the modal is open so that
+    // closing the modal doesn't re-trigger the toast.
+    if (levelUpInProgress) {
+      // Don't touch _wasLevelUpReady while modal is open — freeze the state
+    } else if (ready && !_wasLevelUpReady) {
       showToast('You have enough Essence to level up.', 2000, 'toast--levelup');
+      _wasLevelUpReady = true;
+    } else if (!ready) {
+      _wasLevelUpReady = false;
     }
-    _wasLevelUpReady = ready;
   });
 }
 
@@ -585,6 +594,7 @@ async function boot() {
     showPageBreak,
     scheduleStatsRender,
     showToast,
+    formatText,
     setChapterTitle: (t) => { dom.chapterTitle.textContent = t; setChapterTitleState(t); },
     setGameTitle: (t) => {
       if (dom.gameTitle)   dom.gameTitle.textContent = t;
