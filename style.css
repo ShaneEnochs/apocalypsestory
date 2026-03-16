@@ -1758,27 +1758,12 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   flex: 1;
   min-width: 0;
 }
-/* Rarity colors — placed after .store-card-name and .skill-accordion-name
-   so compound selectors win the specificity battle correctly */
-.skill-rarity--common,
-.store-card-name.skill-rarity--common,
-.skill-accordion-name.skill-rarity--common { color: var(--text-primary); }  /* white   */
-
-.skill-rarity--uncommon,
-.store-card-name.skill-rarity--uncommon,
-.skill-accordion-name.skill-rarity--uncommon { color: #4cdc8a; }            /* green   */
-
-.skill-rarity--rare,
-.store-card-name.skill-rarity--rare,
-.skill-accordion-name.skill-rarity--rare     { color: #4a9eff; }            /* blue    */
-
-.skill-rarity--epic,
-.store-card-name.skill-rarity--epic,
-.skill-accordion-name.skill-rarity--epic     { color: #b06aff; }            /* purple  */
-
-.skill-rarity--legendary,
-.store-card-name.skill-rarity--legendary,
-.skill-accordion-name.skill-rarity--legendary { color: #f0a500; }           /* gold    */
+/* Rarity colors — !important ensures these always override base element colors */
+.skill-rarity--common    { color: var(--text-primary) !important; }  /* white   */
+.skill-rarity--uncommon  { color: #4cdc8a !important; }               /* green   */
+.skill-rarity--rare      { color: #4a9eff !important; }               /* blue    */
+.skill-rarity--epic      { color: #b06aff !important; }               /* purple  */
+.skill-rarity--legendary { color: #f0a500 !important; }               /* gold    */
 
 
 .store-card-actions {
@@ -1975,13 +1960,12 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 .toast {
   position: fixed;
   bottom: calc(24px + env(safe-area-inset-bottom));
-  left: 0;
-  right: 0;
-  transform: translateY(8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  width: min(960px, 100%);
   background: var(--bg-panel);
-  border: 1px solid var(--border-glow);
-  border-left: none;
-  border-right: none;
+  border-top: 1px solid var(--border-glow);
+  border-bottom: 1px solid var(--border-glow);
   color: var(--cyan);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -1992,20 +1976,17 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   white-space: normal;
   text-align: center;
   line-height: 1.5;
+  box-sizing: border-box;
 }
 
-/* Level-up toast — centered on screen, full width */
+/* Level-up toast — centered on screen, constrained to game width */
 .toast--levelup {
   bottom: auto;
   top: 50%;
-  left: 0;
-  right: 0;
-  transform: translateY(calc(-50% + 8px));
+  transform: translateX(-50%) translateY(calc(-50% + 8px));
   font-size: var(--text-base);
   padding: 18px 28px;
-  border-color: var(--cyan);
-  border-left: none;
-  border-right: none;
+  border: 1px solid var(--cyan);
   box-shadow: 0 0 30px var(--cyan-glow-md), 0 0 60px var(--cyan-glow);
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
@@ -2120,11 +2101,11 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 @keyframes statPulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); color: var(--cyan); } 100% { transform: scale(1); } }
 
-@keyframes toastIn  { to { opacity: 1; transform: translateY(0); } }
-@keyframes toastOut { to { opacity: 0; transform: translateY(8px); } }
+@keyframes toastIn  { to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+@keyframes toastOut { to { opacity: 0; transform: translateX(-50%) translateY(8px); } }
 
-@keyframes toastInCenter  { to { opacity: 1; transform: translateY(-50%); } }
-@keyframes toastOutCenter { to { opacity: 0; transform: translateY(calc(-50% + 8px)); } }
+@keyframes toastInCenter  { to { opacity: 1; transform: translateX(-50%) translateY(-50%); } }
+@keyframes toastOutCenter { to { opacity: 0; transform: translateX(-50%) translateY(calc(-50% + 8px)); } }
 
 @keyframes slotSaveFlash {
   0%   { border-color: var(--border-dim); }
