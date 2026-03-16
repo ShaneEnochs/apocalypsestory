@@ -59,7 +59,7 @@ Eight years ago, when the System first spoke, it asked one question before the m
 
 *input class_name "What is your class?"
 
-*notify "Class registered: {class_name}"
+*notify "Class registered: ${class_name}"
 
 *delay 600
 
