@@ -423,24 +423,57 @@ registerCommand('*add_essence', (t) => {
   _handleAddEssence(Number(t.replace(/^\*add_essence\s*/, '').trim()) || 0);
 });
 
-// *add_item itemName
+// stripItemName — strips surrounding quotes from item name arguments.
+// Handles: *add_item "Sword"  →  Sword
+//          *add_item Sword    →  Sword  (no quotes, passthrough)
+function stripItemName(raw) {
+  const s = raw.trim();
+  if ((s.startsWith('"') && s.endsWith('"')) ||
+      (s.startsWith("'") && s.endsWith("'"))) {
+    return s.slice(1, -1);
+  }
+  return s;
+}
+
+// *add_item "itemName"
 registerCommand('*add_item', (t) => {
-  addInventoryItem(t.replace(/^\*add_item\s*/, '').trim());
+  addInventoryItem(stripItemName(t.replace(/^\*add_item\s*/, '')));
   cb.scheduleStatsRender();
   advanceIp();
 });
 
-// *grant_item itemName — convenience alias for *add_item (Phase 3)
+// *grant_item "itemName" — convenience alias for *add_item (Phase 3)
 registerCommand('*grant_item', (t) => {
-  addInventoryItem(t.replace(/^\*grant_item\s*/, '').trim());
+  addInventoryItem(stripItemName(t.replace(/^\*grant_item\s*/, '')));
   cb.scheduleStatsRender();
   advanceIp();
 });
 
-// *remove_item itemName
+// *remove_item "itemName"
 registerCommand('*remove_item', (t) => {
-  removeInventoryItem(t.replace(/^\*remove_item\s*/, '').trim());
+  removeInventoryItem(stripItemName(t.replace(/^\*remove_item\s*/, '')));
   cb.scheduleStatsRender();
+  advanceIp();
+});
+
+// *check_item "itemName" variableName
+// Stores true/false in variableName depending on whether item is in inventory.
+registerCommand('*check_item', (t) => {
+  const m = t.match(/^\*check_item\s+"([^"]+)"\s+([\w_]+)/);
+  if (!m) {
+    console.warn(`[interpreter] *check_item: malformed — expected: *check_item "Item Name" varName\nGot: ${t}`);
+    advanceIp(); return;
+  }
+  const itemName = m[1];
+  const varName  = normalizeKey(m[2]);
+  const inv      = Array.isArray(playerState.inventory) ? playerState.inventory : [];
+  const has      = inv.some(i => itemBaseName(i) === itemName);
+
+  const inTemp   = Object.prototype.hasOwnProperty.call(tempState,   varName);
+  const inPlayer = Object.prototype.hasOwnProperty.call(playerState, varName);
+  if (inTemp)        tempState[varName]   = has;
+  else if (inPlayer) playerState[varName] = has;
+  else               tempState[varName]   = has;   // auto-create as temp if undeclared
   advanceIp();
 });
 
