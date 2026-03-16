@@ -1212,12 +1212,20 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   transform: scale(0.98);
 }
 
-/* Subtle pulse animation to draw attention */
+/* Pulse animation matching the Status button glow */
 @keyframes levelupPulse {
-  0%, 100% { border-color: rgba(0, 212, 245, 0.35); }
-  50%      { border-color: rgba(0, 212, 245, 0.6); }
+  0%, 100% {
+    border-color: rgba(0, 212, 245, 0.35);
+    box-shadow: none;
+    color: var(--cyan);
+  }
+  50% {
+    border-color: var(--cyan);
+    box-shadow: 0 0 10px var(--cyan-glow-md), 0 0 20px var(--cyan-glow);
+    color: #fff;
+  }
 }
-.status-levelup-btn { animation: levelupPulse 2.5s ease-in-out infinite; }
+.status-levelup-btn { animation: levelupPulse 2s ease-in-out infinite; }
 .status-levelup-btn:hover { animation: none; }
 
 /* --- Level-up modal overlay --- */
@@ -1392,6 +1400,15 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   border-top: 1px solid var(--border-dim);
   background: rgba(0, 0, 0, 0.2);
 }
+
+/* Rarity colors — applied to skill/item names in sidebar and store */
+.skill-rarity--uncommon { color: #4cdc8a; }   /* green   */
+.skill-rarity--rare      { color: #4a9eff; }   /* blue    */
+.skill-rarity--epic      { color: #b06aff; }   /* purple  */
+.skill-rarity--legendary { color: #f0a500; }   /* gold    */
+
+/* Achievement accordion variant */
+.skill-accordion--achievement .skill-accordion-name { color: var(--cyan); }
 
 /* --- Browse Skills button (level-up footer) --- */
 .skill-browse-btn {
@@ -2082,7 +2099,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 @keyframes toastOut { to { opacity: 0; transform: translateX(-50%) translateY(8px); } }
 
 @keyframes toastInCenter  { to { opacity: 1; transform: translateX(-50%) translateY(-50%); } }
-@keyframes toastOutCenter { to { opacity: 0; transform: translateX(-50%) calc(-50% + 8px); } }
+@keyframes toastOutCenter { to { opacity: 0; transform: translateX(-50%) translateY(calc(-50% + 8px)); } }
 
 @keyframes slotSaveFlash {
   0%   { border-color: var(--border-dim); }
