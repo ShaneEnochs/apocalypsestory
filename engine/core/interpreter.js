@@ -480,12 +480,15 @@ registerCommand('*journal', (t) => {
 // *notify "Message" [duration]
 // Shows a center-screen toast notification, queued behind any existing toasts.
 // Duration is optional and in milliseconds (default 2000).
-// Example: *notify "You have discovered the hidden passage." 3000
+// Supports ${variable} interpolation via cb.formatText.
+// Example: *notify "Class registered: ${class_name}" 2000
 registerCommand('*notify', (t) => {
   const m = t.match(/^\*notify\s+"([^"]+)"(?:\s+(\d+))?/);
   if (m) {
-    const message  = m[1];
+    const raw      = m[1];
     const duration = m[2] ? Number(m[2]) : 2000;
+    // Resolve variable interpolation — strip any HTML tags since toasts are textContent
+    const message  = cb.formatText ? cb.formatText(raw).replace(/<[^>]+>/g, '') : raw;
     if (cb.showToast) cb.showToast(message, duration, 'toast--levelup');
   }
   advanceIp();
