@@ -525,6 +525,8 @@ function hideStore() {
   _storeOverlay.classList.add('hidden');
   _storeOverlay.style.opacity = '0';
   if (_storeTrapRelease) { _storeTrapRelease(); _storeTrapRelease = null; }
+  // Return to the corresponding status panel tab instead of closing the panel
+  _activeStatusTab = _storeActiveTab === 'items' ? 'inventory' : 'skills';
   _scheduleStats();
 }
 
