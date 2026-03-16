@@ -2,6 +2,7 @@
 
 *comment --- Game metadata ---
 *create game_title "Sample Game"
+*create game_byline "Eight years of the apocalypse.<br>One door back."
 
 *comment --- Core identity (plain *create, not stats) ---
 *comment first_name, last_name, and pronouns are set by the character creation screen.
