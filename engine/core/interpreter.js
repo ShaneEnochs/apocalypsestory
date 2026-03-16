@@ -315,6 +315,17 @@ registerCommand('*set_game_title', (t) => {
   }
   advanceIp();
 });
+// *set_game_byline "New Byline" — changes the splash screen byline and
+// stores it in playerState.game_byline so it persists across saves.
+registerCommand('*set_game_byline', (t) => {
+  const m = t.match(/^\*set_game_byline\s+"([^"]+)"$/);
+  const byline = m ? m[1] : t.replace(/^\*set_game_byline\s*/, '').trim();
+  if (byline) {
+    playerState.game_byline = byline;
+    if (cb.setGameByline) cb.setGameByline(byline);
+  }
+  advanceIp();
+});
 
 // *label name  — jump targets; no runtime action needed
 registerCommand('*label',   () => { advanceIp(); });
