@@ -172,6 +172,9 @@ export function trapFocus(overlayEl, triggerEl = null) {
 // Toast queue — messages are displayed one at a time.
 // The level-up notification (extraClass 'toast--levelup') always jumps to the
 // front of the queue. All other toasts queue in call order behind it.
+// Processing is deferred by one setTimeout(0) tick so that all toasts
+// queued synchronously in the same interpreter pass accumulate before
+// the first one starts — guaranteeing level-up always shows first.
 // ---------------------------------------------------------------------------
 const _toastQueue = [];
 let   _toastActive = false;
@@ -210,7 +213,10 @@ export function showToast(message, durationMs = 2200, extraClass = '') {
   } else {
     _toastQueue.push(entry);
   }
-  _processToastQueue();
+  // Defer processing by one tick so all toasts queued in the same
+  // synchronous pass (e.g. *award_essence then *notify on the next line)
+  // are accumulated before the first one starts displaying.
+  setTimeout(_processToastQueue, 0);
 }
 
 // ---------------------------------------------------------------------------
