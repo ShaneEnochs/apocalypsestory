@@ -407,4 +407,5 @@ You start walking.
     *goto theend
 
 *label theend
-*ending
+This is the last bit.
+*ending "Ending Title" "Ending words." 
