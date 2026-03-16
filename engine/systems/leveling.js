@@ -15,7 +15,7 @@
 // ---------------------------------------------------------------------------
 
 import { playerState, statRegistry,
-         addPendingStatPoints }                  from '../core/state.js';
+         addPendingStatPoints, startup }          from '../core/state.js';
 import { addInventoryItem,
          parseInventoryUpdateText }            from './inventory.js';
 
@@ -70,8 +70,184 @@ export function performLevelUp(onChanged) {
 }
 
 // ---------------------------------------------------------------------------
-// applyVitalNumeric — (unchanged)
+// runOnLevelUp — executes the *on_level_up block from startup.txt.
+//
+// The block is a small list of pre-parsed line objects stored on startup.
+// We run them through a lightweight inline interpreter that handles *if /
+// *elseif / *else, *set, *set_stat, *grant_skill, *revoke_skill, *journal,
+// and *achievement — the directives that make sense at level-up time.
+// It intentionally does NOT support *choice, *goto, *system, or *page_break.
+//
+// evalValueFn and the skill/journal callbacks are injected to avoid circular
+// imports (same pattern used throughout the engine).
 // ---------------------------------------------------------------------------
+export function runOnLevelUp({ evalValueFn, grantSkill, revokeSkill, addJournalEntry, scheduleStatsRender }) {
+  const lines = startup.onLevelUpLines;
+  if (!lines || lines.length === 0) return;
+
+  let i = 0;
+
+  function findBlockEnd(from, parentIndent) {
+    let j = from;
+    while (j < lines.length) {
+      if (lines[j].trimmed && lines[j].indent <= parentIndent) break;
+      j++;
+    }
+    return j;
+  }
+
+  function execLines(start, end) {
+    let cursor = start;
+    while (cursor < end) {
+      const line = lines[cursor];
+      if (!line.trimmed || line.trimmed.startsWith('//')) { cursor++; continue; }
+      const t = line.trimmed;
+
+      // *if / *elseif / *else chain
+      if (t.startsWith('*if ') || t.startsWith('*if\t')) {
+        cursor = execIfChain(cursor, line.indent);
+        continue;
+      }
+
+      // *set
+      if (t.startsWith('*set ')) {
+        const m = t.match(/^\*set\s+([a-zA-Z_][\w]*)\s+(.+)$/);
+        if (m) {
+          const key = m[1].toLowerCase();
+          const rhs = m[2];
+          if (Object.prototype.hasOwnProperty.call(playerState, key)) {
+            if (/^[+\-*/]\s*/.test(rhs) && typeof playerState[key] === 'number') {
+              playerState[key] = evalValueFn(`${playerState[key]} ${rhs}`);
+            } else {
+              playerState[key] = evalValueFn(rhs);
+            }
+          } else {
+            console.warn(`[on_level_up] *set: variable "${key}" not declared.`);
+          }
+        }
+        cursor++; continue;
+      }
+
+      // *set_stat
+      if (t.startsWith('*set_stat ')) {
+        const m = t.match(/^\*set_stat\s+([a-zA-Z_][\w]*)\s+(.+)$/);
+        if (m) {
+          const key = m[1].toLowerCase();
+          const rest = m[2];
+          const minMatch = rest.match(/\bmin:\s*(-?[\d.]+)/i);
+          const maxMatch = rest.match(/\bmax:\s*(-?[\d.]+)/i);
+          const rhs = rest.replace(/\bmin:\s*-?[\d.]+/gi, '').replace(/\bmax:\s*-?[\d.]+/gi, '').trim();
+          const minVal = minMatch ? Number(minMatch[1]) : -Infinity;
+          const maxVal = maxMatch ? Number(maxMatch[1]) :  Infinity;
+          if (Object.prototype.hasOwnProperty.call(playerState, key)) {
+            let val;
+            if (/^[+\-*/]\s*/.test(rhs) && typeof playerState[key] === 'number') {
+              val = evalValueFn(`${playerState[key]} ${rhs}`);
+            } else {
+              val = evalValueFn(rhs);
+            }
+            if (typeof val === 'number') val = Math.min(maxVal, Math.max(minVal, val));
+            playerState[key] = val;
+          } else {
+            console.warn(`[on_level_up] *set_stat: variable "${key}" not declared.`);
+          }
+        }
+        cursor++; continue;
+      }
+
+      // *grant_skill
+      if (t.startsWith('*grant_skill ')) {
+        const key = t.replace(/^\*grant_skill\s*/, '').trim();
+        if (grantSkill) grantSkill(key);
+        cursor++; continue;
+      }
+
+      // *revoke_skill
+      if (t.startsWith('*revoke_skill ')) {
+        const key = t.replace(/^\*revoke_skill\s*/, '').trim();
+        if (revokeSkill) revokeSkill(key);
+        cursor++; continue;
+      }
+
+      // *journal
+      if (t.startsWith('*journal ')) {
+        const text = t.replace(/^\*journal\s*/, '').trim();
+        if (text && addJournalEntry) addJournalEntry(text, 'entry');
+        cursor++; continue;
+      }
+
+      // *achievement
+      if (t.startsWith('*achievement ')) {
+        const text = t.replace(/^\*achievement\s*/, '').trim();
+        if (text && addJournalEntry) addJournalEntry(text, 'achievement', true);
+        cursor++; continue;
+      }
+
+      // Unknown — skip with warning
+      console.warn(`[on_level_up] Unsupported directive "${t.split(/\s/)[0]}" — skipped.`);
+      cursor++;
+    }
+  }
+
+  function execIfChain(start, indent) {
+    let cursor = start;
+    let executed = false;
+
+    while (cursor < lines.length) {
+      const line = lines[cursor];
+      if (!line.trimmed) { cursor++; continue; }
+      // End of chain — a non-empty line at same or lower indent that isn't part of the chain
+      if (line.indent <= indent && cursor > start &&
+          !line.trimmed.startsWith('*elseif') && !line.trimmed.startsWith('*else')) {
+        return cursor;
+      }
+
+      const t = line.trimmed;
+
+      if ((t.startsWith('*if ') || t.startsWith('*if\t')) && cursor === start) {
+        const cond = t.replace(/^\*if\s+/, '');
+        const blockStart = cursor + 1;
+        const blockEnd   = findBlockEnd(blockStart, indent);
+        if (!executed && evalValueFn(cond)) {
+          execLines(blockStart, blockEnd);
+          executed = true;
+        }
+        cursor = blockEnd;
+        continue;
+      }
+
+      if (t.startsWith('*elseif ') || t.startsWith('*elseif\t')) {
+        const cond = t.replace(/^\*elseif\s+/, '');
+        const blockStart = cursor + 1;
+        const blockEnd   = findBlockEnd(blockStart, indent);
+        if (!executed && evalValueFn(cond)) {
+          execLines(blockStart, blockEnd);
+          executed = true;
+        }
+        cursor = blockEnd;
+        continue;
+      }
+
+      if (t === '*else') {
+        const blockStart = cursor + 1;
+        const blockEnd   = findBlockEnd(blockStart, indent);
+        if (!executed) execLines(blockStart, blockEnd);
+        cursor = blockEnd;
+        return cursor;
+      }
+
+      // Anything else at this indent level ends the chain
+      return cursor;
+    }
+
+    return cursor;
+  }
+
+  execLines(0, lines.length);
+  if (scheduleStatsRender) scheduleStatsRender();
+}
+
+
 function applyVitalNumeric(key, b) {
   if (key === 'health') {
     if (typeof playerState[key] === 'string') {

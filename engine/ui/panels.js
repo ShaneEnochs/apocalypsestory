@@ -24,12 +24,13 @@ import {
   normalizeKey,
 } from '../core/state.js';
 
-import { getAllocatableStatKeys, canLevelUp, performLevelUp } from '../systems/leveling.js';
-import { skillRegistry, playerHasSkill, purchaseSkill } from '../systems/skills.js';
+import { getAllocatableStatKeys, canLevelUp, performLevelUp, runOnLevelUp } from '../systems/leveling.js';
+import { skillRegistry, playerHasSkill, purchaseSkill, grantSkill, revokeSkill } from '../systems/skills.js';
 import { itemRegistry, purchaseItem } from '../systems/items.js';
 import { itemBaseName } from '../systems/inventory.js';
-import { getJournalEntries, getAchievements } from '../systems/journal.js';
+import { getJournalEntries, getAchievements, addJournalEntry } from '../systems/journal.js';
 import { escapeHtml } from './narrative.js'; // FIX #5: reuse shared sanitizer
+import { evalValue } from '../core/expression.js';
 
 // ---------------------------------------------------------------------------
 // Module-level DOM references and callbacks — populated by init()
@@ -291,6 +292,15 @@ export function showLevelUpModal() {
   const prevLevel = Number(playerState.level || 1);
   const newLevel = performLevelUp(() => {});
   if (newLevel === null) return;  // can't afford
+
+  // Run the *on_level_up block from startup.txt (class bonuses, conditional grants, etc.)
+  runOnLevelUp({
+    evalValueFn:       evalValue,
+    grantSkill,
+    revokeSkill,
+    addJournalEntry,
+    scheduleStatsRender: _scheduleStats,
+  });
 
   setLevelUpInProgress(true);
 

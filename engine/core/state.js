@@ -54,7 +54,7 @@ export let levelUpInProgress     = false;
 // ---------------------------------------------------------------------------
 // Startup metadata
 // ---------------------------------------------------------------------------
-export let startup = { sceneList: [] };
+export let startup = { sceneList: [], onLevelUpLines: [] };
 
 // ---------------------------------------------------------------------------
 // pauseState — tracks which directive has halted the interpreter and carries
@@ -246,12 +246,43 @@ export async function parseStartup(fetchTextFileFn, evalValueFn) {
   playerState  = {};
   tempState    = {};
   statRegistry = [];
-  startup      = { sceneList: [] };
+  startup      = { sceneList: [], onLevelUpLines: [] };
 
-  let inSceneList = false;
+  let inSceneList    = false;
+  let inOnLevelUp    = false;
+  let onLevelUpIndent = -1;
 
   for (const line of lines) {
     if (!line.trimmed || line.trimmed.startsWith('//')) continue;
+
+    // *on_level_up — collect indented block that follows
+    if (line.trimmed === '*on_level_up') {
+      inSceneList  = false;
+      inOnLevelUp  = true;
+      onLevelUpIndent = -1;   // will be set by first non-empty indented line
+      continue;
+    }
+
+    // If we're inside *on_level_up, collect lines until we hit a new top-level directive
+    if (inOnLevelUp) {
+      // A non-empty line at indent 0 (or a new *directive at root) ends the block
+      if (line.trimmed.startsWith('*') && line.indent === 0) {
+        inOnLevelUp = false;
+        // Fall through to process this line normally
+      } else {
+        // Track minimum indent so we can strip it for the mini-interpreter
+        if (line.trimmed) {
+          if (onLevelUpIndent === -1) onLevelUpIndent = line.indent;
+          // Store as a trimmed line object (same shape as parseLines output)
+          startup.onLevelUpLines.push({
+            raw:     line.raw,
+            trimmed: line.trimmed,
+            indent:  Math.max(0, line.indent - onLevelUpIndent),
+          });
+        }
+        continue;
+      }
+    }
 
     if (line.trimmed.startsWith('*create_stat')) {
       inSceneList = false;
