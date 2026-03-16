@@ -39,6 +39,7 @@ import {
 
 import { parseSkills } from './engine/systems/skills.js';
 import { parseItems }  from './engine/systems/items.js';
+import { canLevelUp }  from './engine/systems/leveling.js';
 
 import {
   init      as initNarrative,
@@ -105,6 +106,8 @@ const sceneCache  = new Map();
 const labelsCache = new Map();
 
 let _statsRenderPending = false;
+let _wasLevelUpReady = false;
+
 function scheduleStatsRender() {
   if (_statsRenderPending) return;
   _statsRenderPending = true;
@@ -112,6 +115,16 @@ function scheduleStatsRender() {
     _statsRenderPending = false;
     runStatsScene();
     updateUndoBtn();
+
+    // Level-up glow on the Status button + one-shot toast
+    const ready = canLevelUp() && !levelUpInProgress;
+    if (dom.statusToggle) {
+      dom.statusToggle.classList.toggle('levelup-ready', ready);
+    }
+    if (ready && !_wasLevelUpReady) {
+      showToast('You have enough Essence to level up.', 1000);
+    }
+    _wasLevelUpReady = ready;
   });
 }
 
@@ -315,6 +328,7 @@ function wireUI() {
   dom.statusToggle.addEventListener('click', () => {
     const visible = dom.statusPanel.classList.toggle('status-visible');
     dom.statusPanel.classList.toggle('status-hidden', !visible);
+    if (visible) dom.statusToggle.classList.remove('levelup-ready');
     runStatsScene();
   });
 

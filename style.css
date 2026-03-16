@@ -330,6 +330,31 @@ body {
   border-color: var(--cyan-dim);
 }
 
+/* Level-up ready glow on the Status button */
+@keyframes statusLevelupGlow {
+  0%, 100% {
+    color: var(--text-dim);
+    border-color: var(--border-dim);
+    box-shadow: none;
+  }
+  50% {
+    color: var(--cyan);
+    border-color: var(--cyan);
+    box-shadow: 0 0 10px var(--cyan-glow-md), 0 0 20px var(--cyan-glow);
+  }
+}
+
+#status-toggle.levelup-ready {
+  animation: statusLevelupGlow 2s ease-in-out infinite;
+}
+
+#status-toggle.levelup-ready:hover {
+  animation: none;
+  color: var(--cyan);
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px var(--cyan-glow-md);
+}
+
 /* Header buttons (save, undo) — shared base */
 .header-btn {
   font-family: var(--font-mono);
