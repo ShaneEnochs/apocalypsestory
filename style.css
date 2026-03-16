@@ -1959,35 +1959,40 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 .toast {
   position: fixed;
   bottom: calc(24px + env(safe-area-inset-bottom));
-  left: 50%;
-  transform: translateX(-50%) translateY(8px);
+  left: 0;
+  right: 0;
+  transform: translateY(8px);
   background: var(--bg-panel);
   border: 1px solid var(--border-glow);
+  border-left: none;
+  border-right: none;
   color: var(--cyan);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   letter-spacing: var(--ls-normal);
-  padding: 10px 22px;
+  padding: 12px 24px;
   z-index: 200;
   pointer-events: none;
   white-space: normal;
-  max-width: min(480px, 88vw);
   text-align: center;
   line-height: 1.5;
 }
 
-/* Level-up toast — centered, larger, more prominent */
+/* Level-up toast — centered on screen, full width */
 .toast--levelup {
   bottom: auto;
   top: 50%;
-  transform: translateX(-50%) translateY(calc(-50% + 8px));
+  left: 0;
+  right: 0;
+  transform: translateY(calc(-50% + 8px));
   font-size: var(--text-base);
-  padding: 16px 36px;
+  padding: 18px 28px;
   border-color: var(--cyan);
+  border-left: none;
+  border-right: none;
   box-shadow: 0 0 30px var(--cyan-glow-md), 0 0 60px var(--cyan-glow);
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
-  max-width: min(560px, 88vw);
 }
 
 .toast-show { opacity: 0; animation: toastIn 0.25s ease forwards; }
@@ -2099,11 +2104,11 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 @keyframes statPulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); color: var(--cyan); } 100% { transform: scale(1); } }
 
-@keyframes toastIn  { to { opacity: 1; transform: translateX(-50%) translateY(0); } }
-@keyframes toastOut { to { opacity: 0; transform: translateX(-50%) translateY(8px); } }
+@keyframes toastIn  { to { opacity: 1; transform: translateY(0); } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(8px); } }
 
-@keyframes toastInCenter  { to { opacity: 1; transform: translateX(-50%) translateY(-50%); } }
-@keyframes toastOutCenter { to { opacity: 0; transform: translateX(-50%) translateY(calc(-50% + 8px)); } }
+@keyframes toastInCenter  { to { opacity: 1; transform: translateY(-50%); } }
+@keyframes toastOutCenter { to { opacity: 0; transform: translateY(calc(-50% + 8px)); } }
 
 @keyframes slotSaveFlash {
   0%   { border-color: var(--border-dim); }
