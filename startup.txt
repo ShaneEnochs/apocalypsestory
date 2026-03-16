@@ -44,5 +44,15 @@
 *comment --- Misc ---
 *create loop_counter 0
 
+*on_level_up
+  *if class_name = "Unclassed"
+    *set strength strength + 1
+    *set fortitude fortitude + 1
+    *set agility agility + 1
+    *set precision precision + 1
+    *set mind mind + 1
+    *set magic_power magic_power + 1
+
+
 *scene_list
   prologue
