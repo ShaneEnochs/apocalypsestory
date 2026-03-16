@@ -14,6 +14,7 @@
 
 <!-- Single unified stylesheet (skill_styles.css merged in) -->
 <link rel="stylesheet" href="style.css?v=11"/>
+<link rel="stylesheet" href="style-fixes.css?v=1"/>
 <script type="module" src="engine.js?v=99"></script>
 </head>
 <body>
@@ -46,11 +47,11 @@
 <!-- ═══════════════════════════════════════════════════
      SPLASH / TITLE SCREEN
      ═══════════════════════════════════════════════════ -->
-<div id="splash-overlay" class="overlay" role="dialog" aria-modal="true" aria-label="Title Screen">
+<div id="splash-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Title Screen">
   <div class="overlay-box splash-box">
     <div class="overlay-title splash-title"></div>
     <div class="splash-icon">◈</div>
-    <p class="splash-tagline">Eight years of the apocalypse.<br>One door back.</p>
+    <p class="splash-tagline" id="splash-tagline"></p>
 
     <div id="splash-stale-notice" class="splash-stale-notice hidden" role="alert">
       ⚠ An older save was found but is not compatible with this version.
@@ -59,62 +60,41 @@
 
     <div class="splash-btn-col">
       <button id="splash-new-btn" class="overlay-btn">New Game</button>
-      <button id="splash-load-btn" class="overlay-btn overlay-btn--secondary">Load Game</button>
+      <button id="splash-load-btn" class="overlay-btn overlay-btn--secondary">Continue</button>
     </div>
 
-    <!-- Load-game slot panel (hidden until "Load Game" clicked) -->
     <div id="splash-slots" class="splash-slots hidden">
       <div class="splash-slots-header">
-        <span class="splash-slots-label">[ SELECT SAVE ]</span>
+        <span class="splash-slots-label">Select a save slot</span>
         <button id="splash-slots-back" class="slot-back-btn">← Back</button>
       </div>
       <div class="slot-list">
-        <!-- Auto-save -->
-        <div class="slot-card" id="slot-card-auto" data-slot="auto">
-          <div class="slot-badge">Auto</div>
-          <div class="slot-info">
-            <span class="slot-name" id="slot-name-auto">— Empty —</span>
-            <span class="slot-meta" id="slot-meta-auto"></span>
-          </div>
-          <div class="slot-actions">
-            <button class="slot-load-btn" id="slot-load-auto" disabled>Load</button>
-          </div>
-        </div>
-        <!-- Manual slot 1 -->
-        <div class="slot-card" id="slot-card-1" data-slot="1">
+        <!-- Slot 1 -->
+        <div class="slot-card" id="splash-card-1" data-slot="1">
           <div class="slot-badge">Slot 1</div>
           <div class="slot-info">
-            <span class="slot-name" id="slot-name-1">— Empty —</span>
-            <span class="slot-meta" id="slot-meta-1"></span>
+            <span class="slot-name" id="splash-slot-name-1">— Empty —</span>
+            <span class="slot-meta" id="splash-slot-meta-1"></span>
           </div>
-          <div class="slot-actions">
-            <button class="slot-load-btn" id="slot-load-1" disabled>Load</button>
-            <button class="slot-delete-btn hidden" id="slot-delete-1" aria-label="Delete slot 1">✕</button>
-          </div>
+          <button class="slot-load-btn" id="splash-load-1" disabled>Load</button>
         </div>
-        <!-- Manual slot 2 -->
-        <div class="slot-card" id="slot-card-2" data-slot="2">
+        <!-- Slot 2 -->
+        <div class="slot-card" id="splash-card-2" data-slot="2">
           <div class="slot-badge">Slot 2</div>
           <div class="slot-info">
-            <span class="slot-name" id="slot-name-2">— Empty —</span>
-            <span class="slot-meta" id="slot-meta-2"></span>
+            <span class="slot-name" id="splash-slot-name-2">— Empty —</span>
+            <span class="slot-meta" id="splash-slot-meta-2"></span>
           </div>
-          <div class="slot-actions">
-            <button class="slot-load-btn" id="slot-load-2" disabled>Load</button>
-            <button class="slot-delete-btn hidden" id="slot-delete-2" aria-label="Delete slot 2">✕</button>
-          </div>
+          <button class="slot-load-btn" id="splash-load-2" disabled>Load</button>
         </div>
-        <!-- Manual slot 3 -->
-        <div class="slot-card" id="slot-card-3" data-slot="3">
+        <!-- Slot 3 -->
+        <div class="slot-card" id="splash-card-3" data-slot="3">
           <div class="slot-badge">Slot 3</div>
           <div class="slot-info">
-            <span class="slot-name" id="slot-name-3">— Empty —</span>
-            <span class="slot-meta" id="slot-meta-3"></span>
+            <span class="slot-name" id="splash-slot-name-3">— Empty —</span>
+            <span class="slot-meta" id="splash-slot-meta-3"></span>
           </div>
-          <div class="slot-actions">
-            <button class="slot-load-btn" id="slot-load-3" disabled>Load</button>
-            <button class="slot-delete-btn hidden" id="slot-delete-3" aria-label="Delete slot 3">✕</button>
-          </div>
+          <button class="slot-load-btn" id="splash-load-3" disabled>Load</button>
         </div>
       </div>
     </div>
@@ -122,24 +102,14 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     IN-GAME SAVE / LOAD MENU
+     SAVE MENU (in-game)
      ═══════════════════════════════════════════════════ -->
-<div id="save-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="save-menu-heading">
+<div id="save-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Save / Load Game">
   <div class="overlay-box save-menu-box">
-    <div class="overlay-title save-menu-title" id="save-menu-heading">[ Save · Load ]</div>
-    <p class="save-menu-hint">Save to a slot or load a previous save. Auto-save is managed automatically.</p>
+    <div class="overlay-title save-menu-title">Save · Load</div>
+    <p class="save-menu-hint">Choose a slot to save or load your progress.</p>
+
     <div class="slot-list">
-      <!-- Auto-save (load only) -->
-      <div class="slot-card" id="save-card-auto" data-slot="auto">
-        <div class="slot-badge">Auto</div>
-        <div class="slot-info">
-          <span class="slot-name" id="save-slot-name-auto">— Empty —</span>
-          <span class="slot-meta" id="save-slot-meta-auto"></span>
-        </div>
-        <div class="slot-actions">
-          <button class="slot-load-btn slot-load-btn--load" id="ingame-load-auto" disabled>Load</button>
-        </div>
-      </div>
       <!-- Slot 1 -->
       <div class="slot-card" id="save-card-1" data-slot="1">
         <div class="slot-badge">Slot 1</div>
