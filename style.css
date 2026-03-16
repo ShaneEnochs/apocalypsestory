@@ -1962,15 +1962,14 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   bottom: calc(24px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%) translateY(8px);
-  width: min(960px, 100%);
+  width: min(920px, calc(100% - 40px));
   background: var(--bg-panel);
-  border-top: 1px solid var(--border-glow);
-  border-bottom: 1px solid var(--border-glow);
+  border: 1px solid var(--border-glow);
   color: var(--cyan);
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   letter-spacing: var(--ls-normal);
-  padding: 12px 24px;
+  padding: 10px 20px;
   z-index: 200;
   pointer-events: none;
   white-space: normal;
@@ -1979,13 +1978,14 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   box-sizing: border-box;
 }
 
-/* Level-up toast — centered on screen, constrained to game width */
+/* Level-up toast — centered, slightly narrower than full game width */
 .toast--levelup {
   bottom: auto;
   top: 50%;
+  width: min(600px, calc(100% - 40px));
   transform: translateX(-50%) translateY(calc(-50% + 8px));
-  font-size: var(--text-base);
-  padding: 18px 28px;
+  font-size: var(--text-sm);
+  padding: 16px 28px;
   border: 1px solid var(--cyan);
   box-shadow: 0 0 30px var(--cyan-glow-md), 0 0 60px var(--cyan-glow);
   letter-spacing: var(--ls-wide);
