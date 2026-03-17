@@ -37,6 +37,9 @@
 *create_stat precision "Precision" 1
 *create_stat mind "Mind" 1
 *create_stat magic_power "Magic Power" 1
+*create_stat social "Social" 1
+*create_stat spirit "Spirit" 1
+*create_stat body "Body" 1
 
 *comment --- Misc ---
 *create loop_counter 0
