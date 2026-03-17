@@ -15,6 +15,15 @@
 <!-- Single unified stylesheet (skill_styles.css merged in) -->
 <link rel="stylesheet" href="style.css?v=11"/>
 <link rel="stylesheet" href="style-fixes.css?v=1"/>
+<style>
+  .save-code-section { margin-top: 16px; border-top: 1px solid var(--border, #2a2d3a); padding-top: 14px; }
+  .save-code-label { font-family: var(--font-heading, 'Cinzel', serif); font-size: 0.85rem; color: var(--text-faint, #888); margin-bottom: 8px; text-align: center; letter-spacing: 0.05em; }
+  .save-code-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .save-code-btn { flex: 1; font-size: 0.8rem; }
+  .save-code-textarea { width: 100%; box-sizing: border-box; background: var(--bg-deeper, #0a0c15); color: var(--text, #ccc); border: 1px solid var(--border, #2a2d3a); border-radius: 6px; padding: 8px; font-family: var(--font-mono, 'Inconsolata', monospace); font-size: 0.75rem; resize: vertical; min-height: 52px; line-height: 1.4; }
+  .save-code-textarea::placeholder { color: var(--text-faint, #555); }
+  .save-code-textarea:focus { outline: 1px solid var(--accent-cyan, #5eead4); border-color: var(--accent-cyan, #5eead4); }
+</style>
 <script type="module" src="engine.js?v=99"></script>
 </head>
 <body>
@@ -164,6 +173,15 @@
         <option value="2">→ Slot 2</option>
         <option value="3">→ Slot 3</option>
       </select>
+    </div>
+    <!-- Save Code System -->
+    <div class="save-code-section">
+      <div class="save-code-label">Save Code</div>
+      <div class="save-code-row">
+        <button id="save-code-copy" class="overlay-btn overlay-btn--secondary save-code-btn">Copy Code</button>
+        <button id="save-code-load" class="overlay-btn overlay-btn--secondary save-code-btn">Load Code</button>
+      </div>
+      <textarea id="save-code-field" class="save-code-textarea" placeholder="Paste a save code here to load, or click Copy Code to generate one..." rows="3" spellcheck="false"></textarea>
     </div>
     <div class="save-menu-footer">
       <button id="ingame-restart-btn" class="overlay-btn overlay-btn--danger">↺ Restart</button>

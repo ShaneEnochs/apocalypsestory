@@ -74,8 +74,9 @@ Good. The System has always known what you are. It simply wanted to hear you say
 *title Eight Years Later
 
 *system Essence gained: +5
+*award_essence 5
 
-Eight years of blood and grinding. Eight years of dungeons, raids, and watching the people you loved become grayed-out names on a party list, blinking once before vanishing forever.
+Eight years of dungeons, raids, and watching the people you loved become grayed-out names on a party list, blinking once before vanishing forever.
 
 You survived. Improbably, infuriatingly, you are still here.
 
@@ -128,8 +129,9 @@ The three of you. The last three. A sky bleeding a necrotic red.
 *label branch_dark
 
 *system Essence gained: +5
+*award_essence 5
 
-Kai points at you. "See, *that's* what I'm talking about. Eight years in and you still—" He stops, shaking his head with a grin. "You still sound exactly the same."
+"See, *that's* what I'm talking about. Eight years in and you still—" He stops, shaking his head with a grin. "You still sound exactly the same."
 
 You aren't sure if that's a compliment. You're not sure it matters anymore.
 
@@ -138,8 +140,9 @@ You aren't sure if that's a compliment. You're not sure it matters anymore.
 *label branch_practical
 
 *system Essence gained: +10
+*award_essence 10
 
-Kai glances sideways. "Doing something." He looks back at the burning sky. "What, exactly? We cleared the last dungeon. We hit the level cap. We spent eight years grinding, and this—" a gesture at the horizon "—is our reward."
+"Doing something." He looks back at the burning sky. "What, exactly? We cleared the last dungeon. We hit the level cap. We spent eight years grinding, and this—" a gesture at the horizon "—is our reward."
 
 He isn't wrong. Kai's accuracy is his most annoying trait.
 
@@ -148,6 +151,7 @@ He isn't wrong. Kai's accuracy is his most annoying trait.
 *label branch_silent
 
 *system Essence gained: +5
+*award_essence 5
 
 Kai watches you for a long moment. He nods slowly, acknowledging the weight of the moment.
 
@@ -416,6 +420,7 @@ The blade is already in your hand. Whatever waits on the other side will meet yo
 *label portal_crossing
 
 *system Essence gained: +20
+*award_essence 20
 *system [ ACHIEVEMENT UNLOCKED ] The Last Door — You carried the weight backward through time. That has to count for something.
 *achievement The Last Door — You carried the weight backward through time.
 

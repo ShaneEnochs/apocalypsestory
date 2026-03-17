@@ -16,44 +16,9 @@
 //     → expression.js   (evaluate conditions / rhs values)
 //     → parser.js       (parseChoice, parseSystemBlock, parseLines, indexLabels)
 //     → inventory.js    (addInventoryItem, removeInventoryItem, itemBaseName)
-//     → leveling.js     (canLevelUp, performLevelUp, applySystemRewards)
 //     → saves.js        (saveGameToSlot)
 //     → skills.js       (grantSkill, revokeSkill, playerHasSkill)
 //     ← engine.js       (injects UI callbacks at boot via registerCallbacks)
-//
-// Bug fixes in this file:
-//   BUG-01 (original): gotoScene auto-save only fires when the interpreter
-//     halts at a *choice or end-of-scene, not on chained *goto_scene.
-//   BUG-02 (original): *loop guard calls cb.showEngineError.
-//   BUG-04 (original): malformed *selectable_if calls cb.showEngineError.
-//   BUG-08 (original): pause directives warn if pauseState already set.
-//
-//   FIX #1 (sweep 2): *choice handler now forwards cb.showEngineError to
-//     parseChoice via the ctx object. Previously the BUG-06 fix in parser.js
-//     was dead code at runtime because the caller never passed the callback.
-//
-//   FIX #2 (sweep 2): *delay and *input setTimeout callbacks now call
-//     runInterpreter().catch(cb.showEngineError) instead of fire-and-forget.
-//     Previously, any error thrown inside runInterpreter after a delay became
-//     a silent unhandled promise rejection.
-//
-//   FIX #10 (sweep 2): *loop guard raised from 100 → 10,000 iterations so
-//     legitimate high-count loops (e.g. procedural generation) don't hit the
-//     guard. The error message is still surfaced in-game at the limit.
-//
-//   FIX #S1 (sweep 3): *create_stat handler replaced dynamic import() with
-//     the already-available static statRegistry / setStatRegistry imports.
-//     The dynamic import was async and raced with advanceIp(), meaning
-//     statRegistry could be stale when level-up allocation ran.
-//
-//   FIX #S2 (sweep 3): gotoScene no longer calls cb.setChapterTitle() with
-//     the raw uppercased filename before scene execution. The *title directive
-//     inside the scene now sets the title exclusively. A fallback sets the
-//     scene name only after runInterpreter() finishes if no *title ran.
-//
-//   FIX #S3 (sweep 3): *ending now parses optional "Title" "Body" arguments
-//     from the directive line and passes them to showEndingScreen, rather than
-//     always showing the hardcoded "The End" / "Your path is complete." strings.
 // ---------------------------------------------------------------------------
 
 import {
@@ -474,11 +439,9 @@ registerCommand('*check_item', (t) => {
   const inv      = Array.isArray(playerState.inventory) ? playerState.inventory : [];
   const has      = inv.some(i => itemBaseName(i) === itemName);
 
-  const inTemp   = Object.prototype.hasOwnProperty.call(tempState,   varName);
-  const inPlayer = Object.prototype.hasOwnProperty.call(playerState, varName);
-  if (inTemp)        tempState[varName]   = has;
-  else if (inPlayer) playerState[varName] = has;
-  else               tempState[varName]   = has;   // auto-create as temp if undeclared
+  const store = resolveStore(varName);
+  if (store) store[varName] = has;
+  else       tempState[varName] = has;   // auto-create as temp if undeclared
   advanceIp();
 });
 
@@ -502,7 +465,8 @@ registerCommand('*if_skill', async (t, line) => {
   const cond = playerHasSkill(key);
   if (cond) {
     const bs = ip + 1, be = findBlockEnd(bs, line.indent);
-    await executeBlock(bs, be, be);
+    const reason = await executeBlock(bs, be, be);
+    if (reason === 'choice' || reason === 'goto') return;
   } else {
     setIp(findBlockEnd(ip + 1, line.indent));
   }

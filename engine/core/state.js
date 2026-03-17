@@ -93,6 +93,20 @@ export function resolveStore(key) {
 }
 
 // ---------------------------------------------------------------------------
+// Startup defaults — snapshot of playerState after parseStartup finishes.
+// Used by save code delta encoding to avoid storing unchanged default values.
+// ---------------------------------------------------------------------------
+let _startupDefaults = {};
+
+export function captureStartupDefaults() {
+  _startupDefaults = JSON.parse(JSON.stringify(playerState));
+}
+
+export function getStartupDefaults() {
+  return _startupDefaults;
+}
+
+// ---------------------------------------------------------------------------
 // setVar — handles the *set directive
 //
 // Supports arithmetic shorthand: *set xp +100  →  xp = xp + 100

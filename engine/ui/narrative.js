@@ -88,7 +88,6 @@ export function setChoiceArea(el) { _choiceArea = el; }
 //   { type: 'paragraph', text }
 //   { type: 'system',    text }
 //   { type: 'input',     varName, prompt, value }   (value filled on submit)
-//   { type: 'levelup_confirmed', level }
 //
 // Choices and page-break buttons are NOT logged — they are transient
 // interactive state, not historical narrative content. Page breaks clear the
@@ -241,9 +240,8 @@ export function renderChoices(choices) {
     if (choice.statTag) {
       const { label, requirement } = choice.statTag;
       const key = normalizeKey(label.replace(/\s+/g, '_'));
-      const val = tempState[key] !== undefined
-        ? tempState[key]
-        : (playerState[key] !== undefined ? playerState[key] : null);
+      const store = resolveStore(key);
+      const val = store ? store[key] : null;
       const met = val !== null && Number(val) >= requirement;
       const badge = document.createElement('span');
       badge.className = `choice-stat-badge ${met ? 'choice-stat-badge--met' : 'choice-stat-badge--unmet'}`;

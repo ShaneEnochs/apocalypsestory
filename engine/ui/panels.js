@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// ui/panels.js — Stats panel, level-up allocation, store, ending screen
+// ui/panels.js — Stats panel, store, ending screen
 //
 // Phase 3: Added Store system — a full-screen overlay with Skills and Items
 // tabs where players spend Essence. Store button appears in the status panel.
