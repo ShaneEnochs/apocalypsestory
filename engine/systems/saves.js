@@ -1,11 +1,17 @@
 // ---------------------------------------------------------------------------
 // systems/saves.js — Save / load / slot management + save code system
 //
+// All save slots (auto, 1, 2, 3) now store SA1 save codes in localStorage.
+// SA1 is a compact format: base64-encoded JSON with delta-compressed
+// playerState and a CRC-16 checksum for corruption detection.
+//
+// Format:  SA1|<base64_payload>|<4_char_hex_crc>
+//
 // SAVE_VERSION history:
 //   v7: Essence replaces XP/skill_points. game_title added.
 //   v8: Store system (items.txt, item purchases).
 //   v9: Simplification refactor — removed sessionState, pauseState, leveling.
-//       Flat pronoun keys. Save codes added.
+//       Flat pronoun keys. All slots use SA1 save code format.
 // ---------------------------------------------------------------------------
 
 import {
@@ -24,7 +30,6 @@ import {
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-// FIX #S6: bumped to 8 — Phase 3: Store system (items.txt, item purchases).
 export const SAVE_VERSION  = 9;
 
 export const SAVE_KEY_AUTO  = 'sa_save_auto';
@@ -42,42 +47,152 @@ export function clearStaleSaveFound() { _staleSaveFound = false; }
 export function setStaleSaveFound()   { _staleSaveFound = true;  }
 
 // ---------------------------------------------------------------------------
-// buildSavePayload — constructs the v9 object written to localStorage.
+// CRC-16 checksum — catches copy-paste corruption and bit-rot.
 // ---------------------------------------------------------------------------
-export function buildSavePayload(slot, label, narrativeLog) {
-  return {
-    version:        SAVE_VERSION,
-    slot:           String(slot),
-    scene:          currentScene,
-    label:          label ?? null,
+function crc16(str) {
+  let crc = 0xFFFF;
+  for (let i = 0; i < str.length; i++) {
+    crc ^= str.charCodeAt(i);
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 1) ? (crc >>> 1) ^ 0xA001 : crc >>> 1;
+    }
+  }
+  return crc.toString(16).padStart(4, '0');
+}
+
+// ---------------------------------------------------------------------------
+// buildSaveCodePayload — builds the compact payload for SA1 encoding.
+//
+// Delta-compresses playerState against startup defaults so only changed
+// keys are stored. Includes statRegistry, label, and timestamp for full
+// round-trip fidelity.
+// ---------------------------------------------------------------------------
+function buildSaveCodePayload(label, narrativeLog) {
+  const defaults = getStartupDefaults();
+  const ps = {};
+  for (const [k, v] of Object.entries(playerState)) {
+    if (JSON.stringify(v) !== JSON.stringify(defaults[k])) {
+      ps[k] = v;
+    }
+  }
+
+  const payload = {
+    v:  SAVE_VERSION,
+    s:  currentScene,
     ip,
-    chapterTitle,
-    awaitingChoice: awaitingChoice
-      ? JSON.parse(JSON.stringify(awaitingChoice))
-      : null,
-    characterName:  `${playerState.first_name || ''} ${playerState.last_name || ''}`.trim() || 'Unknown',
-    playerState:    JSON.parse(JSON.stringify(playerState)),
-    statRegistry:   JSON.parse(JSON.stringify(statRegistry)),
-    narrativeLog:   JSON.parse(JSON.stringify(narrativeLog ?? [])),
-    timestamp:      Date.now(),
+    ct: chapterTitle,
+    ps,
+    nl: narrativeLog || [],
+    ts: Date.now(),
+  };
+
+  if (label) {
+    payload.lb = label;
+  }
+
+  if (awaitingChoice) {
+    payload.ac = JSON.parse(JSON.stringify(awaitingChoice));
+  }
+
+  // Always include statRegistry so runtime *create_stat entries survive.
+  if (statRegistry.length > 0) {
+    payload.sr = JSON.parse(JSON.stringify(statRegistry));
+  }
+
+  return payload;
+}
+
+// ---------------------------------------------------------------------------
+// encodeSaveCode — encodes the current game state into an SA1 string.
+// ---------------------------------------------------------------------------
+export function encodeSaveCode(narrativeLog, label = null) {
+  const json = JSON.stringify(buildSaveCodePayload(label, narrativeLog));
+  // btoa only handles Latin-1; use encodeURIComponent + unescape for full Unicode
+  const compressed = btoa(unescape(encodeURIComponent(json)));
+  const checksum = crc16(compressed);
+  return `SA1|${compressed}|${checksum}`;
+}
+
+// ---------------------------------------------------------------------------
+// decodeSaveCode — decodes an SA1 string into a full save object.
+//
+// Returns { ok, save?, reason? }.
+// The returned save object has the shape that restoreFromSave expects:
+//   { version, scene, ip, chapterTitle, playerState, statRegistry,
+//     narrativeLog, awaitingChoice, characterName, timestamp, label }
+// ---------------------------------------------------------------------------
+export function decodeSaveCode(code) {
+  const trimmed = code.trim();
+
+  const parts = trimmed.split('|');
+  if (parts.length !== 3) {
+    return { ok: false, reason: 'Invalid save code format.' };
+  }
+
+  const [prefix, compressed, checksum] = parts;
+
+  if (prefix !== 'SA1') {
+    return { ok: false, reason: `Unrecognized save code version: ${prefix}` };
+  }
+
+  if (crc16(compressed) !== checksum) {
+    return { ok: false, reason: 'Save code is corrupted (checksum mismatch). Check for missing characters.' };
+  }
+
+  let json;
+  try {
+    const decoded = decodeURIComponent(escape(atob(compressed)));
+    json = JSON.parse(decoded);
+  } catch (err) {
+    return { ok: false, reason: `Save code could not be decoded: ${err.message}` };
+  }
+
+  if (json.v !== SAVE_VERSION) {
+    return { ok: false, reason: `Save code is from a different game version (v${json.v}, expected v${SAVE_VERSION}).` };
+  }
+
+  // Reconstruct full playerState by merging delta over startup defaults
+  const defaults = getStartupDefaults();
+  const fullPlayerState = { ...defaults, ...json.ps };
+
+  return {
+    ok: true,
+    save: {
+      version:        json.v,
+      scene:          json.s,
+      ip:             json.ip,
+      chapterTitle:   json.ct,
+      playerState:    fullPlayerState,
+      narrativeLog:   json.nl || [],
+      awaitingChoice: json.ac || null,
+      statRegistry:   json.sr || JSON.parse(JSON.stringify(statRegistry)),
+      label:          json.lb || null,
+      characterName:  `${fullPlayerState.first_name || ''} ${fullPlayerState.last_name || ''}`.trim() || 'Unknown',
+      timestamp:      json.ts || Date.now(),
+    },
   };
 }
 
 // ---------------------------------------------------------------------------
-// saveGameToSlot
+// saveGameToSlot — encodes to SA1 and writes to localStorage.
 // ---------------------------------------------------------------------------
 export function saveGameToSlot(slot, label = null, narrativeLog = []) {
   const key = saveKeyForSlot(slot);
   if (!key) { console.warn(`[saves] Unknown save slot: "${slot}"`); return; }
   try {
-    localStorage.setItem(key, JSON.stringify(buildSavePayload(slot, label, narrativeLog)));
+    const code = encodeSaveCode(narrativeLog, label);
+    localStorage.setItem(key, code);
   } catch (err) {
     console.warn(`[saves] Save to slot "${slot}" failed:`, err);
   }
 }
 
 // ---------------------------------------------------------------------------
-// loadSaveFromSlot
+// loadSaveFromSlot — reads from localStorage and decodes SA1.
+//
+// Backward compatibility: if the stored value is not an SA1 string (i.e. it's
+// a legacy raw JSON blob from a previous engine version), it's treated as a
+// stale save and discarded with a notice.
 // ---------------------------------------------------------------------------
 export function loadSaveFromSlot(slot) {
   const key = saveKeyForSlot(slot);
@@ -85,15 +200,26 @@ export function loadSaveFromSlot(slot) {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
-    const save = JSON.parse(raw);
-    if (save.version !== SAVE_VERSION) {
-      console.warn(`[saves] Slot "${slot}" version mismatch (v${save.version}) — discarding.`);
-      setStaleSaveFound();
-      // Delete the stale save so the notice doesn't re-appear on every reload
+
+    // SA1 save codes always start with 'SA1|'
+    if (raw.startsWith('SA1|')) {
+      const result = decodeSaveCode(raw);
+      if (result.ok) return result.save;
+      // Decode failed — corrupted or version mismatch
+      console.warn(`[saves] Slot "${slot}" decode failed: ${result.reason}`);
+      if (result.reason.includes('different game version')) {
+        setStaleSaveFound();
+      }
       try { localStorage.removeItem(key); } catch (_) {}
       return null;
     }
-    return save;
+
+    // Legacy raw JSON — treat as stale save
+    console.warn(`[saves] Slot "${slot}" contains legacy format — discarding.`);
+    setStaleSaveFound();
+    try { localStorage.removeItem(key); } catch (_) {}
+    return null;
+
   } catch { return null; }
 }
 
@@ -107,6 +233,10 @@ export function deleteSaveSlot(slot) {
 
 // ---------------------------------------------------------------------------
 // exportSaveSlot (ENH-10, FIX #12, BUG-G fix)
+//
+// Exports the decoded save object as a JSON file. The file contains the
+// full expanded save (not the compact SA1 string) for human readability
+// and cross-engine compatibility.
 // ---------------------------------------------------------------------------
 export function exportSaveSlot(slot) {
   const save = loadSaveFromSlot(slot);
@@ -123,7 +253,6 @@ export function exportSaveSlot(slot) {
   // BUG-G fix: the anchor must be attached to the document before .click() is
   // called.  Chromium allows clicking a detached element but Firefox silently
   // ignores it, so the export button did nothing on Firefox.
-  // Correct pattern: append → click → remove → revoke, all synchronously.
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -133,6 +262,9 @@ export function exportSaveSlot(slot) {
 
 // ---------------------------------------------------------------------------
 // importSaveFromJSON (ENH-10)
+//
+// Validates an imported JSON save object, then re-encodes it as SA1 and
+// stores it in the target slot.
 // ---------------------------------------------------------------------------
 export function importSaveFromJSON(json, targetSlot) {
   if (!json || typeof json !== 'object' || Array.isArray(json))
@@ -147,9 +279,35 @@ export function importSaveFromJSON(json, targetSlot) {
   const key = saveKeyForSlot(targetSlot);
   if (!key) return { ok: false, reason: `Invalid target slot: "${targetSlot}".` };
 
-  const patched = { ...json, slot: String(targetSlot) };
+  // Build delta-compressed playerState for the SA1 payload
+  const defaults = getStartupDefaults();
+  const deltaPs = {};
+  for (const [k, v] of Object.entries(json.playerState)) {
+    if (JSON.stringify(v) !== JSON.stringify(defaults[k])) {
+      deltaPs[k] = v;
+    }
+  }
+
+  const payload = {
+    v:  SAVE_VERSION,
+    s:  json.scene,
+    ip: json.ip ?? 0,
+    ct: json.chapterTitle || '',
+    ps: deltaPs,
+    nl: json.narrativeLog || [],
+    ts: json.timestamp || Date.now(),
+  };
+
+  if (json.label) payload.lb = json.label;
+  if (json.awaitingChoice) payload.ac = json.awaitingChoice;
+  if (json.statRegistry) payload.sr = json.statRegistry;
+
   try {
-    localStorage.setItem(key, JSON.stringify(patched));
+    const jsonStr = JSON.stringify(payload);
+    const compressed = btoa(unescape(encodeURIComponent(jsonStr)));
+    const checksum = crc16(compressed);
+    const code = `SA1|${compressed}|${checksum}`;
+    localStorage.setItem(key, code);
     return { ok: true };
   } catch (err) {
     return { ok: false, reason: `localStorage write failed: ${err.message}` };
@@ -157,7 +315,10 @@ export function importSaveFromJSON(json, targetSlot) {
 }
 
 // ---------------------------------------------------------------------------
-// restoreFromSave — applies a v9 save payload to live engine state.
+// restoreFromSave — applies a save object to live engine state.
+//
+// The save object is the expanded form returned by decodeSaveCode or
+// loadSaveFromSlot — it contains full playerState, statRegistry, etc.
 // ---------------------------------------------------------------------------
 export async function restoreFromSave(save, {
   runStatsScene,
@@ -219,105 +380,4 @@ export async function restoreFromSave(save, {
     setAwaitingChoice(save.awaitingChoice);
     renderChoices(save.awaitingChoice.choices);
   }
-}
-
-// ---------------------------------------------------------------------------
-// Save Code System — compact pasteable save codes
-//
-// Encodes game state into a short string players can copy/paste/share.
-// Uses base64 encoding with delta compression against startup defaults
-// and a CRC-16 checksum for corruption detection.
-//
-// Format:  SA1|<base64_payload>|<4_char_hex_crc>
-// ---------------------------------------------------------------------------
-
-function crc16(str) {
-  let crc = 0xFFFF;
-  for (let i = 0; i < str.length; i++) {
-    crc ^= str.charCodeAt(i);
-    for (let j = 0; j < 8; j++) {
-      crc = (crc & 1) ? (crc >>> 1) ^ 0xA001 : crc >>> 1;
-    }
-  }
-  return crc.toString(16).padStart(4, '0');
-}
-
-// Build a minimal payload: only playerState keys that differ from startup defaults.
-function buildSaveCodePayload(narrativeLog) {
-  const defaults = getStartupDefaults();
-  const ps = {};
-  for (const [k, v] of Object.entries(playerState)) {
-    if (JSON.stringify(v) !== JSON.stringify(defaults[k])) {
-      ps[k] = v;
-    }
-  }
-  const payload = {
-    v:  SAVE_VERSION,
-    s:  currentScene,
-    ip,
-    ct: chapterTitle,
-    ps,
-    nl: narrativeLog || [],
-  };
-  if (awaitingChoice) {
-    payload.ac = JSON.parse(JSON.stringify(awaitingChoice));
-  }
-  return payload;
-}
-
-export function encodeSaveCode(narrativeLog) {
-  const json = JSON.stringify(buildSaveCodePayload(narrativeLog));
-  // btoa only handles Latin-1; use encodeURIComponent + unescape for full Unicode
-  const compressed = btoa(unescape(encodeURIComponent(json)));
-  const checksum = crc16(compressed);
-  return `SA1|${compressed}|${checksum}`;
-}
-
-export function decodeSaveCode(code) {
-  const parts = code.trim().split('|');
-  if (parts.length !== 3) {
-    return { ok: false, reason: 'Invalid save code format.' };
-  }
-
-  const [prefix, compressed, checksum] = parts;
-
-  if (prefix !== 'SA1') {
-    return { ok: false, reason: `Unrecognized save code version: ${prefix}` };
-  }
-
-  if (crc16(compressed) !== checksum) {
-    return { ok: false, reason: 'Save code is corrupted (checksum mismatch). Check for missing characters.' };
-  }
-
-  let json;
-  try {
-    const decoded = decodeURIComponent(escape(atob(compressed)));
-    json = JSON.parse(decoded);
-  } catch (err) {
-    return { ok: false, reason: `Save code could not be decoded: ${err.message}` };
-  }
-
-  if (json.v !== SAVE_VERSION) {
-    return { ok: false, reason: `Save code is from a different game version (v${json.v}, expected v${SAVE_VERSION}).` };
-  }
-
-  // Reconstruct full playerState by merging delta over startup defaults
-  const defaults = getStartupDefaults();
-  const fullPlayerState = { ...defaults, ...json.ps };
-
-  return {
-    ok: true,
-    save: {
-      version:        json.v,
-      scene:          json.s,
-      ip:             json.ip,
-      chapterTitle:   json.ct,
-      playerState:    fullPlayerState,
-      narrativeLog:   json.nl || [],
-      awaitingChoice: json.ac || null,
-      statRegistry:   JSON.parse(JSON.stringify(statRegistry)),
-      characterName:  `${fullPlayerState.first_name || ''} ${fullPlayerState.last_name || ''}`.trim() || 'Unknown',
-      timestamp:      Date.now(),
-    },
-  };
 }
