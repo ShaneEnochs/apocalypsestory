@@ -145,8 +145,8 @@ body {
 
 /* Accent border color modifiers */
 .system-box--cyan   { border-left-color: var(--cyan);  color: var(--cyan); }
-.system-box--amber  { border-left-color: var(--cyan); color: var(--cyan); }
-.system-box--green  { border-left-color: var(--cyan);  color: var(--cyan); }
+.system-box--amber  { border-left-color: var(--amber); color: var(--amber); }
+.system-box--green  { border-left-color: var(--green);  color: var(--green); }
 .system-box--red    { border-left-color: var(--red);    color: var(--red); }
 
 /* --- Button base --- */
@@ -180,20 +180,20 @@ body {
 
 /* Primary amber variant */
 .btn-primary--amber {
-  background: var(--cyan);
+  background: var(--amber);
 }
 .btn-primary--amber:hover:not(:disabled) {
   background: #fff;
-  box-shadow: 0 0 16px var(--cyan-glow);
+  box-shadow: 0 0 16px var(--amber-glow);
 }
 
 /* Primary green variant */
 .btn-primary--green {
-  background: var(--cyan);
+  background: var(--green);
 }
 .btn-primary--green:hover:not(:disabled) {
   background: #fff;
-  box-shadow: 0 0 16px var(--cyan-glow);
+  box-shadow: 0 0 16px var(--green-glow);
 }
 
 /* Ghost: transparent with border */
@@ -226,8 +226,8 @@ body {
 
 /* Accent color utilities */
 .accent-cyan  { color: var(--cyan); }
-.accent-green { color: var(--cyan); }
-.accent-amber { color: var(--cyan); }
+.accent-green { color: var(--green); }
+.accent-amber { color: var(--amber); }
 .accent-red   { color: var(--red); }
 
 
