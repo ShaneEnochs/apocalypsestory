@@ -12,28 +12,6 @@
 //   • description lines must be indented at least one space
 //   • a new *item directive or end of file terminates the previous description
 
-*item health_potion "Health Potion" 2
-  A small vial of crimson liquid that smells faintly of copper
-  and warmth. Restores a modest amount of health when consumed.
-
-*item mana_crystal "Mana Crystal" 3 uncommon
-  A shard of condensed ambient mana, cool to the touch and
-  faintly humming. Restores mana when crushed in the palm.
-
-*item shadow_cloak "Shadow Cloak" 5
-  A tattered cloak woven from threads that seem to drink the
-  light around them. Grants a measure of concealment in dark
-  places and makes the wearer harder to notice.
-
-*item iron_charm "Iron Charm" 1
-  A small iron disc stamped with a warding sigil. Provides
-  minor protection against the System's more invasive
-  notifications.
-
-*item waystone "Waystone" 4
-  A smooth grey stone etched with a destination rune. When
-  activated, it pulls the bearer toward a previously visited
-  safe zone. Single use.
 
 *item commonitem "Common Item" 1 common
   This item is very common! 
