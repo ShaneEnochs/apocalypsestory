@@ -309,10 +309,13 @@ export async function runStatsScene() {
 // ---------------------------------------------------------------------------
 let _storeTrapRelease = null;
 let _storeActiveTab   = 'skills';   // preserved across open/close
+let _preStoreTab      = null;       // remembers sidebar tab before store opened
 
 export function showStore(tab = null) {
   if (!_storeOverlay) return;
   if (tab) _storeActiveTab = tab;
+  // Remember which sidebar tab was active so hideStore can restore it
+  _preStoreTab = _activeStatusTab;
 
   _storeOverlay.classList.remove('hidden');
   requestAnimationFrame(() => {
@@ -331,8 +334,9 @@ function hideStore() {
   _storeOverlay.classList.add('hidden');
   _storeOverlay.style.opacity = '0';
   if (_storeTrapRelease) { _storeTrapRelease(); _storeTrapRelease = null; }
-  // Return to the corresponding status panel tab instead of closing the panel
-  _activeStatusTab = _storeActiveTab === 'items' ? 'inventory' : 'skills';
+  // Return to whichever sidebar tab was active before the store opened
+  _activeStatusTab = _preStoreTab || (_storeActiveTab === 'items' ? 'inventory' : 'skills');
+  _preStoreTab = null;
   _scheduleStats();
 }
 
