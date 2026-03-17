@@ -319,6 +319,13 @@ export function importSaveFromJSON(json, targetSlot) {
 //
 // The save object is the expanded form returned by decodeSaveCode or
 // loadSaveFromSlot — it contains full playerState, statRegistry, etc.
+//
+// BUG-3 fix (code review): Previously, saves taken mid-scene via *save_point
+//   (where awaitingChoice is null) would paint the narrative log and then
+//   freeze — runInterpreter was never called to continue execution from
+//   save.ip. Now we always call runInterpreter({ suppressAutoSave: true })
+//   when there is no awaitingChoice to restore, so mid-scene saves resume
+//   correctly without triggering a redundant auto-save.
 // ---------------------------------------------------------------------------
 export async function restoreFromSave(save, {
   runStatsScene,
@@ -375,9 +382,15 @@ export async function restoreFromSave(save, {
   // 7. Run stats panel.
   await runStatsScene();
 
-  // 8. Re-render choices if save was taken at a choice point.
+  // 8. Re-render choices or resume execution depending on save type.
   if (save.awaitingChoice) {
+    // Save was taken at a *choice point — restore buttons directly.
     setAwaitingChoice(save.awaitingChoice);
     renderChoices(save.awaitingChoice.choices);
+  } else {
+    // BUG-3 fix: Save was taken mid-scene via *save_point. The log has been
+    // painted but ip still points into the scene. Resume execution from that
+    // position so the game continues rather than freezing.
+    await runInterpreter({ suppressAutoSave: true });
   }
 }

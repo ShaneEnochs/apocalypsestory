@@ -189,15 +189,16 @@ async function popUndo() {
 
   renderFromLog(snap.narrativeLog, { skipAnimations: true });
 
-  dom.choiceArea = document.getElementById('choice-area');
-  setChoiceArea(dom.choiceArea);
-
   // FIX #S6 (BUG 2 + BUG 3): Restore choices directly from the snapshot
   // instead of calling runInterpreter(). This avoids:
   //   - BUG 2: runInterpreter writes an auto-save, overwriting the player's
   //     actual progress with the undo'd state.
   //   - BUG 3: runInterpreter re-executes lines between ip and *choice,
   //     potentially duplicating paragraphs already painted by renderFromLog.
+  // BUG-6 fix (code review): Removed the setChoiceArea re-point that was here.
+  //   clearNarrative() only empties #choice-area's innerHTML — it never removes
+  //   or recreates the node itself — so _choiceArea in narrative.js never goes
+  //   stale and the re-point was dead code.
   if (snap.awaitingChoice) {
     setAwaitingChoice(snap.awaitingChoice);
     renderChoices(snap.awaitingChoice.choices);

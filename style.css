@@ -131,13 +131,16 @@ body {
    ============================================================ */
 
 /* --- System box: mono-font panel with left accent border --- */
+/* BUG-CSS-1 fix: added missing semicolon after border-left. Without it the
+   CSS parser treated "padding: 12px 16px" as a continuation of the border-left
+   value and silently discarded the padding declaration entirely. */
 .system-box {
   font-family: var(--font-mono);
   font-size: var(--text-base);
   line-height: 1.6;
   background: var(--bg-system);
   border: 1px solid var(--cyan);
-  border-left: 2px solid var(--cyan)
+  border-left: 2px solid var(--cyan);
   padding: 12px 16px;
   margin: 1.4em 0;
   position: relative;
@@ -229,6 +232,15 @@ body {
 .accent-green { color: var(--green); }
 .accent-amber { color: var(--amber); }
 .accent-red   { color: var(--red); }
+
+/* BUG-1 fix: .status-value is defined later in the sheet and wins the
+   source-order battle against the global utilities above, making *stat_color
+   entries invisible in the sidebar. These scoped overrides re-establish the
+   correct color when both classes appear on the same element. */
+.status-value.accent-cyan  { color: var(--cyan); }
+.status-value.accent-green { color: var(--green); }
+.status-value.accent-amber { color: var(--amber); }
+.status-value.accent-red   { color: var(--red); }
 
 
 /* ============================================================
@@ -885,6 +897,12 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 .slot-load-btn--load:hover:not(:disabled)  { background: var(--cyan-glow); color: var(--cyan); border-color: var(--cyan); }
 .slot-load-btn--load:disabled              { background: transparent; color: var(--text-faint); border-color: var(--border-dim); cursor: not-allowed; opacity: 0.4; }
 
+/* Save variant — amber/gold tint so Save buttons are visually distinct from Load */
+/* BUG-4 fix: this class was referenced in index.html but never defined. */
+.slot-load-btn--save                       { background: var(--amber); color: var(--bg-deep); border: none; }
+.slot-load-btn--save:hover:not(:disabled)  { background: #ffc533; }
+.slot-load-btn--save:disabled              { background: var(--border-dim); color: var(--text-faint); cursor: not-allowed; opacity: 0.5; }
+
 .slot-delete-btn {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -1246,7 +1264,10 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 }
 
 .levelup-modal-title {
-  font-family: var(--font-heading);
+  /* BUG-CSS-2 fix: replaced var(--font-heading) which was never defined in
+     :root tokens, causing the browser to silently fall back to the inherited
+     body font. var(--font-display) is the correct Cinzel display token. */
+  font-family: var(--font-display);
   font-size: var(--text-lg);
   color: var(--cyan);
   margin-top: 8px;

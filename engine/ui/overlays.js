@@ -249,21 +249,16 @@ export function refreshAllSlotCards() {
     });
 
     // In-game save menu slot cards (save-card-* prefix)
+    // populateSlotCard sets loadBtn.disabled correctly — no second pass needed.
     const iCard = document.getElementById(`save-card-${s}`);
-    if (iCard) {
-      populateSlotCard({
-        nameEl:    document.getElementById(`save-slot-name-${s}`),
-        metaEl:    document.getElementById(`save-slot-meta-${s}`),
-        loadBtn:   document.getElementById(`ingame-load-${s}`),
-        deleteBtn: document.getElementById(`save-delete-${s}`),
-        cardEl:    iCard,
-        save,
-      });
-    }
-
-    // Sync ingame-load-* enabled state
-    const ingameLoad = document.getElementById(`ingame-load-${s}`);
-    if (ingameLoad) ingameLoad.disabled = !save;
+    if (iCard) populateSlotCard({
+      nameEl:    document.getElementById(`save-slot-name-${s}`),
+      metaEl:    document.getElementById(`save-slot-meta-${s}`),
+      loadBtn:   document.getElementById(`ingame-load-${s}`),
+      deleteBtn: document.getElementById(`save-delete-${s}`),
+      cardEl:    iCard,
+      save,
+    });
   });
 }
 
@@ -373,7 +368,10 @@ export function wireCharCreation() {
       try { inputEl.setSelectionRange(pos, pos); } catch (_) {}
     }
     counterEl.textContent = NAME_MAX - inputEl.value.length;
-    const err = validateName(inputEl.value, fieldLabel);
+    // BUG-7 fix: validate against the trimmed value so that a name with only
+    // leading/trailing spaces shows an "empty" error in real-time, matching
+    // what the submit handler stores after trimming.
+    const err = validateName(inputEl.value.trim() === '' ? '' : inputEl.value, fieldLabel);
     inputEl.classList.toggle('char-input--error', !!err);
     errorEl.textContent = err || '';
     errorEl.classList.toggle('hidden', !err);

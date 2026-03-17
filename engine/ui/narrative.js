@@ -128,23 +128,34 @@ export function formatText(text) {
   let result = String(text);
 
   // 1. Variable interpolation: ${varName}
+  // MINOR-3 fix: after HTML-escaping the substituted value, also escape any
+  // asterisks it contains so player-controlled strings (names entered via
+  // character creation or *input) cannot accidentally trigger the **bold** /
+  // *italic* markdown that runs in step 3. This is a defence-in-depth measure;
+  // the HTML-escape in escapeHtml() already prevents XSS, but without this
+  // step a player named "**Boss**" would render bold in narrative paragraphs.
   result = result.replace(/\$\{([a-zA-Z_][\w]*)\}/g, (_, v) => {
     const k     = normalizeKey(v);
     const store = resolveStore(k);
-    return escapeHtml(store ? store[k] : '');
+    return escapeHtml(store ? store[k] : '').replace(/\*/g, '&#42;');
   });
 
   // 2. Pronoun tokens: {they}, {Them}, {their}, {theirs}, etc.
+  // Pronoun values come from playerState and are also player-controlled, so
+  // apply the same asterisk-escape after HTML-escaping (resolvePronoun already
+  // calls escapeHtml internally).
   result = result.replace(
     /\{(They|Them|Their|Theirs|Themself|they|them|their|theirs|themself)\}/g,
     (_, token) => {
       const lower     = token.toLowerCase();
       const isCapital = token.charCodeAt(0) >= 65 && token.charCodeAt(0) <= 90;
-      return resolvePronoun(lower, isCapital);
+      return resolvePronoun(lower, isCapital).replace(/\*/g, '&#42;');
     }
   );
 
   // 3. Markdown: **bold** and *italic*
+  // Only author-written text reaches this step; player-controlled substitutions
+  // had their asterisks escaped to &#42; above.
   result = result
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>');

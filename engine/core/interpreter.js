@@ -377,7 +377,6 @@ registerCommand('*temp', (t) => {
   advanceIp();
 });
 
-// *award_essence N  /  *add_essence N  — primary Essence-granting directives.
 // *award_essence N  /  *add_essence N  — Essence-granting directives.
 function _handleAddEssence(n) {
   if (n > 0) {
@@ -629,6 +628,10 @@ registerCommand('*if', async (t, line) => {
 //   will be set by executeBlock. We must stamp awaitingChoice._savedIp with
 //   blockEnd before returning so the post-choice runInterpreter resumes AFTER
 //   the loop, not by re-entering it from the *loop line.
+// BUG-2 fix (code review): The previous code mutated awaitingChoice._savedIp
+//   directly on the imported binding, which bypasses the state setter and
+//   writes to a potentially stale object reference. Now uses setAwaitingChoice
+//   with a spread copy so the state module's canonical reference is updated.
 registerCommand('*loop', async (t, line) => {
   const LOOP_GUARD = 10_000;
   const blockStart = ip + 1, blockEnd = findBlockEnd(blockStart, line.indent);
@@ -636,7 +639,11 @@ registerCommand('*loop', async (t, line) => {
   while (evaluateCondition(t) && guard < LOOP_GUARD) {
     const reason = await executeBlock(blockStart, blockEnd);
     if (reason === 'choice') {
-      awaitingChoice._savedIp = blockEnd;
+      // BUG-2 fix: read the live awaitingChoice value then replace it via the
+      // setter so _savedIp is stored on the canonical state object, not on a
+      // stale imported binding reference.
+      const ac = awaitingChoice;
+      if (ac) setAwaitingChoice({ ...ac, _savedIp: blockEnd });
       return;
     }
     if (reason === 'goto') return;
