@@ -16,27 +16,3 @@
 //   • grant without Essence cost via:      *grant_skill "key"
 //   • remove a skill via:                  *revoke_skill "key"
 
-*skill blade_dancer "Blade Dancer" 2
-  A swordsman who has transcended pure technique. The blade moves
-  before the mind commands it. Unlocks advanced dueling options
-  and the ability to disarm opponents without drawing blood.
-
-*skill shadow_step "Shadow Step" 1
-  You have learned to move through space as if it barely notices you.
-  Grants access to stealth approaches and lets you slip past guards
-  who should, by rights, have seen you coming.
-
-*skill last_rites "Last Rites" 1
-  Eight years of watching people die has given you a grim fluency
-  in the language of endings. Unlocks dialogue options with the dying
-  and provides unique choices when confronting the Demon Lord.
-
-*skill system_reader "System Reader" 3
-  You have spent years studying the System's notification language
-  until its patterns became legible. Unlocks the ability to parse
-  hidden system messages and identify exploit points in dungeon logic.
-
-*skill iron_will "Iron Will" 1
-  You have been broken so many times that the breaks have calcified
-  into something stronger than the original bone. Unlocks choices
-  that require you to endure rather than resist.
