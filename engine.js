@@ -225,7 +225,8 @@ function wireUI() {
 
   document.addEventListener('click', e => {
     if (!dom.statusPanel.contains(e.target) &&
-        e.target !== dom.statusToggle) {
+        e.target !== dom.statusToggle &&
+        !dom.storeOverlay?.contains(e.target)) {
       dom.statusPanel.classList.remove('status-visible');
       dom.statusPanel.classList.add('status-hidden');
     }
