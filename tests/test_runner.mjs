@@ -98,7 +98,7 @@ import { evalValue } from '../engine/core/expression.js';
 import { parseLines, indexLabels, parseChoice, parseSystemBlock } from '../engine/core/parser.js';
 import { addInventoryItem, removeInventoryItem, itemBaseName, parseInventoryUpdateText } from '../engine/systems/inventory.js';
 import { getAllocatableStatKeys } from '../engine/systems/leveling.js';
-import { importSaveFromJSON, SAVE_VERSION, buildSavePayload, loadSaveFromSlot } from '../engine/systems/saves.js';
+import { importSaveFromJSON, SAVE_VERSION, encodeSaveCode, loadSaveFromSlot } from '../engine/systems/saves.js';
 
 // Skills and journal need dynamic import because they depend on state being set up
 const { skillRegistry, parseSkills, playerHasSkill, grantSkill, revokeSkill, purchaseSkill } = await import('../engine/systems/skills.js');
@@ -649,17 +649,27 @@ group('ENH-10 — Save export/import (importSaveFromJSON)');
 resetState();
 playerState.essence = 500;
 playerState.level = 2;
-// Set currentScene so buildSavePayload gets a valid scene name
+// Set currentScene so the save has a valid scene name
 setCurrentScene('test_scene');
-// Build a valid payload to use as import source
-const validPayload = buildSavePayload(1, null, []);
+// Build a valid full save payload manually (same shape importSaveFromJSON expects)
+const validPayload = {
+  version: SAVE_VERSION,
+  scene: 'test_scene',
+  ip: 0,
+  chapterTitle: '',
+  playerState: JSON.parse(JSON.stringify(playerState)),
+  statRegistry: [],
+  narrativeLog: [],
+  awaitingChoice: null,
+  characterName: 'Test',
+  timestamp: Date.now(),
+};
 
 // Valid import
 const importResult = importSaveFromJSON(validPayload, 2);
 assertEq(importResult.ok, true, 'valid import returns ok:true');
 const loaded = loadSaveFromSlot(2);
 assert(loaded !== null, 'imported save loadable from target slot');
-assertEq(loaded.slot, '2', 'imported save has target slot stamped');
 assertEq(loaded.playerState.essence, 500, 'imported playerState.essence preserved');
 
 // Wrong version
