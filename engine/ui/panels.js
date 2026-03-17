@@ -338,6 +338,15 @@ function hideStore() {
   _activeStatusTab = _preStoreTab || (_storeActiveTab === 'items' ? 'inventory' : 'skills');
   _preStoreTab = null;
   _scheduleStats();
+  // The document-level click-outside handler may close the sidebar in the
+  // same event cycle (the close button is outside #status-panel). Re-apply
+  // the visible class in the next frame so the sidebar stays open.
+  requestAnimationFrame(() => {
+    if (_statusPanel) {
+      _statusPanel.classList.add('status-visible');
+      _statusPanel.classList.remove('status-hidden');
+    }
+  });
 }
 
 function renderStore() {
