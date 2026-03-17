@@ -1965,7 +1965,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   border: 1px solid var(--border-glow);
   color: var(--cyan);
   font-family: var(--font-mono);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   letter-spacing: var(--ls-normal);
   padding: 10px 20px;
   z-index: 200;
