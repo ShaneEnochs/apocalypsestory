@@ -1957,10 +1957,10 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 .toast {
   position: fixed;
-  bottom: calc(24px + env(safe-area-inset-bottom));
+  top: 75%;
   left: 50%;
   transform: translateX(-50%) translateY(8px);
-  width: min(920px, calc(100% - 40px));
+  width: min(480px, calc(100% - 48px));
   background: var(--bg-panel);
   border: 1px solid var(--border-glow);
   color: var(--cyan);
