@@ -1,12 +1,12 @@
 *comment global variable initialization
 
 *comment --- Game metadata ---
-*create game_title "Sample Game"
-*create game_byline "Eight years of the apocalypse.<br>One door back."
+*create game_title "System: Year Zero"
+*create game_byline "The end is only the beginning."
 
 *comment --- Core identity ---
 *comment first_name, last_name, and pronouns are set by the character creation screen.
-*create first_name "Alex"
+*create first_name ""
 *create last_name  ""
 *create pronouns_subject            "they"
 *create pronouns_object             "them"
@@ -14,10 +14,10 @@
 *create pronouns_possessive_pronoun "theirs"
 *create pronouns_reflexive          "themself"
 *create pronouns_label              "they/them"
-*create class_name "Unclassed"
+*create class_name "Humanity's Mythic Shield"
 
 *comment --- Progress ---
-*create level 1
+*create level 94
 *create essence 0
 
 *comment --- Skills and journal ---
@@ -27,16 +27,13 @@
 
 *comment --- Vitals ---
 *create health "Healthy"
-*create mana 50
-*create max_mana 50
+*create mana 3280
+*create max_mana 8000
 
 *comment --- Allocatable stats ---
-*create_stat strength "Strength" 1
-*create_stat fortitude "Fortitude" 1
-*create_stat agility "Agility" 1
-*create_stat precision "Precision" 1
-*create_stat mind "Mind" 1
-*create_stat magic_power "Magic Power" 1
+*create_stat body "Body" 86
+*create_stat mind "Mind" 142
+*create_stat spirit "Spirit" 160
 
 *comment --- Misc ---
 *create loop_counter 0
