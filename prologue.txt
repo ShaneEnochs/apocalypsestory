@@ -38,7 +38,7 @@ A naked singularity.
 Matt looks at you. "What do you think, ${first_name}?" 
 
 *choice
-  #Nod in agreement. This place cost two million mana. The wards would probably stop a nuke at the end of the hallway. 
+  #Nod in agreement. This place cost two million mana. The wards would probably stop a nuclear warhead going off at the end of the hallway. 
     *goto callie_explains
   #"Please tell me you're close..."
     *goto callie_explains
