@@ -6,7 +6,7 @@
 
 *comment --- Core identity ---
 *comment first_name, last_name, and pronouns are set by the character creation screen.
-*create first_name ""
+*create first_name "Alex"
 *create last_name  ""
 *create pronouns_subject            "they"
 *create pronouns_object             "them"
