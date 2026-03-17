@@ -191,8 +191,10 @@ export function clearNarrative() {
     if (el !== _choiceArea) el.remove();
   }
   _choiceArea.innerHTML = '';
-  // Reset scroll position so new content starts at the top
-  _narrativeContent.scrollTop = 0;
+  // Reset scroll position so new content starts at the top.
+  // Use scrollTo with 'instant' to override the CSS scroll-behavior: smooth
+  // which can cause the reset to animate and race with new content being added.
+  _narrativeContent.scrollTo({ top: 0, behavior: 'instant' });
 
   // Clear the narrative log — a page break or scene transition starts fresh.
   _narrativeLog = [];
@@ -378,7 +380,7 @@ export function renderFromLog(log, { skipAnimations = true } = {}) {  // eslint-
     if (el !== _choiceArea) el.remove();
   }
   _choiceArea.innerHTML = '';
-  _narrativeContent.scrollTop = 0;
+  _narrativeContent.scrollTo({ top: 0, behavior: 'instant' });
 
   for (const entry of log) {
     switch (entry.type) {
