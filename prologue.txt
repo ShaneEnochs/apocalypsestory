@@ -27,13 +27,15 @@ WARNING: Highest Demon Lord, Malphas (Tier-10 World Boss) has summoned Legion of
 
 Callie doesn't look up from the machine. She hasn't looked up in three days.
 
-What she's built... what she's *been* building, piece-by-painstaking-piece for the better part of three months, takes up most of the room's back wall. It looks, generously, like someone welded a grandfather clock to a particle accelerator and then let a fever-dreaming engineer have at it with a blowtorch. Copper conduit spirals around a central housing of dense, black, ironite-infused obsidian, along with intact dungeon cores from Tier 8 and Tier 9 space-time themed dungeons, along with hundreds of other [System] created crafting materials stripped from every high-tier dungeon and monster drop the three of you managed to hoard, are slotted into this Frankenstein'monster of a machine. 
+What she's built... what she's *been* building, piece-by-painstaking-piece for the better part of three months, takes up most of the room's back wall. It looks, generously, like someone welded a grandfather clock to a particle accelerator and then let a fever-dreaming engineer have at it with a blowtorch.
+
+Copper conduit spirals around a central housing of dense, ironite-infused obsidian. Slotted into its lattice are intact dungeon cores from Tier 8 and Tier 9 space-time dungeons, alongside hundreds of other [System]-generated crafting materials stripped from every high-tier drop the three of you managed to hoard. The whole thing is a Frankenstein's monster of a machine, and somehow, impossibly, it works.
 
 At the very center of it, behind a viewport of reinforced magesteel glass, a single point of light spins.
 
 A naked singularity. 
 
-"Don't worry," Callie says, voice flat as she concentrates on her insane construction, "they'll never find the entrance to this place. Even if they do, all of the abjuration wards at the entrance and through the hallway will stop them. "
+"Don't worry," Callie says, voice flat as she concentrates on her insane construction, "they'll never find the entrance to this place. Even if they do, all of the abjuration wards at the entrance and through the hallway will stop them."
 
 Matt looks at you. "What do you think, ${first_name}?" 
 
