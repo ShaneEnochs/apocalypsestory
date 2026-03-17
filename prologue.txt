@@ -18,11 +18,11 @@ With only the three of you, you should have been able to last for nearly four mo
 *page_break Unfortunately, the monsters had other plans...
 
 *system 
-[ WARNING ] Highest Demon Lord, Malphas (Tier-10 World Boss) has been detected within 10 kilometers of you. 
+WARNING: Highest Demon Lord, Malphas (Tier-10 World Boss) has been detected within 10 kilometers of you. 
 *end_system
 
 *system 
-[ WARNING ] Highest Demon Lord, Malphas (Tier-10 World Boss) has summoned a legion of greater demons within 9 kilometers of you. 
+WARNING: Highest Demon Lord, Malphas (Tier-10 World Boss) has summoned a legion of greater demons within 9 kilometers of you. 
 *end_system
 
 “Jesus,” Matt says, running a hand through his hair. “They really did it."
