@@ -113,7 +113,8 @@ The three of you. The last three. A sky bleeding a necrotic red.
   You have sat with enough people at their end to recognise this particular quality of air. This is a last moment. Everything has gone very clear and very still.
 
 *choice
-  #"That's just how our luck runs." Try to match his tone.
+  #"That's just how our luck runs." 
+    Try to match his tone.
     *set social +1
     *set player_tone "dark"
     *goto branch_dark
