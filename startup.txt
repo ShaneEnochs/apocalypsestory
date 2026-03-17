@@ -6,7 +6,7 @@
 
 *comment --- Core identity ---
 *comment first_name, last_name, and pronouns are set by the character creation screen.
-*create first_name "Alex"
+*create first_name ""
 *create last_name  ""
 *create pronouns_subject            "they"
 *create pronouns_object             "them"
@@ -37,9 +37,6 @@
 *create_stat precision "Precision" 1
 *create_stat mind "Mind" 1
 *create_stat magic_power "Magic Power" 1
-*create_stat social "Social" 1
-*create_stat spirit "Spirit" 1
-*create_stat body "Body" 1
 
 *comment --- Misc ---
 *create loop_counter 0
