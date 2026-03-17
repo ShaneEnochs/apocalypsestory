@@ -27,4 +27,30 @@ WARNING: Highest Demon Lord, Malphas (Tier-10 World Boss) has summoned a legion 
 
 “Jesus,” Matt says, running a hand through his hair. “They really did it."
 
-To be continued...
+Callie doesn't look up from the machine. She hasn't looked up in three days.
+
+What she's built... what she's *been* building, piece by painstaking piece, for the better part of three months, takes up most of the room's back wall. It looks, generously, like someone welded a grandfather clock to a particle accelerator and then let a fever-dreaming engineer have at it with a blowtorch. Copper conduit spirals around a central housing of dense black ironite-infuded obsidian and intact dungeon cores from Tier 8 and Tier 9 space-time themed dungeons, stripped from every high-tier loot drop the three of you managed to hoard, are slotted into this Frankenstein'monster of a machine. At the center, behind a viewport of reinforced magesteel glass, a single point of light spins.
+
+"Don't worry," Callie says, voice flat as she concentrates on her insane construction, "they'll never find the entrance to this place. Even if they do, all of the abjuration wards at the entrance and through the hallway will stop them. "
+
+Matt looks at you. "What do you think, ${first_name}?" 
+
+*choice
+  #Nod in agreement. This place cost two million mana. The wards would probably stop a nuke at the end of the hallway. 
+    *goto callie_explains
+  #"Please tell me you're close..."
+    *goto callie_explains
+
+*label callie_explains
+
+Callie finally turns. There are deep, dark rings under her eyes that look like bruises. She's been awake for... you try to count backward... at least fifty hours? Maybe more.
+
+"You both understand what this does," she asks.
+
+You do, and you still can't believe it. 
+
+The machine is an *almost* working, *nearly* calibrated, temporal bridge. Callie Owens, the greatest Artificer alive, possibly the greatest who *ever lived*, has spent the last few months of the apocalypse building a door to the past.
+
+Well, to one specific day in the past: the day the System arrived.
+
+To be continued... 
