@@ -14,7 +14,7 @@
 *create pronouns_possessive_pronoun "theirs"
 *create pronouns_reflexive          "themself"
 *create pronouns_label              "they/them"
-*create class_name "Humanity's Mythic Shield"
+*create class_name "Shield of Humanity"
 
 *comment --- Progress ---
 *create level 94
