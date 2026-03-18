@@ -30,7 +30,7 @@ import { skillRegistry, playerHasSkill, purchaseSkill } from '../systems/skills.
 import { itemRegistry, purchaseItem } from '../systems/items.js';
 import { itemBaseName } from '../systems/inventory.js';
 import { getJournalEntries, getAchievements } from '../systems/journal.js';
-import { escapeHtml } from './narrative.js';
+import { escapeHtml, formatText } from './narrative.js';
 import { evalValue } from '../core/expression.js';
 
 // ---------------------------------------------------------------------------
@@ -139,7 +139,7 @@ export async function runStatsScene() {
       const cc = styleState.colors[e.key] || '';
       const ic = styleState.icons[e.key]  ?? '';
       const rawVal = playerState[e.key] ?? '—';
-      statsHtml += `<div class="status-row"><span class="status-label">${ic ? ic + ' ' : ''}${escapeHtml(e.label)}</span><span class="status-value ${cc}">${escapeHtml(rawVal)}</span></div>`;
+      statsHtml += `<div class="status-row"><span class="status-label">${ic ? ic + ' ' : ''}${escapeHtml(e.label)}</span><span class="status-value ${cc}">${formatText(String(rawVal))}</span></div>`;
     }
   });
   if (inGroup) statsHtml += `</div>`;
@@ -154,7 +154,7 @@ export async function runStatsScene() {
       const body    = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : '';
       return `<li class="skill-accordion skill-accordion--achievement">
         <button class="skill-accordion-btn">
-          <span class="skill-accordion-name"><span class="journal-achievement-icon"></span> ${title}</span>
+          <span class="skill-accordion-name"><span class="journal-achievement-icon">◆</span> ${title}</span>
           ${body ? `<span class="skill-accordion-chevron">▾</span>` : ''}
         </button>
         ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ''}
@@ -166,7 +166,7 @@ export async function runStatsScene() {
   // SKILLS TAB — store button at top, then owned skills with rarity colors
   const hasSkillStore = skillRegistry.length > 0;
   let skillsHtml = hasSkillStore
-    ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-skills" data-store-tab="skills">Skill Store</button></div>`
+    ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-skills" data-store-tab="skills">◈ Skill Store</button></div>`
     : '';
 
   const ownedSkills = Array.isArray(playerState.skills) ? playerState.skills : [];
@@ -188,7 +188,7 @@ export async function runStatsScene() {
   // INVENTORY TAB — store button at top, then items with rarity colors
   const hasItemStore = itemRegistry.length > 0;
   let inventoryHtml = hasItemStore
-    ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-inv" data-store-tab="items">Item Store</button></div>`
+    ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-inv" data-store-tab="items">◈ Item Store</button></div>`
     : '';
 
   const invItems = Array.isArray(playerState.inventory) ? playerState.inventory : [];
@@ -229,7 +229,7 @@ export async function runStatsScene() {
         const body    = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : '';
         return `<li class="skill-accordion skill-accordion--achievement">
           <button class="skill-accordion-btn">
-            <span class="skill-accordion-name"><span class="journal-achievement-icon"></span> ${title}</span>
+            <span class="skill-accordion-name"><span class="journal-achievement-icon">◆</span> ${title}</span>
             ${body ? `<span class="skill-accordion-chevron">▾</span>` : ''}
           </button>
           ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ''}
