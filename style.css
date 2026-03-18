@@ -24,11 +24,10 @@
      18. Input Prompt
      19. Journal / Achievements
      20. Toast Notification
-     21. Page Break
-     22. Animations
-     23. Utility
-     24. Responsive — tablet (max-width: 768px)
-     25. Responsive — small phone (max-width: 400px)
+     21. Animations
+     22. Utility
+     23. Responsive — tablet (max-width: 768px)
+     24. Responsive — small phone (max-width: 400px)
    ============================================================ */
 
 
@@ -2017,34 +2016,10 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 .toast--levelup.toast-hide { animation: toastOutCenter 0.3s ease forwards; }
 
 
-/* ============================================================
-   21. PAGE BREAK
-   ============================================================ */
-
-.page-break-btn {
-  text-align: center;
-  border-style: dashed;
-  border-color: var(--border-glow);
-  background: var(--bg-system);
-  color: var(--cyan);
-  font-style: italic;
-}
-
-.page-break-btn:hover {
-  border-style: solid;
-  border-color: var(--cyan-dim);
-  background: var(--cyan-glow);
-  color: #fff;
-}
-
-.page-break-btn::before {
-  content: '';
-  margin-right: 0;
-}
 
 
 /* ============================================================
-   22. ANIMATIONS
+   21. ANIMATIONS
    Narrative stagger animations (fadeSlideIn, choiceSlideIn,
    systemFlicker, scanline, levelupReveal, tagAppear, overlayIn)
    have been removed. All narrative elements render at full
@@ -2069,7 +2044,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 
 /* ============================================================
-   23. UTILITY
+   22. UTILITY
    ============================================================ */
 
 .hidden        { display: none; }
