@@ -18,6 +18,8 @@ With only the three of you, you should have been able to last for nearly four mo
 
 *page_break Unfortunately, the monsters had other plans...
 
+*title The Machine
+
 *system 
 WARNING: Highest Demon Lord, Malphas (Tier-10 World Boss) has been detected within 10 miles of your location. 
 
@@ -115,6 +117,8 @@ Estimated stabilization: 2 hours, 10 minutes.
 
 *page_break Two hours left.
 
+*title The Coming Flood
+
 *label things_go_wrong
 
 *system
@@ -142,6 +146,8 @@ Estimated stabilization: 40 minutes.
 *end_system
 
 *page_break The wards do not hold for forty minutes.
+
+*title Breach
 
 *label breach
 
@@ -175,6 +181,8 @@ He looks at you. You look at him.
     *goto matt_holds
 
 *label matt_holds
+
+*title Hold the Line
 
 He takes his position at the blast doors.
 
@@ -221,6 +229,8 @@ Two.
 *page_break One.
 
 *label matt_falls
+
+*title Matt Falls
 
 *system
 MACHINE STATUS: 99% charge.
