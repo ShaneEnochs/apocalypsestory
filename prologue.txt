@@ -42,7 +42,6 @@ Matt looks at you. "What do you think, ${first_name}?"
 
 *choice
   #Nod in agreement. 
-    "This place cost two million mana," you say. "The wards would probably stop a nuclear warhead going off at the end of the hallway." 
     *goto nod
   #"Please tell me you're close..."
     *goto worried
