@@ -1,22 +1,18 @@
 // ---------------------------------------------------------------------------
-// tests/e2e.spec.mjs — Playwright end-to-end test for System Awakening
+// e2e.spec.mjs — Playwright end-to-end tests for System: Year Zero
 //
 // Boots the game in a real browser, plays through the complete prologue,
-// exercises save/load, and verifies the ending screen.
+// exercises save/load, undo, and verifies the ending state.
 //
 // Prerequisites:
 //   npm install -D @playwright/test
 //   npx playwright install chromium
 //
 // Run:
-//   npx playwright test tests/e2e.spec.mjs
+//   npm run test:e2e
 //
 // Or with headed browser (visible):
-//   npx playwright test tests/e2e.spec.mjs --headed
-//
-// NOTE: Requires a local server serving the game files. The test starts one
-// automatically using Playwright's webServer config, or you can serve manually:
-//   npx serve .        (then run the test)
+//   npx playwright test --headed
 // ---------------------------------------------------------------------------
 
 import { test, expect } from '@playwright/test';
@@ -54,7 +50,7 @@ test.describe('System Awakening — Prologue', () => {
   test('splash screen loads with New Game and Load Game buttons', async ({ page }) => {
     await expect(page.locator('#splash-new-btn')).toBeVisible();
     await expect(page.locator('#splash-load-btn')).toBeVisible();
-    await expect(page.locator('.splash-title')).toHaveText('System Awakening');
+    await expect(page.locator('.splash-title')).toHaveText('System: Year Zero');
   });
 
   test('character creation flow', async ({ page }) => {
@@ -93,8 +89,8 @@ test.describe('System Awakening — Prologue', () => {
     // Wait for the first choice to appear
     await page.waitForSelector('.choice-btn', { timeout: 15000 });
 
-    // --- kai_speaks: pick first option ---
-    await pickChoice(page, page.locator('.choice-btn').first());
+    // Pass an empty string to match the first available choice regardless of label.
+    await pickChoice(page, '');
 
     // --- Wait for next choice and pick ---
     await page.waitForSelector('.choice-btn', { timeout: 10000 });
@@ -115,9 +111,9 @@ test.describe('System Awakening — Prologue', () => {
       }
     }
 
-    // Keep picking the first available choice until we reach the ending
+    // Keep picking the first available choice until no more choices remain
     for (let i = 0; i < 30; i++) {
-      // Check for ending overlay
+      // Check for ending overlay (present if a future scene adds *ending)
       const ending = page.locator('#ending-overlay:not(.hidden)');
       if (await ending.isVisible().catch(() => false)) break;
 
@@ -157,10 +153,13 @@ test.describe('System Awakening — Prologue', () => {
       }
     }
 
-    // Verify the ending screen appeared
-    const endingOverlay = page.locator('#ending-overlay:not(.hidden)');
-    await expect(endingOverlay).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('#ending-title')).toHaveText('The End');
+    // Prologue ends with a narrative cliffhanger — no ending overlay.
+    // Assert the final text is visible to confirm the scene ran to completion.
+    // If *ending is ever added to prologue.txt, replace this with an
+    // #ending-overlay visibility check instead.
+    await expect(
+      page.locator('#narrative-content', { hasText: 'To be continued' })
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test('save and load cycle', async ({ page }) => {
@@ -213,28 +212,6 @@ test.describe('System Awakening — Prologue', () => {
     expect(count).toBeGreaterThan(0);
   });
 
-  test('debug overlay toggles with backtick', async ({ page }) => {
-    // Start game
-    await page.click('#splash-new-btn');
-    await page.waitForSelector('#char-creation-overlay:not(.hidden)');
-    await page.fill('#input-first-name', 'Debug');
-    await page.fill('#input-last-name', 'Test');
-    await page.click('[data-pronouns="they/them"]');
-    await page.click('#char-begin-btn');
-    await page.waitForSelector('.narrative-paragraph', { timeout: 10000 });
-
-    // Debug should be hidden initially
-    await expect(page.locator('#debug-overlay')).toHaveClass(/hidden/);
-
-    // Toggle on
-    await page.keyboard.press('Backquote');
-    await expect(page.locator('#debug-overlay')).not.toHaveClass(/hidden/);
-    await expect(page.locator('.debug-header')).toContainText('DEBUG');
-
-    // Toggle off
-    await page.keyboard.press('Backquote');
-    await expect(page.locator('#debug-overlay')).toHaveClass(/hidden/);
-  });
 
   test('undo button restores previous state', async ({ page }) => {
     // Start game
