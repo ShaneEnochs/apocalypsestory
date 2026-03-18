@@ -154,7 +154,7 @@ export async function runStatsScene() {
       const body    = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : '';
       return `<li class="skill-accordion skill-accordion--achievement">
         <button class="skill-accordion-btn">
-          <span class="skill-accordion-name"><span class="journal-achievement-icon">◆</span> ${title}</span>
+          <span class="skill-accordion-name"><span class="journal-achievement-icon"></span> ${title}</span>
           ${body ? `<span class="skill-accordion-chevron">▾</span>` : ''}
         </button>
         ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ''}
@@ -166,7 +166,7 @@ export async function runStatsScene() {
   // SKILLS TAB — store button at top, then owned skills with rarity colors
   const hasSkillStore = skillRegistry.length > 0;
   let skillsHtml = hasSkillStore
-    ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-skills" data-store-tab="skills">◈ Skill Store</button></div>`
+    ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-skills" data-store-tab="skills">Skill Store</button></div>`
     : '';
 
   const ownedSkills = Array.isArray(playerState.skills) ? playerState.skills : [];
@@ -188,7 +188,7 @@ export async function runStatsScene() {
   // INVENTORY TAB — store button at top, then items with rarity colors
   const hasItemStore = itemRegistry.length > 0;
   let inventoryHtml = hasItemStore
-    ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-inv" data-store-tab="items">◈ Item Store</button></div>`
+    ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-inv" data-store-tab="items">Item Store</button></div>`
     : '';
 
   const invItems = Array.isArray(playerState.inventory) ? playerState.inventory : [];
@@ -229,7 +229,7 @@ export async function runStatsScene() {
         const body    = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : '';
         return `<li class="skill-accordion skill-accordion--achievement">
           <button class="skill-accordion-btn">
-            <span class="skill-accordion-name"><span class="journal-achievement-icon">◆</span> ${title}</span>
+            <span class="skill-accordion-name"><span class="journal-achievement-icon"></span> ${title}</span>
             ${body ? `<span class="skill-accordion-chevron">▾</span>` : ''}
           </button>
           ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ''}
