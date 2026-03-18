@@ -62,6 +62,20 @@
   --red:           #e05555;
   --red-glow:      rgba(224, 85, 85, 0.2);
 
+  /* --- Rarity colors --- */
+  --rarity-common:    var(--text-primary); /* white  */
+  --rarity-uncommon:  #4cdc8a;             /* green  */
+  --rarity-rare:      #4a9eff;             /* blue   */
+  --rarity-epic:      #b06aff;             /* purple */
+  --rarity-legendary: #f0a500;             /* gold   */
+
+  /* --- Extra named colors (available as inline accent tags) --- */
+  --white:   #d8ddf0;
+  --blue:    #4a9eff;
+  --purple:  #b06aff;
+  --gold:    #f0a500;
+  --silver:  #a8b0c8;
+
   /* --- Text --- */
   --text-primary:  #d8ddf0;
   --text-dim:      #9ba2c0;
@@ -230,6 +244,50 @@ body {
 .accent-green { color: var(--green); }
 .accent-amber { color: var(--amber); }
 .accent-red   { color: var(--red); }
+
+/* Inline accent spans — authored via [cyan]...[/cyan] etc. in prose/system blocks.
+   Scoped to both narrative paragraphs and system blocks at (0,2,0) specificity so
+   they beat .narrative-paragraph em/strong and are never overridden by the
+   inherited color on .system-block or its variant rules. !important is intentional:
+   a color tag in prose must always render as written. */
+
+/* --- Core theme colors --- */
+.narrative-paragraph .inline-accent-cyan,
+.system-block        .inline-accent-cyan      { color: var(--cyan)           !important; }
+.narrative-paragraph .inline-accent-green,
+.system-block        .inline-accent-green     { color: var(--green)          !important; }
+.narrative-paragraph .inline-accent-amber,
+.system-block        .inline-accent-amber     { color: var(--amber)          !important; }
+.narrative-paragraph .inline-accent-red,
+.system-block        .inline-accent-red       { color: var(--red)            !important; }
+
+/* --- Rarity colors + named aliases --- */
+.narrative-paragraph .inline-accent-white,
+.narrative-paragraph .inline-accent-common,
+.system-block        .inline-accent-white,
+.system-block        .inline-accent-common    { color: var(--rarity-common)    !important; }
+.narrative-paragraph .inline-accent-uncommon,
+.system-block        .inline-accent-uncommon  { color: var(--rarity-uncommon)  !important; }
+.narrative-paragraph .inline-accent-blue,
+.narrative-paragraph .inline-accent-rare,
+.system-block        .inline-accent-blue,
+.system-block        .inline-accent-rare      { color: var(--rarity-rare)      !important; }
+.narrative-paragraph .inline-accent-purple,
+.narrative-paragraph .inline-accent-epic,
+.system-block        .inline-accent-purple,
+.system-block        .inline-accent-epic      { color: var(--rarity-epic)      !important; }
+.narrative-paragraph .inline-accent-gold,
+.narrative-paragraph .inline-accent-legendary,
+.system-block        .inline-accent-gold,
+.system-block        .inline-accent-legendary { color: var(--rarity-legendary) !important; }
+
+/* --- Neutral shades --- */
+.narrative-paragraph .inline-accent-silver,
+.system-block        .inline-accent-silver    { color: var(--silver)         !important; }
+.narrative-paragraph .inline-accent-dim,
+.system-block        .inline-accent-dim       { color: var(--text-dim)       !important; }
+.narrative-paragraph .inline-accent-faint,
+.system-block        .inline-accent-faint     { color: var(--text-faint)     !important; }
 
 /* BUG-1 fix: .status-value is defined later in the sheet and wins the
    source-order battle against the global utilities above, making *stat_color
@@ -1776,11 +1834,11 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   min-width: 0;
 }
 /* Rarity colors — !important ensures these always override base element colors */
-.skill-rarity--common    { color: var(--text-primary) !important; }  /* white   */
-.skill-rarity--uncommon  { color: #4cdc8a !important; }               /* green   */
-.skill-rarity--rare      { color: #4a9eff !important; }               /* blue    */
-.skill-rarity--epic      { color: #b06aff !important; }               /* purple  */
-.skill-rarity--legendary { color: #f0a500 !important; }               /* gold    */
+.skill-rarity--common    { color: var(--rarity-common)    !important; }
+.skill-rarity--uncommon  { color: var(--rarity-uncommon)  !important; }
+.skill-rarity--rare      { color: var(--rarity-rare)      !important; }
+.skill-rarity--epic      { color: var(--rarity-epic)      !important; }
+.skill-rarity--legendary { color: var(--rarity-legendary) !important; }
 
 
 .store-card-actions {
