@@ -174,7 +174,7 @@ He looks at you. You look at him.
     He shakes his head once. "Someone needs to be ready to go through the moment it opens. Stay close to the machine."
     *goto matt_holds
   #"Matt—"
-    "I've got better combat stats than you right now and you know it," he says, somehow managing a grin. "Besides. Someone's got to make sure *someone*actually gets in the machine instead of doing something stupid."
+    "I've got better combat stats than you right now and you know it," he says, somehow managing a grin. "Besides. Someone's got to make sure you two actually get in the machine instead of doing something stupid."
     *goto matt_holds
   #Nod. Hand him everything you can spare.
     You strip off every consumable you have left — potions, charge stones, a ward scroll you'd been saving. He takes them without argument.
