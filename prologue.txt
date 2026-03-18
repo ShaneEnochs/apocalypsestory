@@ -11,6 +11,7 @@ For four months, as far as you know, there hasn't been a single human alive on t
 *page_break They found their way down.
 
 This room, a reinforced sanctuary magicked into existence via your [Last Stand] spell, was supposed to give you and your two companions time to figure out what to do. Along with its creation, which required every Greater Essence Stone the three of you possessed just to meet the whopping 2,000,000 mana cost, it also created enough food, water, and magically purified air to last ten people for an entire month. 
+
 Beyond the heavy blast doors, a long, narrow hallway stretches toward a distant stairway that once led to the lower districts of Solace, which the [System] had determined would be the most difficult area for the monsters to find. The walls of the corridor are etched with defensive runes that pulse with golden light, ready to repulse any invaders that are unfortunate enough find their way here.
 
 With only the three of you, you should have been able to last for nearly four months in this place. Maybe five, if you rationed.
@@ -40,16 +41,33 @@ A naked singularity.
 Matt looks at you. "What do you think, ${first_name}?" 
 
 *choice
-  #Nod in agreement. This place cost two million mana. The wards would probably stop a nuclear warhead going off at the end of the hallway. 
-    *goto callie_explains
+  #Nod in agreement. 
+    "This place cost two million mana," you say. "The wards would probably stop a nuclear warhead going off at the end of the hallway." 
+    *goto nod
   #"Please tell me you're close..."
-    *goto callie_explains
+    *goto worried
 
-*label callie_explains
+*label nod
+
+You nod, trying to present more confidence than you actually feel. 
+
+"This place cost two million mana," you say. "The wards would probably stop a nuclear warhead going off at the end of the hallway."
+
+Matt still looks skeptical, but says no more about it.
+
+Callie finally turns. There are deep, dark rings under her eyes that look like bruises. She's been awake for — you try to count backward — at least fifty hours? Maybe more. It's little wonder why she looks like this, but you hate to see your best friend under this level of physical and mental stress.
+
+*goto callie_explains
+
+*label worried
 
 Callie finally turns. There are deep, dark rings under her eyes that look like bruises. She's been awake for... you try to count backward... at least fifty hours? Maybe more.
 
-"You both understand what this does," she says. "Soon it won't matter what's going on up there."
+*goto callie_explains
+
+*label callie_explains
+
+"You both understand what this does," she says. "Well, will do. Soon it won't matter what's going on up there."
 
 You do know, and you still can't believe it. 
 
@@ -57,4 +75,168 @@ The machine is an *almost* working, *nearly* calibrated, temporal bridge. Callie
 
 Well, to one specific day in the past: the day the System arrived.
 
-To be continued... 
+"All three of us will go back," Callie continues, "to the exact moment of [System] integration. We'll lose our gear and our levels, but we'll keep our memories."
+
+*choice
+  #"Eight years of 20/20 hindsight will make a lot of difference."
+    *goto hindsight
+  #"How close are you?"
+    *goto how_close
+  #"Less talking, more working."
+    *goto less_talk
+
+*label hindsight
+
+Callie smiles at you. It's the first smile you've seen in a long time from her, and it fills your heart with joy.
+
+"Exactly," she says. "We'll go back and fix it all. None of this will happen, and we won't have to watch our world die."
+
+*goto charging
+
+*label how_close
+
+"Close," she says with a smile. It's the first smile you've seen in a long time from her, and it fills your heart with joy. "We'll go back and fix it all. None of this will happen, and we won't have to watch our world die."
+
+*goto charging
+
+*label less_talk
+
+Callie raises her eyebrow. "You're welcome to help," she says. "Oh wait, you can't, because of the three people left on this planet, I'm the only one who knows how this works."
+
+*label charging
+
+Callie makes her HUD visible to us.
+
+*system
+MACHINE STATUS: 67% charge.
+Estimated stabilization: 2 hours, 10 minutes.
+*end_system
+
+"We're going to make it," Matt says to no one in particular.
+
+*page_break Two hours left.
+
+*label things_go_wrong
+
+*system
+ALERT: Outer ward network has been engaged.
+Malphas detected at ward boundary.
+Estimated time to inner corridor: 1 hour, 20 minutes.
+*end_system
+
+The floor trembles. Just once — a deep, resonant shudder, like something 
+enormous has put its weight against the world.
+
+"That's fine," Callie says immediately, before either of you can speak. 
+"That's within tolerance. I just need forty more minutes."
+
+Matt is already moving to the blast doors, checking the rune panel.
+
+"Outer wards are holding," he calls back. "But whatever's out there is 
+*big,* Callie, and I don't mean Malphas."
+
+"Forty minutes," she repeats.
+
+*system
+MACHINE STATUS: 84% charge.
+Estimated stabilization: 40 minutes.
+*end_system
+
+*page_break The wards do not hold for forty minutes.
+
+*label breach
+
+*system
+CRITICAL: Outer ward network — FAILED.
+Inner corridor defenses now active.
+Estimated time to sanctuary breach: 18 minutes.
+*end_system
+
+"Callie—"
+
+"I heard it." Her voice has gone quiet and precise in the way it does when 
+she's afraid but won't show it. "Sixteen minutes and the bridge stabilizes. 
+I can lock the destination in two more after that."
+
+"That's eighteen minutes," Matt says.
+
+"I'm aware."
+
+He looks at you. You look at him.
+
+"I'll hold the corridor," he says. 
+
+*choice
+  #"We hold it together."
+    He shakes his head once. "Someone needs to be ready to go through the 
+    moment it opens. Stay close to the machine."
+    *goto matt_holds
+  #"Matt—"
+    "I've got better combat stats than you right now and you know it," he says, 
+    somehow managing a grin. "Besides. Someone's got to make sure *someone*actually gets in the machine instead of doing something stupid."
+    *goto matt_holds
+  #Nod. Hand him everything you can spare.
+    You strip off every consumable you have left — potions, charge stones, 
+    a ward scroll you'd been saving. He takes them without argument.
+    *goto matt_holds
+
+*label matt_holds
+
+He takes his position at the blast doors.
+
+You hear a groan of something vast pressing against warded steel. The 
+rune-light along the corridor walls pulses gold, then orange, then a deep 
+and angry red.
+
+"Twelve minutes," Callie says.
+
+The blast doors are holding. For now.
+
+*system
+MACHINE STATUS: 91% charge.
+Estimated stabilization: 11 minutes.
+*end_system
+
+"Eleven," she corrects.
+
+*page_break The doors do not hold for eleven minutes.
+
+*label the_doors_break
+
+They come through in a wave; lesser demons, dozens of them, pouring 
+through the gap before the rune-light can fully discharge. Seven feet 
+of black-plated sinew and too many joints, moving like water... or shadows... they move like things that learned to run without quite understanding it.
+
+And Matt moves to meet them.
+
+You have fought beside him for several years, and you know how he fights. He is measured, efficient, and always, *always* in control.
+
+But what he's doing now is different, and your immediately realize why. Matt isn't fighting to survive. Matt is just buying time.
+
+*page_break He's not planning on coming with you and Callie to the past...
+
+*system
+MACHINE STATUS: 96% charge.
+Estimated stabilization: 4 minutes.
+*end_system
+
+"Four minutes," Callie breathes. Her hands are shaking.
+
+You fight. Demons reach past Matt, and you cut them down with wind magic, slicing them to ribbons.
+
+Three minutes.
+
+Two.
+
+*page_break One.
+
+*label matt_falls
+
+*system
+MACHINE STATUS: 99% charge.
+Stabilization in 60 seconds.
+*end_system
+
+To be continued....
+
+*finish
