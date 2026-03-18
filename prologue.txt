@@ -126,16 +126,13 @@ Estimated time to inner corridor: 1 hour, 21 minutes.
 
 *end_system
 
-The floor trembles. Just once — a deep, resonant shudder, like something 
-enormous has put its weight against the world.
+The floor trembles. Just once — a deep, resonant shudder, like something enormous has put its weight against the world.
 
-"That's fine," Callie says immediately, before either of you can speak. 
-"That's within tolerance. I just need forty more minutes."
+"That's fine," Callie says immediately, before either of you can speak. "That's within tolerance. I just need forty more minutes."
 
 Matt is already moving to the blast doors, checking the rune panel.
 
-"Outer wards are holding," he calls back. "But whatever's out there is 
-*big,* ${first_name}, and I don't mean Malphas."
+"Outer wards are holding," he calls back. "But whatever's out there is *big,* ${first_name}, and I don't mean Malphas."
 
 "Forty minutes," Callie repeats.
 
@@ -156,13 +153,11 @@ Estimated time to sanctuary breach: 18 minutes.
 
 "Callie—"
 
-"I heard it." Her voice has gone quiet and precise in the way it does when 
-she's afraid but won't show it. "Sixteen minutes and the bridge stabilizes. 
-I can lock the destination in two more after that."
+"I heard it." Her voice has gone quiet the way it does when she's afraid but doesn't want to show it. "Sixteen minutes and the bridge stabilizes. I can lock the destination in two more after that."
 
 "That's eighteen minutes," Matt says.
 
-"I'm aware."
+"Yes, Matt. I'm aware."
 
 He looks at you. You look at him.
 
@@ -170,25 +165,20 @@ He looks at you. You look at him.
 
 *choice
   #"We hold it together."
-    He shakes his head once. "Someone needs to be ready to go through the 
-    moment it opens. Stay close to the machine."
+    He shakes his head once. "Someone needs to be ready to go through the moment it opens. Stay close to the machine."
     *goto matt_holds
   #"Matt—"
-    "I've got better combat stats than you right now and you know it," he says, 
-    somehow managing a grin. "Besides. Someone's got to make sure *someone*actually gets in the machine instead of doing something stupid."
+    "I've got better combat stats than you right now and you know it," he says, somehow managing a grin. "Besides. Someone's got to make sure *someone*actually gets in the machine instead of doing something stupid."
     *goto matt_holds
   #Nod. Hand him everything you can spare.
-    You strip off every consumable you have left — potions, charge stones, 
-    a ward scroll you'd been saving. He takes them without argument.
+    You strip off every consumable you have left — potions, charge stones, a ward scroll you'd been saving. He takes them without argument.
     *goto matt_holds
 
 *label matt_holds
 
 He takes his position at the blast doors.
 
-You hear a groan of something vast pressing against warded steel. The 
-rune-light along the corridor walls pulses gold, then orange, then a deep 
-and angry red.
+You hear a groan of something vast pressing against warded steel. The rune-light along the corridor walls pulses gold, then orange, then a deep and angry red.
 
 "Twelve minutes," Callie says.
 
@@ -205,9 +195,7 @@ Estimated stabilization: 11 minutes.
 
 *label the_doors_break
 
-They come through in a wave; lesser demons, dozens of them, pouring 
-through the gap before the rune-light can fully discharge. Seven feet 
-of black-plated sinew and too many joints, moving like water... or shadows... they move like things that learned to run without quite understanding it.
+They come through in a wave; lesser demons, dozens of them, pouring through the gap before the rune-light can fully discharge. Seven feet of black-plated sinew and too many joints, moving like water... or shadows... they move like things that learned to run without quite understanding it.
 
 And Matt moves to meet them.
 
