@@ -21,7 +21,7 @@ With only the three of you, you should have been able to last for nearly four mo
 *system 
 WARNING: Highest Demon Lord, Malphas (Tier-10 World Boss) has been detected within 10 miles of your location. 
 
-WARNING: Highest Demon Lord, Malphas (Tier-10 World Boss) has summoned Legion of Greater Demons within 10 miles of your location.
+WARNING: Highest Demon Lord, Malphas (Tier-10 World Boss) has summoned Legion of Greater Demons (Tier-6 Minions) within 10 miles of your location.
 *end_system
 
 “Jesus,” Matt says, running a hand through his hair. “They really did it."
@@ -119,8 +119,11 @@ Estimated stabilization: 2 hours, 10 minutes.
 
 *system
 ALERT: Outer ward network has been engaged.
-Malphas detected at ward boundary.
+Legion of Greater Demons (Tier-6 Minions) has been detected at ward boundary.
 Estimated time to inner corridor: 1 hour, 20 minutes.
+Highest Demon Lord, Malphas (Tier-10 World Boss) has been detected at ward boundary.
+Estimated time to inner corridor: 1 hour, 21 minutes.
+
 *end_system
 
 The floor trembles. Just once — a deep, resonant shudder, like something 
@@ -132,9 +135,9 @@ enormous has put its weight against the world.
 Matt is already moving to the blast doors, checking the rune panel.
 
 "Outer wards are holding," he calls back. "But whatever's out there is 
-*big,* Callie, and I don't mean Malphas."
+*big,* ${first_name}, and I don't mean Malphas."
 
-"Forty minutes," she repeats.
+"Forty minutes," Callie repeats.
 
 *system
 MACHINE STATUS: 84% charge.
