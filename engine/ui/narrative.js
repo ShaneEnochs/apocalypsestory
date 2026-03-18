@@ -160,6 +160,30 @@ export function formatText(text) {
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
+  // 4. Inline color spans: [cyan]...[/cyan], [amber]...[/amber], etc.
+  // Renders as <span class="inline-accent-{color}">...</span>.
+  // Defined last so color tags can wrap bold/italic markup without
+  // interfering with the markdown pass above.
+  // Rarity aliases: [common], [uncommon], [rare], [epic], [legendary]
+  // also accepted alongside their color equivalents [white], [blue], [purple], [gold].
+  const COLOR_TAGS = [
+    // Core theme
+    'cyan', 'amber', 'green', 'red',
+    // Rarity names
+    'common', 'uncommon', 'rare', 'epic', 'legendary',
+    // Rarity color aliases
+    'white', 'blue', 'purple', 'gold',
+    // Neutral shades
+    'silver', 'dim', 'faint',
+  ];
+  for (const color of COLOR_TAGS) {
+    const open  = new RegExp(`\\[${color}\\]`, 'g');
+    const close = new RegExp(`\\[\\/${color}\\]`, 'g');
+    result = result
+      .replace(open,  `<span class="inline-accent-${color}">`)
+      .replace(close, '</span>');
+  }
+
   return result;
 }
 
