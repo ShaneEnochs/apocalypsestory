@@ -108,8 +108,23 @@ const labelsCache = new Map();
 // Shared title setters — used by both initOverlays and registerCallbacks
 // ---------------------------------------------------------------------------
 function setChapterTitle(t: string) {
+  const prev = dom.chapterTitle?.textContent ?? '';
   if (dom.chapterTitle) dom.chapterTitle.textContent = t;
   setChapterTitleState(t);
+  if (t && t !== prev && t !== '—') showChapterCard(t);
+}
+
+function showChapterCard(title: string): void {
+  document.querySelector('.chapter-card')?.remove();
+  const card = document.createElement('div');
+  card.className = 'chapter-card';
+  card.innerHTML =
+    `<span class="chapter-card-label">Chapter</span>` +
+    `<span class="chapter-card-title">${title}</span>`;
+  if (dom.narrativePanel) {
+    dom.narrativePanel.insertBefore(card, dom.narrativePanel.firstChild);
+  }
+  card.addEventListener('animationend', () => card.remove(), { once: true });
 }
 
 function setGameTitle(t: string) {
