@@ -85,6 +85,11 @@ export function registerCaches(
 // Gosub call stack — stores return addresses for *gosub/*return
 const _gosubStack: number[] = [];
 
+// True while the interpreter is halted at a *page_break waiting for the user
+// to click Continue. Suppresses the trailing auto-save in runInterpreter so
+// it doesn't overwrite the correct save made inside the *page_break handler.
+let _atPageBreak = false;
+
 // ---------------------------------------------------------------------------
 // isDirective — exact prefix match that prevents *goto matching *goto_scene.
 // A directive boundary is end-of-string OR a whitespace character.
@@ -209,7 +214,7 @@ export async function runInterpreter({ suppressAutoSave = false }: { suppressAut
   }
   cb.runStatsScene();
 
-  if (!suppressAutoSave && cb.getNarrativeLog) {
+  if (!suppressAutoSave && !_atPageBreak && cb.getNarrativeLog) {
     saveGameToSlot('auto', null, cb.getNarrativeLog() as any);
   }
 }
@@ -502,9 +507,17 @@ registerCommand('*page_break', (t) => {
   const btnText  = t.replace(/^\*page_break\s*/, '').trim() || 'Continue';
   const resumeIp = ip + 1;
 
+  // Auto-save NOW, while ip still points at this *page_break line.
+  // On restore the interpreter will re-execute *page_break and show
+  // the button again. The trailing save in runInterpreter is suppressed
+  // via _atPageBreak so it can't overwrite this with ip = end-of-scene.
+  if (cb.getNarrativeLog) saveGameToSlot('auto', null, cb.getNarrativeLog() as any);
+
+  _atPageBreak = true;
   setIp(currentLines.length);
 
   cb.showPageBreak(btnText, () => {
+    _atPageBreak = false;
     cb.clearNarrative();
     setIp(resumeIp);
     runInterpreter().catch(err => cb.showEngineError(err instanceof Error ? err.message : String(err)));
