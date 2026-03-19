@@ -2820,7 +2820,8 @@ function wireUI() {
     importInput.addEventListener("change", async () => {
       const file = importInput.files?.[0];
       if (!file) return;
-      const targetSlot = Number(document.getElementById("save-import-slot")?.value || 1);
+      const slotEl = document.getElementById("save-import-slot");
+      const targetSlot = Number(slotEl?.value || 1);
       try {
         const text = await file.text();
         const json = JSON.parse(text);

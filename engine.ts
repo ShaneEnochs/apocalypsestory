@@ -224,7 +224,7 @@ async function popUndo() {
 }
 
 function updateUndoBtn() {
-  const btn = document.getElementById('undo-btn');
+  const btn = document.getElementById('undo-btn') as HTMLButtonElement | null;
   if (!btn) return;
   btn.disabled = _undoStack.length === 0;
 }
@@ -243,9 +243,9 @@ function wireUI() {
   // Close status panel on outside click
   document.addEventListener('click', e => {
     if (
-      !dom.statusPanel.contains(e.target) &&
+      !dom.statusPanel.contains(e.target as Node) &&
       e.target !== dom.statusToggle &&
-      !dom.storeOverlay?.contains(e.target)
+      !dom.storeOverlay?.contains(e.target as Node)
     ) {
       dom.statusPanel.classList.remove('status-visible');
       dom.statusPanel.classList.add('status-hidden');
@@ -384,12 +384,13 @@ function wireUI() {
   });
 
   // Import save file
-  const importInput = document.getElementById('save-import-file');
+  const importInput = document.getElementById('save-import-file') as HTMLInputElement | null;
   if (importInput) {
     importInput.addEventListener('change', async () => {
       const file = importInput.files?.[0];
       if (!file) return;
-      const targetSlot = Number(document.getElementById('save-import-slot')?.value || 1);
+      const slotEl = document.getElementById('save-import-slot') as HTMLSelectElement | null;
+      const targetSlot = Number(slotEl?.value || 1);
       try {
         const text   = await file.text();
         const json   = JSON.parse(text);
@@ -403,7 +404,7 @@ function wireUI() {
       } catch {
         showToast('Import failed: file could not be parsed as JSON.');
       }
-      importInput.value = '';
+      importInput.value  = '';
     });
   }
 
@@ -412,7 +413,7 @@ function wireUI() {
   if (codeCopyBtn) {
     codeCopyBtn.addEventListener('click', () => {
       const code  = encodeSaveCode(getNarrativeLog());
-      const field = document.getElementById('save-code-field');
+      const field = document.getElementById('save-code-field') as HTMLInputElement | null;
       if (navigator.clipboard?.writeText) {
         navigator.clipboard.writeText(code)
           .then(() => {
@@ -434,7 +435,7 @@ function wireUI() {
   const codeLoadBtn = document.getElementById('save-code-load');
   if (codeLoadBtn) {
     codeLoadBtn.addEventListener('click', async () => {
-      const field  = document.getElementById('save-code-field');
+      const field  = document.getElementById('save-code-field') as HTMLInputElement | null;
       const code   = field?.value?.trim();
       if (!code) { showToast('Paste a save code first.'); return; }
 

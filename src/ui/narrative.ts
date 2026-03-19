@@ -280,8 +280,8 @@ export function showInputPrompt(varName, prompt, onSubmit) {
     </div>`;
   _narrativeContent.insertBefore(wrapper, _choiceArea);
 
-  const field  = wrapper.querySelector('.input-prompt-field');
-  const submit = wrapper.querySelector('.input-prompt-submit');
+  const field  = wrapper.querySelector('.input-prompt-field')  as HTMLInputElement;
+  const submit = wrapper.querySelector('.input-prompt-submit') as HTMLButtonElement;
 
   field.addEventListener('input', () => {
     submit.disabled = !field.value.trim();
@@ -303,7 +303,7 @@ export function showInputPrompt(varName, prompt, onSubmit) {
   }
 
   submit.addEventListener('click', doSubmit);
-  field.addEventListener('keydown', (e) => {
+  field.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.key === 'Enter') doSubmit();
   });
 

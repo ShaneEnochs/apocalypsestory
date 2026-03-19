@@ -12,6 +12,17 @@ import {
   _staleSaveFound, clearStaleSaveFound,
 } from '../systems/saves.js';
 
+export interface CharacterData {
+  firstName:                  string;
+  lastName:                   string;
+  pronouns_subject:           string;
+  pronouns_object:            string;
+  pronouns_possessive:        string;
+  pronouns_possessive_pronoun: string;
+  pronouns_reflexive:         string;
+  pronouns_label:             string;
+}
+
 // ---------------------------------------------------------------------------
 // Module-level DOM references and callbacks — populated by init()
 // ---------------------------------------------------------------------------
@@ -408,7 +419,7 @@ export function wireCharCreation() {
 
 // showCharacterCreation — resets and shows the overlay; returns a Promise
 // that resolves with character data when the user submits.
-export function showCharacterCreation() {
+export function showCharacterCreation(): Promise<CharacterData> {
   _inputFirstName.value = '';
   _inputLastName.value  = '';
   _counterFirst.textContent = String(NAME_MAX);
