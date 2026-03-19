@@ -31,7 +31,7 @@ export interface InterpreterCallbacks {
   showInputPrompt:    (varName: string, prompt: string, onSubmit: (value: string) => void) => void;
   showPageBreak:      (btnText: string, onContinue: () => void) => void;
   scheduleStatsRender: () => void;
-  showToast:          (msg: string, duration?: number) => void;
+  showToast:          (msg: string, duration?: number, rarity?: string) => void;
   formatText:         (text: string) => string;
   setChapterTitle:    (t: string) => void;
   setGameTitle:       (t: string) => void;

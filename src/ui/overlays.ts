@@ -186,20 +186,21 @@ export function trapFocus(overlayEl: HTMLElement, triggerEl: HTMLElement | null 
 // ---------------------------------------------------------------------------
 // Toast queue — messages are displayed one at a time.
 // ---------------------------------------------------------------------------
-const _toastQueue: Array<{ message: string; durationMs: number }> = [];
+const _toastQueue: Array<{ message: string; durationMs: number; rarity?: string }> = [];
 let   _toastActive = false;
 
 function _processToastQueue(): void {
   if (_toastActive || _toastQueue.length === 0) return;
   _toastActive = true;
 
-  const { message, durationMs } = _toastQueue.shift()!;
+  const { message, durationMs, rarity } = _toastQueue.shift()!;
 
   _toast.textContent = message;
   _toast.className = _toast.className
     .split(' ')
     .filter((c: string) => c === 'toast' || c === 'hidden')
     .join(' ');
+  if (rarity) _toast.classList.add(`toast--rarity-${rarity}`);
   _toast.classList.remove('hidden', 'toast-hide');
   _toast.classList.add('toast-show');
 
@@ -213,8 +214,8 @@ function _processToastQueue(): void {
   }, durationMs);
 }
 
-export function showToast(message: string, durationMs = 4000): void {
-  _toastQueue.push({ message, durationMs });
+export function showToast(message: string, durationMs = 4000, rarity?: string): void {
+  _toastQueue.push({ message, durationMs, rarity });
   setTimeout(_processToastQueue, 0);
 }
 

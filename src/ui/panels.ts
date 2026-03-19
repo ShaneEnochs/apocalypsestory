@@ -34,7 +34,7 @@ let _storeOverlay:     HTMLElement | null = null;
 let _fetchTextFile!:   (name: string) => Promise<string>;
 let _scheduleStats!:   () => void;
 let _trapFocus:        ((el: HTMLElement, trigger: HTMLElement | null) => (() => void)) | null = null;
-let _showToast!:       (msg: string, duration?: number) => void;
+let _showToast!:       (msg: string, duration?: number, rarity?: string) => void;
 
 export function init({ statusPanel,
                        endingOverlay, endingTitle, endingContent,
@@ -52,7 +52,7 @@ export function init({ statusPanel,
   fetchTextFile:      (name: string) => Promise<string>;
   scheduleStatsRender: () => void;
   trapFocus:          ((el: HTMLElement, trigger: HTMLElement | null) => (() => void)) | null;
-  showToast:          ((msg: string, duration?: number) => void) | null;
+  showToast:          ((msg: string, duration?: number, rarity?: string) => void) | null;
 }): void {
   _statusPanel        = statusPanel;
   _endingOverlay      = endingOverlay;
@@ -74,6 +74,38 @@ const styleState: { colors: Record<string, string>; icons: Record<string, string
 
 // Active tab for the status panel — persists across re-renders
 let _activeStatusTab = 'stats';
+
+// ---------------------------------------------------------------------------
+// Empty-state SVG illustrations — monochrome cyan outlines, 48×48 viewBox.
+// ---------------------------------------------------------------------------
+const EMPTY_SKILLS_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <polygon points="24,3 42,13.5 42,34.5 24,45 6,34.5 6,13.5" stroke="var(--cyan)" stroke-width="1.5"/>
+  <circle cx="24" cy="24" r="9" stroke="var(--cyan)" stroke-width="1.2" opacity="0.5"/>
+  <line x1="24" y1="15" x2="24" y2="33" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <line x1="15.2" y1="19.5" x2="32.8" y2="28.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <line x1="32.8" y1="19.5" x2="15.2" y2="28.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+</svg>`;
+
+const EMPTY_INV_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M17 19 C14 23 12 29 12 35 C12 41 17 45 24 45 C31 45 36 41 36 35 C36 29 34 23 31 19 Z" stroke="var(--cyan)" stroke-width="1.5"/>
+  <path d="M19 19 C19 14 21 11 24 11 C27 11 29 14 29 19" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M21 13 C22 10 26 10 27 13" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="24" y1="29" x2="24" y2="38" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <line x1="19.5" y1="33.5" x2="28.5" y2="33.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+</svg>`;
+
+const EMPTY_LOG_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="8" y="6" width="30" height="37" rx="2" stroke="var(--cyan)" stroke-width="1.5"/>
+  <line x1="15" y1="6" x2="15" y2="43" stroke="var(--cyan)" stroke-width="1.5"/>
+  <line x1="20" y1="17" x2="33" y2="17" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
+  <line x1="20" y1="23" x2="33" y2="23" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
+  <line x1="20" y1="29" x2="33" y2="29" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
+  <line x1="20" y1="35" x2="28" y2="35" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <path d="M35 30 Q39 33 35 36" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+</svg>`;
+
+// Snapshot of last-known numeric stat values, used to trigger flash animations.
+const _prevStatValues: Map<string, number> = new Map();
 
 // ---------------------------------------------------------------------------
 // runStatsScene — parses stats.txt and rebuilds the status sidebar HTML.
@@ -160,7 +192,7 @@ export async function runStatsScene(): Promise<void> {
 
   const ownedSkills = Array.isArray(playerState.skills) ? playerState.skills : [];
   if (ownedSkills.length === 0) {
-    skillsHtml += `<p class="tag-empty" style="padding:0;border:none;background:none;margin-top:8px;">No skills learned yet.</p>`;
+    skillsHtml += `<div class="empty-state">${EMPTY_SKILLS_SVG}<p class="empty-state-text">No skills learned yet.</p></div>`;
   } else {
     const skillItems = ownedSkills.map(k => {
       const entry   = skillRegistry.find(s => s.key === k);
@@ -181,7 +213,7 @@ export async function runStatsScene(): Promise<void> {
 
   const invItems = Array.isArray(playerState.inventory) ? playerState.inventory : [];
   if (invItems.length === 0) {
-    inventoryHtml += `<p class="tag-empty" style="padding:0;border:none;background:none;margin-top:8px;">Nothing here yet.</p>`;
+    inventoryHtml += `<div class="empty-state">${EMPTY_INV_SVG}<p class="empty-state-text">Nothing here yet.</p></div>`;
   } else {
     const invAccordions = invItems.map(invEntry => {
       const baseName = itemBaseName(invEntry);
@@ -207,7 +239,7 @@ export async function runStatsScene(): Promise<void> {
   const jentries = getJournalEntries().filter(j => j.type !== 'achievement');
 
   if (achvs.length === 0 && jentries.length === 0) {
-    achievementsHtml = `<p class="tag-empty" style="padding:0;border:none;background:none;">Nothing recorded yet.</p>`;
+    achievementsHtml = `<div class="empty-state">${EMPTY_LOG_SVG}<p class="empty-state-text">Nothing recorded yet.</p></div>`;
   } else {
     if (achvs.length > 0) {
       const achvAccordionItems = achvs.map(a => {
@@ -269,6 +301,23 @@ export async function runStatsScene(): Promise<void> {
   });
 
   wireTabContent();
+
+  // Diff numeric stat values against the previous render and flash changed ones.
+  _statusPanel.querySelectorAll<HTMLElement>('.status-row').forEach(row => {
+    const label = row.querySelector('.status-label')?.textContent?.trim();
+    const valEl = row.querySelector<HTMLElement>('.status-value');
+    if (!label || !valEl) return;
+    const rawVal = parseFloat(valEl.textContent || '');
+    if (isNaN(rawVal)) return;
+    const key  = label.toLowerCase();
+    const prev = _prevStatValues.get(key);
+    if (prev !== undefined && prev !== rawVal) {
+      const cls = rawVal > prev ? 'stat-flash--up' : 'stat-flash--down';
+      valEl.classList.add(cls);
+      valEl.addEventListener('animationend', () => valEl.classList.remove(cls), { once: true });
+    }
+    _prevStatValues.set(key, rawVal);
+  });
 
   function wireTabContent(): void {
     const skillsStoreBtn = _statusPanel.querySelector('#status-store-btn-skills');
@@ -440,7 +489,8 @@ function renderSkillsTab(container: Element, essence: number): void {
     btn.addEventListener('click', () => {
       const key = btn.dataset.key ?? '';
       if (purchaseSkill(key)) {
-        _showToast(`Skill unlocked: ${skillRegistry.find(s => s.key === key)?.label || key}`);
+        const entry = skillRegistry.find(s => s.key === key);
+        _showToast(`Skill unlocked: ${entry?.label || key}`, 2500, entry?.rarity);
         renderStore();
       }
     });
@@ -489,7 +539,8 @@ function renderItemsTab(container: Element, essence: number): void {
     btn.addEventListener('click', () => {
       const key = btn.dataset.key ?? '';
       if (purchaseItem(key)) {
-        _showToast(`Purchased: ${itemRegistry.find(i => i.key === key)?.label || key}`);
+        const entry = itemRegistry.find(i => i.key === key);
+        _showToast(`Purchased: ${entry?.label || key}`, 2500, entry?.rarity);
         renderStore();
       }
     });
