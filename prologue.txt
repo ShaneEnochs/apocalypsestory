@@ -2,243 +2,192 @@
 
 *label opening
 
-The air in the bunker city of *Solace* is stale, smelling of cold stone and death. 
+*temp checked_matt false
 
-When it became clear that the surface was lost, the last standing nations pooled their remaining resources for the Deep-Reach Initiative. Armies of geomancers sheared the earth's mantle to carve these hollows. Architecture mages raised the buildings and created roadways between them. Druids and nature mages wove life into the dark, growing sunless forests and filling reservoirs from deep-earth streams. Illusionists cast spells upon the rock ceiling to simulate a sky and a sun that stayed at high noon, though it faded to a glow like that of the moon during night hours. Finally, the portal mages brought the survivors down, sealing the way behind them. There were no gates or tunnels leading down here; just a mile of solid rock above your head.
+You don't remember falling asleep, which means your body simply made the decision without consulting you. You guess that somewhere around hour seventy it had apparently convened an internal committee, reached a unanimous verdict, and that was that. The cot beneath you is pre-[System] military surplus, made completely of just canvas and aluminum tubing, and obviously designed by someone who believed that comfort was a form of weakness and had very strong opinions about it.
 
-For four months, as far as you know, there hasn't been a single human alive on the surface, and without humanity to cull the hordes, the monsters have continuously summoned their own kind, fought amongst each other to evolve, and grown stronger, smarter, and eventually...
+You lie still and run a quiet internal check. Your mana is regenerating from having to recharge the monster detection system you have set up outside. Your body is... operational? Sure, we'll go with that. As for your mind... it's present. The grief is exactly where you left it, locked in the specific interior room you've been reinforcing for eight years, and the door is holding strong. Thankfully, you've become, through extensive and largely involuntary practice, very good at this particular maintenance task.
 
-*page_break They found their way down.
+You listen to Callie's machine hum to your left, her tools clinking against the magic metal it's composed of. You take one more breath of the stale, but safe, recycled air.
 
-This room, a reinforced sanctuary magicked into existence via your [Last Stand] spell, was supposed to give you and your two companions time to figure out what to do. Along with its creation, which required every Greater Essence Stone the three of you possessed just to meet the whopping 2,000,000 mana cost, it also created enough food, water, and magically purified air to last ten people for an entire month. 
+*page_break Get up.
 
-Beyond the heavy blast doors, a long, narrow hallway stretches toward a distant stairway that once led to the lower districts of Solace, which the [System] had determined would be the most difficult area for the monsters to find. The walls of the corridor are etched with defensive runes that pulse with golden light, ready to repulse any invaders that are unfortunate enough find their way here.
+The gear rack, full of salvaged armor and weapons, was your contribution to the sanctuary's infrastructure, assembling it during the first week when you needed something to do other thank thinking about how royally screwed the three of you are. It is, if you're being honest, the finest piece of non-magical construction in the room, which is either a point of pride or a fairly damning commentary on where a lot of your skill points went. You begin checking the clasps and tensions anyway, running through the routine you've been completing every morning for years because rituals are load-bearing, and you've learned not to dismantle the ones that work. Most of the armor is dulled or broken in a way that no amount of maintenance could ever fully correct, though it's still better than the best pre-[System] armor ever devised. It's kind of embarrassing in a way, considering your final [Class] evolution is called [legendary]Shield of Humanity[/legendary]. And though you do have a skill that allows you to fix small damage in your weapons and armor, you're no blacksmith.
 
-With only the three of you, you should have been able to last for nearly four months in this place. Maybe five, if you rationed.
-
-*page_break Unfortunately, the monsters had other plans...
-
-*title The Machine
-
-*system 
-WARNING: Highest Demon Lord, Malphas (Tier-10 World Boss) has been detected within 10 miles of your location. 
-
-WARNING: Highest Demon Lord, Malphas (Tier-10 World Boss) has summoned Legion of Greater Demons (Tier-6 Minions) within 10 miles of your location.
-*end_system
-
-“Jesus,” Matt says, running a hand through his hair. “They really did it."
-
-Callie doesn't look up from the machine. She hasn't looked up in three days.
-
-What she's built... what she's *been* building, piece-by-painstaking-piece for the better part of three months, takes up most of the room's back wall. It looks, generously, like someone welded a grandfather clock to a particle accelerator and then let a fever-dreaming engineer have at it with a blowtorch.
-
-Copper conduit spirals around a central housing of dense, ironite-infused obsidian. Slotted into its lattice are intact dungeon cores from Tier 8 and Tier 9 space-time dungeons, alongside hundreds of other [System]-generated crafting materials stripped from every high-tier drop the three of you managed to hoard. The whole thing is a Frankenstein's monster of a machine, and somehow, impossibly, it works.
-
-At the very center of it, behind a viewport of reinforced magesteel glass, a single point of light spins.
-
-A naked singularity. 
-
-"Don't worry," Callie says, voice flat as she concentrates on her insane construction, "they'll never find the entrance to this place. Even if they do, all of the abjuration wards at the entrance and through the hallway will stop them."
-
-Matt looks at you. "What do you think, ${first_name}?" 
+The weapons here are in better shape, though.
 
 *choice
-  #Nod in agreement. 
-    *goto nod
-  #"Please tell me you're close..."
-    *goto worried
+  #Check the consumables.
+    You check the consumables. Two greater healing potions, three mana points, one ward scroll, a collection of charged mana grenades that are, at your current level, roughly as tactically relevant as a strongly-worded letter, but you've kept them the same way you've kept other things that that stopped being useful because they held memories instead. The final tally is honest, though not at all comforting. You've found those two qualities very rarely travel together.
+    *goto gear_done
+  #Check the weapons.
+    You check the weapons. There's a chip in one of the blade you've been meaning to address for three days. You find the whetstone and work on it with more focus than the job probably strictly requires, because you've learned that the mind will think about whatever you point it at, and it is considerably better to point it at a small imperfection in a blade than at the mile of solid rock above your head and your world being completely overrun with monsters. The chip is minor, but the distraction is the point. You are absolutely self-aware enough to know this and do it anyway, which you've helpfully decided counts as a coping strategy rather than a character flaw. There are no therapists left to tell you any different.
+    *goto gear_done
+  #Everything's in order.
+    Well, everything's in order, which is frankly a little on the nose, considering. Three people at the approximate ceiling of [System] enhanced capability, sitting in a magically conjured room at the end of the world, waiting for a time machine to finish charging. All the gear checks out. There's nothing to fix. The only remaining problem is one you can't solve with a whetstone, which is either deeply ironic or just another Tuesday, and after eight years, you've stopped really distinguishing between the two because it just doesn't matter anymore.
+    *goto gear_done
 
-*label nod
+*label gear_done
 
-You nod, trying to present more confidence than you actually feel. 
+Matt is awake, of course. He's sitting on the edge of his own cot, elbows on his kneews, turning something small between his fingers. A coin, you realize. The old world kind, predating everything that matters now and is worth precisely nothing to anyone alive. It's not one that you're familiar with though. 
 
-"This place cost two million mana," you say. "The wards would probably stop a nuclear warhead going off at the end of the hallway."
+Matt looks up, realizing you're watching him, and holds it up for you to see. 
 
-Matt still looks skeptical, but says no more about it.
+"Found it in my boot," he says. "Weird, right? I have no idea how it got in there or for how long."
 
-Callie finally turns. There are deep, dark rings under her eyes that look like bruises. She's been awake for — you try to count backward — at least fifty hours? Maybe more. It's little wonder why she looks like this, but you hate to see your best friend under this level of physical and mental stress.
-
-*goto callie_explains
-
-*label worried
-
-Callie finally turns. There are deep, dark rings under her eyes that look like bruises. She's been awake for... you try to count backward... at least fifty hours? Maybe more.
-
-*goto callie_explains
-
-*label callie_explains
-
-"You both understand what this does," she says. "Well, will do. Soon it won't matter what's going on up there."
-
-You do know, and you still can't believe it. 
-
-The machine is an *almost* working, *nearly* calibrated, temporal bridge. Callie Owens, the greatest Artificer alive, possibly the greatest who *ever lived*, has spent the last few months of the apocalypse building a door to the past.
-
-Well, to one specific day in the past: the day the System arrived.
-
-"All three of us will go back," Callie continues, "to the exact moment of [System] integration. We'll lose our gear and our levels, but we'll keep our memories."
 
 *choice
-  #"Eight years of 20/20 hindsight will make a lot of difference."
-    *goto hindsight
-  #"How close are you?"
-    *goto how_close
-  #"Less talking, more working."
-    *goto less_talk
+  #"How much is it worth?"
+    *goto worth
+  #"Too bad we can't take it with us."
+    *goto take_with
+  #Sit beside him. 
 
-*label hindsight
 
-Callie smiles at you. It's the first smile you've seen in a long time from her, and it fills your heart with joy.
+*label worth
+"How much is it worth?" you ask.
 
-"Exactly," she says. "We'll go back and fix it all. None of this will happen, and we won't have to watch our world die."
+"Before?" He turns it over, apparently giving this genuine consideration. "Couple dollars, maybe?" He pauses. "I'm not sure. It looks pretty old, so I could probably trade it to a collector or a historian or something, if either of those things still existed, which they don't, so..." He pockets it, smiling slightly. "Sentimental value only."
+*set checked_matt true
+*goto matt_moment
 
-*goto charging
+*label take_with
+"It's too bad we can't take it with us," you say. "Might have been worth something when we get back."
 
-*label how_close
+He's quiet for a moment, then closes his fingers around the coin and tucks it into his pocket. "Yeah," he says, lost in thought. "Maybe."
+*set checked_matt true
+*goto matt_moment
 
-"Close," she says with a smile. It's the first smile you've seen in a long time from her, and it fills your heart with joy. "We'll go back and fix it all. None of this will happen, and we won't have to watch our world die."
+*label sit_matt
+You sit down beside him. The cots are close enough that you don't have to move much to be next to each other, and Matt doesn't even look at you when you do. He shifts just enough that you're not sitting on top of each other.
 
-*goto charging
+You have noticed this before about Matt. He understands the difference between a silence that needs filled and a silence that wants to be left alone, and he's never once gotten them confused. You appreciate that about him. You know Callie told him things about you, early on when he first joined the two of you, and you suspect that's part of it. The rest is just him, you think.
+*set checked_matt true
+*goto matt_moment
 
-*label less_talk
 
-Callie raises her eyebrow. "You're welcome to help," she says. "Oh wait, you can't, because of the three people left on this planet, I'm the only one who knows how this works."
+*label matt_moment
 
-*label charging
+The two of you simply sit with the quiet for a few minutes, which the three of you have learned is often a very finite resource since the [System] arrived and treat it accordingly. The glowing runes for the wards beyond the blast doors are cycling their slow, golden rhythm, which means the outer wards are holding fine and nothing has found the entrance yet. You are carefully and deliberately not trying to guess how long that's likely to remain true.
 
-Callie makes her HUD visible to us.
+"She let me bring her food around hour twenty," Matt says, nodding toward Callie. "She didn't even look up. Just held out her hand." He paused. "I don't even know if she actually ate it." He looks at you, as if to see if you have any insight into this, but you don't. You just know that it's exactly the kind of thing Callie would do, and that Matt is exactly the kind of person who would find it worth mentioning.
+
+*choice
+  #"That tracks."
+    *goto that_tracks
+  #"You didn't watch her to make sure?"
+    *goto make_sure
+  #"Go make her eat something now."
+    *goto do_it_now
+
+*label that_tracks
+"That tracks," you say.
+
+Matt almost smiles. "Callie said you used to have to remind her to eat during finals too."
+
+You feel something begin welling up in your chest, but you push it back into the box where it belongs. "Yeah, she's always had her priorties, and taking care of herself has always ranked pretty low on that list unfortunately."
+*goto matt_end
+
+*label make_sure
+"You didn't watch her to make sure?" you ask.
+
+"For about forty-five seconds," he says, entirely without shame. "Then she told me I was disturbing her concentration and I had to leave."
+
+You nod. "She does that."
+*goto matt_end
+
+*label do_it_now
+"Go make her eat something now," you say.
+
+He raises an eyebrow at you. "You go make her eat something," he says. "The day she listens to me about anything... well, it certainly isn't today."
+
+You smile. "Fair enough," you say. "I guess I'll go check on her *machine* instead."
+*goto matt_end
+
+*label matt_end
+
+*page_break
+
+*comment ── Approach to Callie. Old friendship, world context woven through.
+
+You get up and cross the room.
+
+The machine takes up most of the back wall, and it still does
+something weird to your chest and head every time you look at it. It's like a very particular variety of vertigo, but not the kind that comes from heights or spinning or falling. It's from looking at something that shouldn't exist, something that is so far beyond the limits of what the world should be capable of that your brain just doesn't know how to process it. Once upon a time, you'd have thought that it's what it must be like to look upon an eldritch horror, but having done that many times now, you know that it's not quite right.
+
+Copper conduits spiral around an ironite-obsidian central housing. Dungeon cores from Tier 8 and 9 space-time instances are slotted into a lattice of [System]-generated materials the three of you had gathered for years, unable to imagine this is what they'd eventually be used for. It's every high-tier drop the three of you had managed to hoard, stripped down and reassembled into something that the [System] didn't even have a category for, and that by itself was quite a feat.
+
+Behind a viewport of reinforced magesteel glass, at the center
+of all of it, a single point of light spins.
+
+A singularity.
+
+*page_break "Hey, Callie."
+
+"Hey Callie," you say.
+
+Callie doesn't look up, and you instantly recognize the expression she gets when she's very close to the edge of something great. She's focused to the point where the rest of the world, and even her own health, has been downgraded to background noise, filed under *deal with it later,* and left on read.
+
+The dark rings under her eyes have deepend and evolved from exhaustion to something that looks more like a medical condition. Her hair is held back with a piece of wire, which you're pretty certain is one of the wires from your ward scrolls that she asked to borrow four days ago for *just a second.* 
+
+You have known Callie Owens since your second year of college, which means you knew her before the [System], before the descent, before the long catastrophic sequence of events that transformed the two of you from people who argued about where the best place near campus to eat was into people who have watched the world end together and are now, improbably, preparing to actually do something about it. 
+
+You knew her when she was *just* the most frighteningly capable person you'd ever met. Now the [System] has given her a Tier rating and a Legendary [Class] as a confirmation. But you already knew.
+
+*choice
+  #Don't say anything. Just stand close enough that she knows you're there.
+    She still doesn't look up. But after a moment, something in the line of her shoulders changes. It's a small, specific movement you've seen a hundred times before, in libraries and late-night study sessions and now here, at the end of everything. It means she registered you and it helped and she is absolutely not going to mention either of those things. 
+    *goto callie_status
+  #"Callie?"
+    *goto callie_status
+  #"You look terrible."
+    "Thank you," she says, with complete sincerity. "I feel terrible. The machine, however, is doing great and functionally flawless, so I consider it to be a reasonable exchange. Look."
+    *goto callie_status
+
+*label callie_status
+
+She makes her HUD visible to you, and a blue screen appears in the air between you, displaying a series of readouts and graphs that you don't understand but you have to admit look very impressive. You have no doubt that they are accurate, and that they are the result of Callie's genius, but most of it might as well be hieroglyphics to you.
+
+Well, that's not true. Thanks to a [Skill] you picked up in the early days, you can understand most written and spoken languages, including Egyption hieroglyphics.
+
+"What am I looking at?"
+
+Callie squinted, and the data arranged itself into a much simplier format.
 
 *system
 MACHINE STATUS: 67% charge.
 Estimated stabilization: 2 hours, 10 minutes.
 *end_system
 
-"We're going to make it," Matt says to no one in particular.
+*goto world_context
 
-*page_break Two hours left.
+*label world_context
 
-*title The Coming Flood
+*comment ── World context. Kept lean — just enough for orientation.
 
-*label things_go_wrong
+Two hours and ten minutes.
 
-*system
-ALERT: Outer ward network has been engaged.
-Legion of Greater Demons (Tier-6 Minions) has been detected at ward boundary.
-Estimated time to inner corridor: 1 hour, 20 minutes.
-Highest Demon Lord, Malphas (Tier-10 World Boss) has been detected at ward boundary.
-Estimated time to inner corridor: 1 hour, 21 minutes.
+You let yourself hold that number for a moment without immediately stress-testing it, which is actually harder than it sounds. You've had eight years of learning that good news generally came with lots and lots of fine print. 
 
-*end_system
+For instance, four months ago, the portal mages had sealed the last entrance to the surface. There were no gates or tunnels; just a mile of solid rock between the city of Solace and the horrors above. It was the last coalition of surving nations, built in the earth's hollow because there was nowhere else to go but down. Legions of geomancers sheared the rock asunder, architecture mages laid the streets and buildings, and the most powerful illusionists created a false sky on the ceiling so the survivors could look up at something other than stone in dispair.
 
-The floor trembles. Just once — a deep, resonant shudder, like something enormous has put its weight against the world.
+Everyone dispaired, regardless. How could they not?
 
-"That's fine," Callie says immediately, before either of you can speak. "That's within tolerance. I just need forty more minutes."
+*page_break But it mostly worked, for all of four months.
 
-Matt is already moving to the blast doors, checking the rune panel.
+For four months, as far as anyone knows, there has not been a single living human being on the surface. The monsters had done what monsters do when left entirely to their own devices: autonomously summoned more of their kind, fought and consumed each other to become more powerful and stranger, and evolved in directions that no one could have anticipated. They got smarter, and they eventually began looking for wherever humanity had tried to hide. 
 
-"Outer wards are holding," he calls back. "But whatever's out there is *big,* ${first_name}, and I don't mean Malphas."
+It didn't take long for them to start looking down.
 
-"Forty minutes," Callie repeats.
+But in two hours and ten minutes, none of it will matter anymore. You find, carefully, that you almost believe it.
+
+*page_break Almost...
 
 *system
-MACHINE STATUS: 84% charge.
-Estimated stabilization: 40 minutes.
+WARNING: Highest Demon Lord, Malphas (Tier-10 World Boss) has
+been detected within 10 miles of your location.
+
+WARNING: Highest Demon Lord, Malphas (Tier-10 World Boss) has
+summoned Legion of Greater Demons (Tier-6 Minions) within 10
+miles of your location.
 *end_system
-
-*page_break The wards do not hold for forty minutes.
-
-*title Breach
-
-*label breach
-
-*system
-CRITICAL: Outer ward network — FAILED.
-Inner corridor defenses now active.
-Estimated time to sanctuary breach: 18 minutes.
-*end_system
-
-"Callie—"
-
-"I heard it." Her voice has gone quiet the way it does when she's afraid but doesn't want to show it. "Sixteen minutes and the bridge stabilizes. I can lock the destination in two more after that."
-
-"That's eighteen minutes," Matt says.
-
-"Yes, Matt. I'm aware."
-
-He looks at you. You look at him.
-
-"I'll hold the corridor," he says. 
-
-*choice
-  #"We hold it together."
-    He shakes his head once. "Someone needs to be ready to go through the moment it opens. Stay close to the machine."
-    *goto matt_holds
-  #"Matt—"
-    "I've got better combat stats than you right now and you know it," he says, somehow managing a grin. "Besides. Someone's got to make sure you two actually get in the machine instead of doing something stupid."
-    *goto matt_holds
-  #Nod. Hand him everything you can spare.
-    You strip off every consumable you have left — potions, charge stones, a ward scroll you'd been saving. He takes them without argument.
-    *goto matt_holds
-
-*label matt_holds
-
-*title Hold the Line
-
-He takes his position at the blast doors.
-
-You hear a groan of something vast pressing against warded steel. The rune-light along the corridor walls pulses gold, then orange, then a deep and angry red.
-
-"Twelve minutes," Callie says.
-
-The blast doors are holding. For now.
-
-*system
-MACHINE STATUS: 91% charge.
-Estimated stabilization: 11 minutes.
-*end_system
-
-"Eleven," she corrects.
-
-*page_break The doors do not hold for eleven minutes.
-
-*label the_doors_break
-
-They come through in a wave; lesser demons, dozens of them, pouring through the gap before the rune-light can fully discharge. Seven feet of black-plated sinew and too many joints... They move like things that just acquired physical form and learned to run by watching other creatures run, without quite understanding the actual physics of it.
-
-Matt moves to meet them.
-
-You have fought beside Matt for several years, and you know how he fights. He is very measured, efficient in his attacks, and always, *always* in control.
-
-But what he's doing now is different, and you immediately realize why. Matt isn't fighting to survive. 
-
-Matt is just buying time.
-
-*page_break He's not planning on coming with you and Callie to the past...
-
-*system
-MACHINE STATUS: 96% charge.
-Estimated stabilization: 4 minutes.
-*end_system
-
-"Four minutes," Callie breathes. Her hands are shaking.
-
-You fight. Demons reach past Matt, and you cut them down with wind magic, slicing them to ribbons.
-
-Three minutes.
-
-Two.
-
-*page_break One.
-
-*label matt_falls
-
-*title Matt Falls
-
-*system
-MACHINE STATUS: 99% charge.
-Stabilization in 60 seconds.
-*end_system
-
-To be continued....
-
-*ending
