@@ -507,7 +507,7 @@ registerCommand('*page_break', (t) => {
   cb.showPageBreak(btnText, () => {
     cb.clearNarrative();
     setIp(resumeIp);
-    runInterpreter().catch(err => cb.showEngineError(err.message));
+    runInterpreter().catch(err => cb.showEngineError(err instanceof Error ? err.message : String(err)));
   });
 });
 
@@ -531,12 +531,12 @@ registerCommand('*input', (t) => {
     if (!store) {
       cb.showEngineError(`*input: variable "${varName}" is not declared. Add *create ${varName} or *temp ${varName} before using *input.`);
       setIp(resumeIp);
-      runInterpreter().catch(err => cb.showEngineError(err.message));
+      runInterpreter().catch(err => cb.showEngineError(err instanceof Error ? err.message : String(err)));
       return;
     }
     store[varName] = value;
     setIp(resumeIp);
-    runInterpreter().catch(err => cb.showEngineError(err.message));
+    runInterpreter().catch(err => cb.showEngineError(err instanceof Error ? err.message : String(err)));
   });
 });
 

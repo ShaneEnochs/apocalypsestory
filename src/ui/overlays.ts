@@ -370,7 +370,7 @@ export function wireCharCreation() {
   function handleInput(inputEl: HTMLInputElement, counterEl: HTMLElement, errorEl: HTMLElement, fieldLabel: string): void {
     const cleaned = inputEl.value.replace(/[^\p{L}\p{M}'\- ]/gu, '');
     if (cleaned !== inputEl.value) {
-      const pos = (inputEl.selectionStart ?? 0) - (inputEl.value.length - cleaned.length);
+      const pos = Math.max(0, (inputEl.selectionStart ?? 0) - (inputEl.value.length - cleaned.length));
       inputEl.value = cleaned;
       try { inputEl.setSelectionRange(pos, pos); } catch (_) {}
     }
