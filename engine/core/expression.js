@@ -1,18 +1,16 @@
-// ---------------------------------------------------------------------------
 // core/expression.js — Safe expression evaluator
 //
-// FIX #7: evalValue now returns 0 (falsy) on parse error instead of the raw
-//   expression string (which was truthy and caused conditions to "fail open" —
-//   e.g. a malformed *selectable_if condition would always enable the choice).
+// Parses and evaluates authoring-language expressions used in *if, *set,
+// *selectable_if, and similar directives. Returns 0 (falsy) on any parse
+// error so broken conditions fail closed rather than open.
 //
-// FIX #8: parseOr and parseAnd no longer short-circuit token consumption.
-//   Previously: `left = left || parseAnd()` — if left was truthy, parseAnd()
-//   was never called, so its tokens were never consumed, corrupting the token
-//   stream for subsequent expressions (e.g. `flag or random(1,6) > 3` would
-//   leave `random(1,6) > 3` unconsumed and throw or misparse on the next call).
-//   Now: the right-hand side is ALWAYS fully parsed before the boolean is
-//   applied, matching how all other binary operators are handled.
-// ---------------------------------------------------------------------------
+// Supports: numbers, strings, booleans, variables, arithmetic (+−*/),
+// comparisons (<, >, <=, >=, =, !=), logical operators (and, or, not),
+// and built-in functions (random, round, floor, ceil, abs, min, max, length).
+//
+// Boolean operators always fully consume both sides of the expression before
+// applying the result, so function calls inside or/and branches never leave
+// unconsumed tokens in the stream.
 
 import { playerState, tempState, normalizeKey, resolveStore } from './state.js';
 
@@ -70,13 +68,13 @@ function tokenise(src) {
     if (/[a-zA-Z_]/.test(src[i])) {
       let j = i;
       while (j < src.length && /[\w]/.test(src[j])) j++;
-      const word = src.slice(i, j);
+      const word  = src.slice(i, j);
       const lower = word.toLowerCase();
-      if (lower === 'true')  { tokens.push({ type: TT.BOOL,  value: true  }); i = j; continue; }
-      if (lower === 'false') { tokens.push({ type: TT.BOOL,  value: false }); i = j; continue; }
-      if (lower === 'and')   { tokens.push({ type: TT.AND,   value: 'and' }); i = j; continue; }
-      if (lower === 'or')    { tokens.push({ type: TT.OR,    value: 'or'  }); i = j; continue; }
-      if (lower === 'not')   { tokens.push({ type: TT.NOT,   value: 'not' }); i = j; continue; }
+      if (lower === 'true')  { tokens.push({ type: TT.BOOL, value: true  }); i = j; continue; }
+      if (lower === 'false') { tokens.push({ type: TT.BOOL, value: false }); i = j; continue; }
+      if (lower === 'and')   { tokens.push({ type: TT.AND,  value: 'and' }); i = j; continue; }
+      if (lower === 'or')    { tokens.push({ type: TT.OR,   value: 'or'  }); i = j; continue; }
+      if (lower === 'not')   { tokens.push({ type: TT.NOT,  value: 'not' }); i = j; continue; }
       tokens.push({ type: TT.IDENT, value: word });
       i = j;
       continue;
@@ -104,16 +102,14 @@ function makeParser(tokens) {
 
   function parseExpr() { return parseOr(); }
 
-  // FIX #8: Always consume the right-hand side before applying the boolean,
-  // so the token stream is never left in a partially-consumed state when the
-  // left operand already determines the result. This is necessary because
-  // the right side may contain function calls (e.g. random()) that must
-  // consume their argument tokens regardless of the boolean outcome.
+  // Both sides are always fully parsed before the boolean is applied so that
+  // function calls inside or/and branches consume their tokens regardless of
+  // whether the short-circuit result is already determined.
   function parseOr() {
     let left = parseAnd();
     while (peek().type === TT.OR) {
       advance();
-      const right = parseAnd(); // always consume, even if left is already truthy
+      const right = parseAnd();
       left = left || right;
     }
     return left;
@@ -123,7 +119,7 @@ function makeParser(tokens) {
     let left = parseNot();
     while (peek().type === TT.AND) {
       advance();
-      const right = parseNot(); // always consume, even if left is already falsy
+      const right = parseNot();
       left = left && right;
     }
     return left;
@@ -141,7 +137,7 @@ function makeParser(tokens) {
     let left = parseAddSub();
     const CMP = [TT.LT, TT.GT, TT.LTE, TT.GTE, TT.EQ, TT.NEQ];
     while (CMP.includes(peek().type)) {
-      const op = advance().type;
+      const op    = advance().type;
       const right = parseAddSub();
       /* eslint-disable eqeqeq */
       if (op === TT.LT)  left = left <  right;
@@ -158,7 +154,7 @@ function makeParser(tokens) {
   function parseAddSub() {
     let left = parseMulDiv();
     while (peek().type === TT.PLUS || peek().type === TT.MINUS) {
-      const op = advance().type;
+      const op    = advance().type;
       const right = parseMulDiv();
       left = op === TT.PLUS ? left + right : left - right;
     }
@@ -168,7 +164,7 @@ function makeParser(tokens) {
   function parseMulDiv() {
     let left = parseUnary();
     while (peek().type === TT.STAR || peek().type === TT.SLASH) {
-      const op = advance().type;
+      const op    = advance().type;
       const right = parseUnary();
       if (op === TT.SLASH && right === 0) {
         console.warn('[expression] Division by zero — returning 0');
@@ -212,12 +208,11 @@ function makeParser(tokens) {
         advance();
         return parseFunction(tok.value);
       }
-      const key = normalizeKey(tok.value);
+      const key   = normalizeKey(tok.value);
       const store = resolveStore(key);
       if (store !== null) return store[key];
-      // FIX H (sweep 4): Return 0 (falsy) for unknown identifiers instead of
-      // the raw string (which was truthy, causing *if conditions with typos to
-      // silently evaluate to true — the same "fail open" class of bug as FIX #7).
+      // Unknown identifiers return 0 (falsy) so *if conditions with typos
+      // fail closed rather than silently evaluating to true.
       console.warn(`[expression] Unknown variable "${tok.value}" — returning 0. Check for typos in scene files.`);
       return 0;
     }
@@ -240,12 +235,12 @@ function makeParser(tokens) {
       const hi = Math.floor(Number(args[1] ?? lo));
       return Math.floor(Math.random() * (hi - lo + 1)) + lo;
     },
-    round: (args) => Math.round(Number(args[0] ?? 0)),
-    floor: (args) => Math.floor(Number(args[0] ?? 0)),
-    ceil:  (args) => Math.ceil(Number(args[0] ?? 0)),
-    abs:   (args) => Math.abs(Number(args[0] ?? 0)),
-    min:   (args) => Math.min(...args.map(Number)),
-    max:   (args) => Math.max(...args.map(Number)),
+    round:  (args) => Math.round(Number(args[0] ?? 0)),
+    floor:  (args) => Math.floor(Number(args[0] ?? 0)),
+    ceil:   (args) => Math.ceil(Number(args[0] ?? 0)),
+    abs:    (args) => Math.abs(Number(args[0] ?? 0)),
+    min:    (args) => Math.min(...args.map(Number)),
+    max:    (args) => Math.max(...args.map(Number)),
     length: (args) => {
       const v = args[0];
       if (Array.isArray(v)) return v.length;
@@ -276,9 +271,7 @@ export function evalValue(expr) {
     const parser = makeParser(tokens);
     return parser.parseExpr();
   } catch (err) {
-    // FIX #7: Return 0 (falsy) on parse error instead of the raw expression
-    // string (which was truthy, causing broken conditions to "fail open" —
-    // e.g. a malformed *selectable_if condition would always enable the choice).
+    // Return 0 (falsy) on parse error so broken conditions fail closed.
     console.warn(`[expression] Parse error in "${trimmed}": ${err.message}`);
     return 0;
   }
