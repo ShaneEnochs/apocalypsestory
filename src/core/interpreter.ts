@@ -62,7 +62,7 @@ import { addJournalEntry }                                         from '../syst
 // Callback registry — UI functions injected by engine.js at boot.
 // ---------------------------------------------------------------------------
 
-const cb: Partial<InterpreterCallbacks> = {};
+const cb = {} as InterpreterCallbacks;
 
 export function registerCallbacks(callbacks: InterpreterCallbacks): void {
   Object.assign(cb, callbacks);
@@ -172,7 +172,7 @@ export async function gotoScene(name: string, label: string|null = null): Promis
   try {
     text = await cb.fetchTextFile(name);
   } catch (err) {
-    cb.showEngineError(`Could not load scene "${name}".\n${err.message}`);
+    cb.showEngineError(`Could not load scene "${name}".\n${(err as Error).message}`);
     return;
   }
 
@@ -182,13 +182,13 @@ export async function gotoScene(name: string, label: string|null = null): Promis
   _gosubStack.length = 0;
   setCurrentScene(name);
   setCurrentLines(parseLines(text));
-  indexLabels(name, currentLines, _labelsCache);
+  indexLabels(name, currentLines, _labelsCache!);
   setIp(0);
   cb.clearNarrative();
   cb.applyTransition();
 
   if (label) {
-    const labels = _labelsCache.get(name) || {};
+    const labels = _labelsCache!.get(name) || {};
     setIp(labels[label] ?? 0);
   }
 
@@ -210,7 +210,7 @@ export async function runInterpreter({ suppressAutoSave = false }: { suppressAut
   cb.runStatsScene();
 
   if (!suppressAutoSave && cb.getNarrativeLog) {
-    saveGameToSlot('auto', null, cb.getNarrativeLog());
+    saveGameToSlot('auto', null, cb.getNarrativeLog() as any);
   }
 }
 
@@ -301,7 +301,7 @@ registerCommand('*goto_scene', async (t) => {
 // *goto label
 registerCommand('*goto', (t) => {
   const label  = t.replace(/^\*goto\s*/, '').trim();
-  const labels = _labelsCache.get(currentScene) || {};
+  const labels = _labelsCache!.get(currentScene!) || {};
   if (labels[label] === undefined) {
     cb.showEngineError(`Unknown label "${label}" in scene "${currentScene}".`);
     setIp(currentLines.length);
@@ -359,7 +359,7 @@ registerCommand('*create_stat', (t) => {
   const defaultVal = evalValue(rhs);
   playerState[key] = defaultVal;
   if (!statRegistry.find(e => e.key === key)) {
-    setStatRegistry([...statRegistry, { key, label, defaultVal }]);
+    setStatRegistry([...statRegistry, { key, label, defaultVal: Number(defaultVal) }]);
   }
   advanceIp();
 });
@@ -493,7 +493,7 @@ registerCommand('*achievement', (t) => {
 // *save_point [label]
 registerCommand('*save_point', (t) => {
   const label = t.replace(/^\*save_point\s*/, '').trim() || null;
-  if (cb.getNarrativeLog) saveGameToSlot('auto', label, cb.getNarrativeLog());
+  if (cb.getNarrativeLog) saveGameToSlot('auto', label as any, cb.getNarrativeLog() as any);
   advanceIp();
 });
 
@@ -507,7 +507,7 @@ registerCommand('*page_break', (t) => {
   cb.showPageBreak(btnText, () => {
     cb.clearNarrative();
     setIp(resumeIp);
-    runInterpreter().catch(err => cb.showEngineError(err.message));
+    runInterpreter().catch(err => cb.showEngineError(err instanceof Error ? err.message : String(err)));
   });
 });
 
@@ -531,12 +531,12 @@ registerCommand('*input', (t) => {
     if (!store) {
       cb.showEngineError(`*input: variable "${varName}" is not declared. Add *create ${varName} or *temp ${varName} before using *input.`);
       setIp(resumeIp);
-      runInterpreter().catch(err => cb.showEngineError(err.message));
+      runInterpreter().catch(err => cb.showEngineError(err instanceof Error ? err.message : String(err)));
       return;
     }
     store[varName] = value;
     setIp(resumeIp);
-    runInterpreter().catch(err => cb.showEngineError(err.message));
+    runInterpreter().catch(err => cb.showEngineError(err instanceof Error ? err.message : String(err)));
   });
 });
 
@@ -632,7 +632,7 @@ registerCommand('*patch_state', (t) => {
 // *gosub label — call a subroutine, push return address
 registerCommand('*gosub', (t) => {
   const label  = t.replace(/^\*gosub\s*/, '').trim();
-  const labels = _labelsCache.get(currentScene) || {};
+  const labels = _labelsCache!.get(currentScene!) || {};
   if (labels[label] === undefined) {
     cb.showEngineError(`*gosub: Unknown label "${label}" in scene "${currentScene}".`);
     setIp(currentLines.length);
@@ -649,13 +649,13 @@ registerCommand('*return', () => {
     setIp(currentLines.length);
     return;
   }
-  setIp(_gosubStack.pop());
+  setIp(_gosubStack.pop()!);
 });
 
 // *finish — advance to the next scene in scene_list
 registerCommand('*finish', async () => {
   const list = startup.sceneList;
-  const currentIdx = list.indexOf(currentScene.replace(/\.txt$/i, ''));
+  const currentIdx = list.indexOf(currentScene!.replace(/\.txt$/i, ''));
   const nextIdx = currentIdx + 1;
   if (nextIdx >= list.length) {
     cb.showEngineError(`*finish: no next scene after "${currentScene}" in scene_list.`);

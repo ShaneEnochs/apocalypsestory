@@ -2,39 +2,30 @@
 
 ## What Was Done (this session)
 
-Completed Phase 4 of the TypeScript migration plan — all source files converted from `.js` to `.ts`.
+Completed Phase 5a of the TypeScript migration plan — all DOM narrowing errors fixed, `tsc --noEmit` is now clean at 0 errors with `strict: false`.
 
 **Branch:** `claude/review-commit-handoff-yqAJ5`
 
 ### Changes
 
-| What | Detail |
-|------|--------|
-| All 14 source files renamed | `git mv *.js → *.ts` for all files in `src/` and root `engine.ts` |
-| `state.ts` | 6 JSDoc `@typedef` blocks → real exported TypeScript interfaces |
-| `state.ts` | `@type` JSDoc → inline TS type annotations on all `export let` vars and function params |
-| `parser.ts` | JSDoc `@typedef {import()} X` → `import type { X } from './state.js'` |
-| `parser.ts` | 4 local JSDoc typedefs → inline `interface` declarations |
-| `interpreter.ts` | JSDoc `@typedef {import()} X` → `import type { X } from './state.js'` |
-| `interpreter.ts` | `InterpreterCallbacks` JSDoc typedef → exported `interface InterpreterCallbacks` |
-| `interpreter.ts` | `DirectiveHandler` typedef → `type DirectiveHandler = ...` |
-| `saves.ts` | Two `payload` objects typed as `Record<string, any>` to fix optional-property errors |
-| `build.js` | `entryPoints: ['engine.ts']` |
-| `tsconfig.json` | `include` updated to `engine.ts` |
-| `package.json` | Test scripts changed from `node` → `npx tsx` (tsx added as devDependency) |
-| `tests/test_runner.mjs` | Import paths updated to `.ts` extensions |
-| Build | 98.5 kb, 33 ms (unchanged) |
+| File | What |
+|------|------|
+| `src/ui/narrative.ts` | `querySelector` results cast to `HTMLInputElement` / `HTMLButtonElement`; `keydown` listener typed as `KeyboardEvent` |
+| `src/ui/overlays.ts` | Added exported `CharacterData` interface; `showCharacterCreation()` return typed as `Promise<CharacterData>` |
+| `engine.ts` | `getElementById('undo-btn')` cast to `HTMLButtonElement \| null`; `e.target` cast to `Node` in `.contains()` calls; `importInput` cast to `HTMLInputElement`; slot select cast to `HTMLSelectElement`; save-code `field` cast to `HTMLInputElement` |
+| `tsconfig.json` | Remains at `strict: false` (see note below) |
+| Build | 98.5 kb, 18 ms (unchanged) |
 | Tests | 183/183 pass |
+| `tsc --noEmit` | **0 errors** |
 
-### `tsc --noEmit` Status
+### Why `strict: true` Was Deferred
 
-25 type errors remain — all are DOM narrowing issues in `engine.ts` and `src/ui/narrative.ts`:
+Enabling `strict: true` produced **508 errors** across the codebase, dominated by two categories:
 
-- `HTMLElement` used where `HTMLInputElement`, `HTMLButtonElement` etc. are expected (`.value`, `.disabled`, `.files`)
-- `EventTarget` used where `Node` is expected (`.contains()`)
-- `unknown` typed return from `showCharacterCreation()` being destructured
+1. **Implicit `any` parameters** — every function without explicit parameter types in `engine.ts`, `expression.ts`, and all UI files triggers `TS7006: Parameter 'x' implicitly has an 'any' type`.
+2. **Possibly-null DOM elements** — the `dom.*` object in `engine.ts` is built via `getElementById` (returns `HTMLElement | null`), so every property access on it triggers `TS18047: ... is possibly 'null'`. Same pattern in all UI modules.
 
-These are the **Phase 5 workload** — they don't affect the build or tests, but will need to be fixed before `strict: true` is clean.
+This requires a proper typing pass across the remaining untyped functions, not a few targeted fixes.
 
 ---
 
@@ -45,42 +36,54 @@ These are the **Phase 5 workload** — they don't affect the build or tests, but
 | 1 | Patch-diary comment cleanup (all source files) | Done — `f62ddce` |
 | 1/2 | JSDoc `@typedef`/`@param`/`@returns` on `state.js`, `parser.js`, `interpreter.js` | Done — `4136097` |
 | 3 | TypeScript installed + `tsconfig.json` + `engine/` → `src/` rename | Done — `f740cbf` |
-| 4 | All `.js` → `.ts`; real interfaces in `state`, `parser`, `interpreter` | Done — this session |
+| 4 | All `.js` → `.ts`; real interfaces in `state`, `parser`, `interpreter` | Done — `aa9951f` |
+| 5a | DOM narrowing fixes; 0 errors at `strict: false` | Done — this session |
 
 ---
 
 ## What's Next
 
-### Phase 5 — Fix `tsc --noEmit` errors + Enable `strict: true`
+### Phase 5b — Enable `strict: true`
 
-Two related tasks:
+The 508 strict-mode errors fall into two clean categories — tackle them in order:
 
-**5a. Fix the 25 remaining DOM type errors** (before enabling strict):
+**Pass 1 — Annotate all remaining function parameters** (fixes most `TS7006` errors)
 
-All in `engine.ts` and `src/ui/narrative.ts`. The pattern is always the same:
-
+Every function without explicit parameter types. Pattern:
 ```typescript
-// Before (broken — HTMLElement lacks .value):
-const field = document.getElementById('save-code-field');
-if (field) field.value = code;
+// Before:
+function wireUI() {
+  dom.statusToggle.addEventListener('click', () => { ... });
+}
 
-// After (fixed):
-const field = document.getElementById('save-code-field') as HTMLInputElement | null;
-if (field) field.value = code;
+// After (for callbacks):
+dom.statusToggle.addEventListener('click', (_e: MouseEvent) => { ... });
 ```
 
-Common casts needed:
-- `getElementById('...')` → cast to `HTMLInputElement`, `HTMLButtonElement`, `HTMLTextAreaElement` etc.
-- `e.target` → cast to `Node` inside `.contains()` calls
-- Return type of `showCharacterCreation()` in `overlays.ts` needs to be typed
+The untyped files are mainly `engine.ts`, `expression.ts`, and the UI modules (`narrative.ts`, `panels.ts`, `overlays.ts`).
 
-**5b. Enable strict mode** in `tsconfig.json`:
+**Pass 2 — Null-guard the `dom` object in `engine.ts`** (fixes `TS18047` errors)
 
-```json
-"strict": true
-```
+The `dom` object is built with `getElementById` calls, all of which return `HTMLElement | null`. Options:
+- **Option A (assertive)**: Cast all assignments: `narrativeContent: document.getElementById('narrative-content') as HTMLElement`
+- **Option B (defensive)**: Add runtime null checks and type `dom` with a proper interface
 
-Then fix any new errors that surface (likely implicit `any` parameters).
+Option A is faster; Option B is safer. Given that the HTML template is stable, Option A is reasonable.
+
+**Pass 3 — Remaining misc errors**
+
+- `err` in `catch` blocks: type as `Error` or `unknown` with narrowing
+- `_undoStack` implicit `any[]`: add `UndoSnapshot` interface and type it
+- Expression parser tokens: add `Token` interface to `expression.ts`
+
+### Suggested Order
+
+1. Add a `Dom` interface to `engine.ts` and cast all `getElementById` calls at construction
+2. Annotate all function parameters in `engine.ts`
+3. Add `Token` interface + parameter types in `expression.ts`
+4. Annotate remaining parameter types in `narrative.ts`, `panels.ts`, `overlays.ts`
+5. Flip `strict: true` — should be near-zero errors at this point
+6. Fix any remaining stragglers
 
 ---
 
@@ -93,14 +96,15 @@ src/
   systems/    saves.ts, inventory.ts, skills.ts, items.ts, journal.ts, leveling.ts
   ui/         narrative.ts, panels.ts, overlays.ts
   tests/      e2e.spec.mjs
-tsconfig.json
+tsconfig.json       (strict: false, noEmit: true)
 ```
 
 ---
 
 ## Notes
 
+- `tsc --noEmit` with `strict: false`: **0 errors** ✓
 - esbuild strips all type annotations — bundle size is unaffected.
-- `tsx` (added as devDependency) powers `npm test` so Node.js can run the `.ts` test suite directly.
-- Internal imports still use `.js` extensions (e.g. `from './state.js'`) — this is intentional and correct: esbuild and tsx both resolve these to the `.ts` files.
-- `checkJs: false` can be removed now that all files are `.ts`.
+- `tsx` powers `npm test` so Node.js can execute `.ts` files directly.
+- Internal imports still use `.js` extensions — esbuild and tsx both resolve these to `.ts`.
+- `checkJs: false` can be removed now that all files are `.ts` (it currently has no effect).

@@ -8,11 +8,20 @@
 
 import { playerState, normalizeKey } from '../core/state.js';
 
+export interface SkillEntry {
+  key:         string;
+  label:       string;
+  essenceCost: number;
+  rarity:      string;
+  description: string;
+  condition:   string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Skill registry — populated by parseSkills from skills.txt
 // [{ key, label, essenceCost, description, rarity, condition }]
 // ---------------------------------------------------------------------------
-export let skillRegistry = [];
+export let skillRegistry: SkillEntry[] = [];
 
 // ---------------------------------------------------------------------------
 // parseSkills — reads skills.txt and populates skillRegistry.
@@ -21,19 +30,19 @@ export let skillRegistry = [];
 //            Description text (indented).
 //          *require expression  (optional — hides until true)
 // ---------------------------------------------------------------------------
-export async function parseSkills(fetchTextFileFn) {
+export async function parseSkills(fetchTextFileFn: (name: string) => Promise<string>): Promise<void> {
   let text;
   try {
     text = await fetchTextFileFn('skills');
   } catch (err) {
-    console.warn('[skills] skills.txt not found — skill system disabled.', err.message);
+    console.warn('[skills] skills.txt not found — skill system disabled.', (err as Error).message);
     skillRegistry = [];
     return;
   }
 
   const lines = text.split(/\r?\n/);
-  const parsed = [];
-  let current = null;
+  const parsed: SkillEntry[] = [];
+  let current: SkillEntry | null = null;
 
   for (const raw of lines) {
     const trimmed = raw.trim();
@@ -76,7 +85,7 @@ export async function parseSkills(fetchTextFileFn) {
 // ---------------------------------------------------------------------------
 // playerHasSkill — checks whether playerState.skills contains the given key
 // ---------------------------------------------------------------------------
-export function playerHasSkill(key) {
+export function playerHasSkill(key: string): boolean {
   const k = normalizeKey(key);
   return Array.isArray(playerState.skills) && playerState.skills.includes(k);
 }
@@ -84,7 +93,7 @@ export function playerHasSkill(key) {
 // ---------------------------------------------------------------------------
 // grantSkill — adds a skill without spending Essence. No-op if already owned.
 // ---------------------------------------------------------------------------
-export function grantSkill(key) {
+export function grantSkill(key: string): void {
   const k = normalizeKey(key);
   if (!Array.isArray(playerState.skills)) playerState.skills = [];
   if (!playerState.skills.includes(k)) {
@@ -95,7 +104,7 @@ export function grantSkill(key) {
 // ---------------------------------------------------------------------------
 // revokeSkill — removes a skill. Warns if not owned.
 // ---------------------------------------------------------------------------
-export function revokeSkill(key) {
+export function revokeSkill(key: string): void {
   const k = normalizeKey(key);
   if (!Array.isArray(playerState.skills)) return;
   const idx = playerState.skills.indexOf(k);
@@ -110,7 +119,7 @@ export function revokeSkill(key) {
 // purchaseSkill — deducts Essence, then grants the skill.
 // Returns true on success, false if already owned or can't afford.
 // ---------------------------------------------------------------------------
-export function purchaseSkill(key) {
+export function purchaseSkill(key: string): boolean {
   const k    = normalizeKey(key);
   const entry = skillRegistry.find(s => s.key === k);
   if (!entry) {

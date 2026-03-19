@@ -731,8 +731,9 @@ function loadSaveFromSlot(slot) {
     if (raw.startsWith("SA1|")) {
       const result = decodeSaveCode(raw);
       if (result.ok) return result.save;
-      console.warn(`[saves] Slot "${slot}" decode failed: ${result.reason}`);
-      if (result.reason.includes("different game version")) {
+      const reason = result.reason;
+      console.warn(`[saves] Slot "${slot}" decode failed: ${reason}`);
+      if (reason.includes("different game version")) {
         setStaleSaveFound();
       }
       try {
@@ -1187,7 +1188,7 @@ registerCommand("*create_stat", (t) => {
   const defaultVal = evalValue(rhs);
   playerState[key] = defaultVal;
   if (!statRegistry.find((e) => e.key === key)) {
-    setStatRegistry([...statRegistry, { key, label, defaultVal }]);
+    setStatRegistry([...statRegistry, { key, label, defaultVal: Number(defaultVal) }]);
   }
   advanceIp();
 });
@@ -1511,13 +1512,13 @@ function purchaseItem(key) {
 function escapeHtml(val) {
   return String(val ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-var _narrativeContent = null;
-var _choiceArea = null;
-var _narrativePanel = null;
-var _scheduleStats = null;
-var _onBeforeChoice = null;
-var _executeBlock = null;
-var _runInterpreter = null;
+var _narrativeContent;
+var _choiceArea;
+var _narrativePanel;
+var _scheduleStats;
+var _onBeforeChoice;
+var _executeBlock;
+var _runInterpreter;
 function init({
   narrativeContent,
   choiceArea,
@@ -1732,8 +1733,8 @@ function renderFromLog(log, { skipAnimations = true } = {}) {
       }
       case "system": {
         const div = document.createElement("div");
-        const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(entry.text);
-        const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(entry.text);
+        const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(entry.text ?? "");
+        const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(entry.text ?? "");
         div.className = `system-block${isEssence ? " essence-block" : ""}${isLevelUp ? " levelup-block" : ""}`;
         const formatted = formatText(entry.text).replace(/\\n/g, "\n").replace(/\n/g, "<br>");
         div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
@@ -1759,17 +1760,17 @@ function renderFromLog(log, { skipAnimations = true } = {}) {
 }
 
 // src/ui/panels.ts
-var _statusPanel = null;
+var _statusPanel;
 var _endingOverlay = null;
 var _endingTitle = null;
 var _endingContent = null;
 var _endingStats = null;
 var _endingActionBtn = null;
 var _storeOverlay = null;
-var _fetchTextFile = null;
-var _scheduleStats2 = null;
+var _fetchTextFile;
+var _scheduleStats2;
 var _trapFocus = null;
-var _showToast = null;
+var _showToast;
 function init2({
   statusPanel,
   endingOverlay,
@@ -1793,7 +1794,7 @@ function init2({
   _fetchTextFile = fetchTextFile2;
   _scheduleStats2 = scheduleStatsRender2;
   _trapFocus = trapFocus2;
-  _showToast = showToast2 || (() => {
+  _showToast = showToast2 ?? (() => {
   });
 }
 var styleState = { colors: {}, icons: {} };
@@ -1839,7 +1840,7 @@ async function runStatsScene() {
       statsHtml += `<div class="status-section"><div class="status-label status-section-header">${escapeHtml(e.name)}</div>`;
       inGroup = true;
     }
-    if (e.type === "stat") {
+    if (e.type === "stat" && e.key) {
       const cc = styleState.colors[e.key] || "";
       const ic = styleState.icons[e.key] ?? "";
       const rawVal = playerState[e.key] ?? "\u2014";
@@ -1949,7 +1950,7 @@ async function runStatsScene() {
   _statusPanel.innerHTML = panelHtml;
   _statusPanel.querySelectorAll(".status-tab").forEach((btn) => {
     btn.addEventListener("click", () => {
-      _activeStatusTab = btn.dataset.tab;
+      _activeStatusTab = btn.dataset.tab ?? "stats";
       _statusPanel.querySelectorAll(".status-tab").forEach(
         (b) => b.classList.toggle("status-tab--active", b.dataset.tab === _activeStatusTab)
       );
@@ -1982,12 +1983,13 @@ function showStore(tab = null) {
   if (!_storeOverlay) return;
   if (tab) _storeActiveTab = tab;
   _preStoreTab = _activeStatusTab;
-  _storeOverlay.classList.remove("hidden");
+  const overlay = _storeOverlay;
+  overlay.classList.remove("hidden");
   requestAnimationFrame(() => {
-    _storeOverlay.style.opacity = "1";
+    overlay.style.opacity = "1";
   });
   if (_trapFocus) {
-    _storeTrapRelease = _trapFocus(_storeOverlay, null);
+    _storeTrapRelease = _trapFocus(overlay, null);
   }
   renderStore();
 }
@@ -2010,6 +2012,7 @@ function hideStore() {
   });
 }
 function renderStore() {
+  if (!_storeOverlay) return;
   const box = _storeOverlay.querySelector(".store-modal-box");
   if (!box) return;
   const essence = Number(playerState.essence || 0);
@@ -2030,11 +2033,12 @@ function renderStore() {
   box.querySelector("#store-close-btn")?.addEventListener("click", hideStore);
   box.querySelectorAll(".store-tab").forEach((tab) => {
     tab.addEventListener("click", () => {
-      _storeActiveTab = tab.dataset.tab;
+      _storeActiveTab = tab.dataset.tab ?? "skills";
       renderStore();
     });
   });
   const content = box.querySelector("#store-content");
+  if (!content) return;
   if (_storeActiveTab === "skills") {
     renderSkillsTab(content, essence);
   } else {
@@ -2104,7 +2108,7 @@ function renderSkillsTab(container, essence) {
   container.innerHTML = html;
   container.querySelectorAll(".store-purchase-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const key = btn.dataset.key;
+      const key = btn.dataset.key ?? "";
       if (purchaseSkill(key)) {
         _showToast(`Skill unlocked: ${skillRegistry.find((s) => s.key === key)?.label || key}`);
         renderStore();
@@ -2151,7 +2155,7 @@ function renderItemsTab(container, essence) {
   container.innerHTML = html;
   container.querySelectorAll(".store-purchase-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const key = btn.dataset.key;
+      const key = btn.dataset.key ?? "";
       if (purchaseItem(key)) {
         _showToast(`Purchased: ${itemRegistry.find((i) => i.key === key)?.label || key}`);
         renderStore();
@@ -2161,13 +2165,13 @@ function renderItemsTab(container, essence) {
 }
 function showEndingScreen(title, content) {
   if (!_endingOverlay) return;
-  _endingTitle.textContent = title;
-  _endingContent.textContent = content;
+  if (_endingTitle) _endingTitle.textContent = title;
+  if (_endingContent) _endingContent.textContent = content;
   const statsLines = [];
   statRegistry.forEach(({ key, label }) => {
     statsLines.push(`${label}: ${playerState[key] ?? "\u2014"}`);
   });
-  _endingStats.textContent = statsLines.join("  \xB7  ");
+  if (_endingStats) _endingStats.textContent = statsLines.join("  \xB7  ");
   _endingOverlay.classList.remove("hidden");
   _endingOverlay.style.opacity = "1";
   if (_trapFocus) {
@@ -2180,29 +2184,29 @@ function showEndingScreen(title, content) {
 }
 
 // src/ui/overlays.ts
-var _splashOverlay = null;
-var _splashSlots = null;
-var _saveOverlay = null;
-var _saveBtn = null;
-var _charOverlay = null;
-var _inputFirstName = null;
-var _inputLastName = null;
-var _counterFirst = null;
-var _counterLast = null;
-var _errorFirstName = null;
-var _errorLastName = null;
-var _charBeginBtn = null;
-var _toast = null;
-var _runStatsScene = null;
-var _fetchTextFile2 = null;
-var _evalValue = null;
-var _renderFromLog = null;
-var _renderChoices = null;
-var _runInterpreter2 = null;
-var _clearNarrative = null;
-var _applyTransition = null;
-var _setChapterTitle = null;
-var _parseAndCacheScene = null;
+var _splashOverlay;
+var _splashSlots;
+var _saveOverlay;
+var _saveBtn;
+var _charOverlay;
+var _inputFirstName;
+var _inputLastName;
+var _counterFirst;
+var _counterLast;
+var _errorFirstName;
+var _errorLastName;
+var _charBeginBtn;
+var _toast;
+var _runStatsScene;
+var _fetchTextFile2;
+var _evalValue;
+var _renderFromLog;
+var _renderChoices;
+var _runInterpreter2;
+var _clearNarrative;
+var _applyTransition;
+var _setChapterTitle;
+var _parseAndCacheScene;
 var _clearUndoStack = null;
 var _setChoiceArea = null;
 var _setGameTitle = null;
@@ -2343,18 +2347,19 @@ function showToast(message, durationMs = 4e3) {
   setTimeout(_processToastQueue, 0);
 }
 function populateSlotCard({ nameEl, metaEl, loadBtn, deleteBtn, cardEl, save }) {
+  const lbtn = loadBtn;
   if (save) {
     const d = new Date(save.timestamp);
     const sceneDisplay = save.label ? save.label : save.scene.replace(/\.txt$/i, "").toUpperCase();
-    metaEl.textContent = `${sceneDisplay} \xB7 ${d.toLocaleDateString(void 0, { month: "short", day: "numeric", year: "numeric" })}`;
-    nameEl.textContent = save.characterName || "Unknown";
-    loadBtn.disabled = false;
+    if (metaEl) metaEl.textContent = `${sceneDisplay} \xB7 ${d.toLocaleDateString(void 0, { month: "short", day: "numeric", year: "numeric" })}`;
+    if (nameEl) nameEl.textContent = save.characterName || "Unknown";
+    if (lbtn) lbtn.disabled = false;
     cardEl.classList.remove("slot-card--empty");
     if (deleteBtn) deleteBtn.classList.remove("hidden");
   } else {
-    nameEl.textContent = "\u2014 Empty \u2014";
-    metaEl.textContent = "";
-    loadBtn.disabled = true;
+    if (nameEl) nameEl.textContent = "\u2014 Empty \u2014";
+    if (metaEl) metaEl.textContent = "";
+    if (lbtn) lbtn.disabled = true;
     cardEl.classList.add("slot-card--empty");
     if (deleteBtn) deleteBtn.classList.add("hidden");
   }
@@ -2456,14 +2461,14 @@ function wireCharCreation() {
   function handleInput(inputEl, counterEl, errorEl, fieldLabel) {
     const cleaned = inputEl.value.replace(/[^\p{L}\p{M}'\- ]/gu, "");
     if (cleaned !== inputEl.value) {
-      const pos = inputEl.selectionStart - (inputEl.value.length - cleaned.length);
+      const pos = (inputEl.selectionStart ?? 0) - (inputEl.value.length - cleaned.length);
       inputEl.value = cleaned;
       try {
         inputEl.setSelectionRange(pos, pos);
       } catch (_) {
       }
     }
-    counterEl.textContent = NAME_MAX - inputEl.value.length;
+    counterEl.textContent = String(NAME_MAX - inputEl.value.length);
     const err = validateName(inputEl.value.trim() === "" ? "" : inputEl.value, fieldLabel);
     inputEl.classList.toggle("char-input--error", !!err);
     errorEl.textContent = err || "";
@@ -2513,12 +2518,13 @@ function wireCharCreation() {
     const selected = _charOverlay.querySelector(".pronoun-card.selected");
     if (!selected) return;
     _charOverlay.classList.add("hidden");
-    if (typeof _charOverlay._trapRelease === "function") {
-      _charOverlay._trapRelease();
-      _charOverlay._trapRelease = null;
+    const overlay = _charOverlay;
+    if (typeof overlay._trapRelease === "function") {
+      overlay._trapRelease();
+      overlay._trapRelease = null;
     }
-    if (typeof _charOverlay._resolve === "function") {
-      _charOverlay._resolve({
+    if (typeof overlay._resolve === "function") {
+      overlay._resolve({
         firstName: _inputFirstName.value.trim(),
         lastName: _inputLastName.value.trim(),
         pronouns_subject: selected.dataset.subject,
@@ -2603,7 +2609,7 @@ Object.entries(dom).forEach(([key, el]) => {
 var sceneCache = /* @__PURE__ */ new Map();
 var labelsCache = /* @__PURE__ */ new Map();
 function setChapterTitle(t) {
-  dom.chapterTitle.textContent = t;
+  if (dom.chapterTitle) dom.chapterTitle.textContent = t;
   setChapterTitleState(t);
 }
 function setGameTitle(t) {
@@ -2646,8 +2652,8 @@ function showEngineError(message) {
 Use the Restart button to reload.`;
   div.appendChild(label);
   div.appendChild(text);
-  dom.narrativeContent.insertBefore(div, dom.choiceArea);
-  dom.chapterTitle.textContent = "ERROR";
+  dom.narrativeContent?.insertBefore(div, dom.choiceArea);
+  if (dom.chapterTitle) dom.chapterTitle.textContent = "ERROR";
 }
 var _undoStack = [];
 var UNDO_MAX = 10;
@@ -2658,7 +2664,7 @@ function pushUndoSnapshot() {
     scene: currentScene,
     ip,
     narrativeLog: JSON.parse(JSON.stringify(getNarrativeLog())),
-    chapterTitle: dom.chapterTitle.textContent,
+    chapterTitle: dom.chapterTitle?.textContent ?? null,
     awaitingChoice: awaitingChoice ? JSON.parse(JSON.stringify(awaitingChoice)) : null
   });
   if (_undoStack.length > UNDO_MAX) _undoStack.shift();
@@ -2669,16 +2675,18 @@ async function popUndo() {
   const snap = _undoStack.pop();
   setPlayerState(JSON.parse(JSON.stringify(snap.playerState)));
   setTempState(JSON.parse(JSON.stringify(snap.tempState)));
-  setCurrentScene(snap.scene);
-  const text = sceneCache.get(snap.scene.endsWith(".txt") ? snap.scene : `${snap.scene}.txt`);
-  if (text) {
-    setCurrentLines(parseLines(text));
-    indexLabels(snap.scene, currentLines, labelsCache);
+  if (snap.scene) setCurrentScene(snap.scene);
+  if (snap.scene) {
+    const text = sceneCache.get(snap.scene.endsWith(".txt") ? snap.scene : `${snap.scene}.txt`);
+    if (text) {
+      setCurrentLines(parseLines(text));
+      indexLabels(snap.scene, currentLines, labelsCache);
+    }
   }
   setIp(snap.ip);
   setAwaitingChoice(null);
-  dom.chapterTitle.textContent = snap.chapterTitle;
-  setChapterTitleState(snap.chapterTitle);
+  if (dom.chapterTitle) dom.chapterTitle.textContent = snap.chapterTitle;
+  setChapterTitleState(snap.chapterTitle ?? "");
   renderFromLog(snap.narrativeLog, { skipAnimations: true });
   if (snap.awaitingChoice) {
     setAwaitingChoice(snap.awaitingChoice);
@@ -2693,23 +2701,23 @@ function updateUndoBtn() {
   btn.disabled = _undoStack.length === 0;
 }
 function wireUI() {
-  dom.statusToggle.addEventListener("click", () => {
-    const visible = dom.statusPanel.classList.toggle("status-visible");
-    dom.statusPanel.classList.toggle("status-hidden", !visible);
+  dom.statusToggle?.addEventListener("click", () => {
+    const visible = dom.statusPanel?.classList.toggle("status-visible");
+    dom.statusPanel?.classList.toggle("status-hidden", !visible);
     runStatsScene();
   });
   document.addEventListener("click", (e) => {
-    if (!dom.statusPanel.contains(e.target) && e.target !== dom.statusToggle && !dom.storeOverlay?.contains(e.target)) {
-      dom.statusPanel.classList.remove("status-visible");
-      dom.statusPanel.classList.add("status-hidden");
+    if (!dom.statusPanel?.contains(e.target) && e.target !== dom.statusToggle && !dom.storeOverlay?.contains(e.target)) {
+      dom.statusPanel?.classList.remove("status-visible");
+      dom.statusPanel?.classList.add("status-hidden");
     }
   });
-  dom.saveBtn.addEventListener("click", showSaveMenu);
-  dom.saveMenuClose.addEventListener("click", hideSaveMenu);
-  dom.saveOverlay.addEventListener("click", (e) => {
+  dom.saveBtn?.addEventListener("click", showSaveMenu);
+  dom.saveMenuClose?.addEventListener("click", hideSaveMenu);
+  dom.saveOverlay?.addEventListener("click", (e) => {
     if (e.target === dom.saveOverlay) hideSaveMenu();
   });
-  dom.saveOverlay.addEventListener("keydown", (e) => {
+  dom.saveOverlay?.addEventListener("keydown", (e) => {
     if (e.key === "Escape") hideSaveMenu();
   });
   [1, 2, 3].forEach((slot) => {
@@ -2754,7 +2762,7 @@ function wireUI() {
       }
     });
   }
-  dom.splashNewBtn.addEventListener("click", async () => {
+  dom.splashNewBtn?.addEventListener("click", async () => {
     hideSplash();
     const charData = await showCharacterCreation();
     patchPlayerState({
@@ -2767,21 +2775,21 @@ function wireUI() {
       pronouns_reflexive: charData.pronouns_reflexive,
       pronouns_label: charData.pronouns_label
     });
-    dom.saveBtn.classList.remove("hidden");
+    dom.saveBtn?.classList.remove("hidden");
     document.getElementById("undo-btn")?.classList.remove("hidden");
     _undoStack.splice(0);
     updateUndoBtn();
     await runStatsScene();
     await gotoScene(startup.sceneList[0] || "prologue");
   });
-  dom.splashLoadBtn.addEventListener("click", () => {
-    dom.splashOverlay.querySelector(".splash-btn-col")?.classList.add("hidden");
-    dom.splashSlots.classList.remove("hidden");
+  dom.splashLoadBtn?.addEventListener("click", () => {
+    dom.splashOverlay?.querySelector(".splash-btn-col")?.classList.add("hidden");
+    dom.splashSlots?.classList.remove("hidden");
     refreshAllSlotCards();
   });
-  dom.splashSlotsBack.addEventListener("click", () => {
-    dom.splashSlots.classList.add("hidden");
-    dom.splashOverlay.querySelector(".splash-btn-col")?.classList.remove("hidden");
+  dom.splashSlotsBack?.addEventListener("click", () => {
+    dom.splashSlots?.classList.add("hidden");
+    dom.splashOverlay?.querySelector(".splash-btn-col")?.classList.remove("hidden");
   });
   ["auto", 1, 2, 3].forEach((slot) => {
     const btn = document.getElementById(`slot-load-${slot}`);
@@ -2820,7 +2828,8 @@ function wireUI() {
     importInput.addEventListener("change", async () => {
       const file = importInput.files?.[0];
       if (!file) return;
-      const targetSlot = Number(document.getElementById("save-import-slot")?.value || 1);
+      const slotEl = document.getElementById("save-import-slot");
+      const targetSlot = Number(slotEl?.value || 1);
       try {
         const text = await file.text();
         const json = JSON.parse(text);
@@ -2936,7 +2945,7 @@ async function boot() {
     },
     setChoiceArea: (el) => {
       dom.choiceArea = el;
-      setChoiceArea(el);
+      if (el) setChoiceArea(el);
     },
     clearUndoStack: () => {
       _undoStack.splice(0);

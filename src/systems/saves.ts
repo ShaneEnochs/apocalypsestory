@@ -28,8 +28,8 @@ export const SAVE_VERSION  = 9;
 export const SAVE_KEY_AUTO  = 'sa_save_auto';
 export const SAVE_KEY_SLOTS = { 1: 'sa_save_slot_1', 2: 'sa_save_slot_2', 3: 'sa_save_slot_3' };
 
-export function saveKeyForSlot(slot) {
-  return slot === 'auto' ? SAVE_KEY_AUTO : (SAVE_KEY_SLOTS[slot] ?? null);
+export function saveKeyForSlot(slot: string | number): string | null {
+  return slot === 'auto' ? SAVE_KEY_AUTO : (SAVE_KEY_SLOTS[slot as 1|2|3] ?? null);
 }
 
 // ---------------------------------------------------------------------------
@@ -42,7 +42,7 @@ export function setStaleSaveFound()   { _staleSaveFound = true;  }
 // ---------------------------------------------------------------------------
 // CRC-16 checksum — catches copy-paste corruption and bit-rot.
 // ---------------------------------------------------------------------------
-function crc16(str) {
+function crc16(str: string): string {
   let crc = 0xFFFF;
   for (let i = 0; i < str.length; i++) {
     crc ^= str.charCodeAt(i);
@@ -57,9 +57,9 @@ function crc16(str) {
 // buildSaveCodePayload — builds the compact payload for SA1 encoding.
 // Delta-compresses playerState against startup defaults.
 // ---------------------------------------------------------------------------
-function buildSaveCodePayload(label, narrativeLog) {
+function buildSaveCodePayload(label: string | null, narrativeLog: unknown[]): Record<string, any> {
   const defaults = getStartupDefaults();
-  const ps = {};
+  const ps: Record<string, any> = {};
   for (const [k, v] of Object.entries(playerState)) {
     if (JSON.stringify(v) !== JSON.stringify(defaults[k])) {
       ps[k] = v;
@@ -86,7 +86,7 @@ function buildSaveCodePayload(label, narrativeLog) {
 // ---------------------------------------------------------------------------
 // encodeSaveCode — encodes the current game state into an SA1 string.
 // ---------------------------------------------------------------------------
-export function encodeSaveCode(narrativeLog, label = null) {
+export function encodeSaveCode(narrativeLog: unknown[], label: string | null = null): string {
   const json = JSON.stringify(buildSaveCodePayload(label, narrativeLog));
   const compressed = btoa(unescape(encodeURIComponent(json)));
   const checksum = crc16(compressed);
@@ -97,7 +97,7 @@ export function encodeSaveCode(narrativeLog, label = null) {
 // decodeSaveCode — decodes an SA1 string into a full save object.
 // Returns { ok, save?, reason? }.
 // ---------------------------------------------------------------------------
-export function decodeSaveCode(code) {
+export function decodeSaveCode(code: string): { ok: true; save: any } | { ok: false; reason: string } {
   const trimmed = code.trim();
 
   const parts = trimmed.split('|');
@@ -120,7 +120,7 @@ export function decodeSaveCode(code) {
     const decoded = decodeURIComponent(escape(atob(compressed)));
     json = JSON.parse(decoded);
   } catch (err) {
-    return { ok: false, reason: `Save code could not be decoded: ${err.message}` };
+    return { ok: false, reason: `Save code could not be decoded: ${(err as Error).message}` };
   }
 
   if (json.v !== SAVE_VERSION) {
@@ -151,7 +151,7 @@ export function decodeSaveCode(code) {
 // ---------------------------------------------------------------------------
 // saveGameToSlot — encodes to SA1 and writes to localStorage.
 // ---------------------------------------------------------------------------
-export function saveGameToSlot(slot, label = null, narrativeLog = []) {
+export function saveGameToSlot(slot: string | number, label: string | null = null, narrativeLog: unknown[] = []): void {
   const key = saveKeyForSlot(slot);
   if (!key) { console.warn(`[saves] Unknown save slot: "${slot}"`); return; }
   try {
@@ -166,7 +166,7 @@ export function saveGameToSlot(slot, label = null, narrativeLog = []) {
 // loadSaveFromSlot — reads from localStorage and decodes SA1.
 // Legacy raw JSON blobs from older engine versions are discarded.
 // ---------------------------------------------------------------------------
-export function loadSaveFromSlot(slot) {
+export function loadSaveFromSlot(slot: string | number): any | null {
   const key = saveKeyForSlot(slot);
   if (!key) return null;
   try {
@@ -176,8 +176,9 @@ export function loadSaveFromSlot(slot) {
     if (raw.startsWith('SA1|')) {
       const result = decodeSaveCode(raw);
       if (result.ok) return result.save;
-      console.warn(`[saves] Slot "${slot}" decode failed: ${result.reason}`);
-      if (result.reason.includes('different game version')) {
+      const reason = (result as { ok: false; reason: string }).reason;
+      console.warn(`[saves] Slot "${slot}" decode failed: ${reason}`);
+      if (reason.includes('different game version')) {
         setStaleSaveFound();
       }
       try { localStorage.removeItem(key); } catch (_) {}
@@ -196,7 +197,7 @@ export function loadSaveFromSlot(slot) {
 // ---------------------------------------------------------------------------
 // deleteSaveSlot
 // ---------------------------------------------------------------------------
-export function deleteSaveSlot(slot) {
+export function deleteSaveSlot(slot: string | number): void {
   const key = saveKeyForSlot(slot);
   if (key) try { localStorage.removeItem(key); } catch (_) {}
 }
@@ -206,7 +207,7 @@ export function deleteSaveSlot(slot) {
 // The anchor element is attached to the document before .click() for
 // cross-browser compatibility (Firefox requires it).
 // ---------------------------------------------------------------------------
-export function exportSaveSlot(slot) {
+export function exportSaveSlot(slot: string | number): boolean {
   const save = loadSaveFromSlot(slot);
   if (!save) return false;
 
@@ -229,7 +230,7 @@ export function exportSaveSlot(slot) {
 // importSaveFromJSON — validates an imported JSON save object, re-encodes
 // as SA1, and stores it in the target slot.
 // ---------------------------------------------------------------------------
-export function importSaveFromJSON(json, targetSlot) {
+export function importSaveFromJSON(json: any, targetSlot: string | number): { ok: true } | { ok: false; reason: string } {
   if (!json || typeof json !== 'object' || Array.isArray(json))
     return { ok: false, reason: 'File is not a valid JSON object.' };
   if (json.version !== SAVE_VERSION)
@@ -243,7 +244,7 @@ export function importSaveFromJSON(json, targetSlot) {
   if (!key) return { ok: false, reason: `Invalid target slot: "${targetSlot}".` };
 
   const defaults = getStartupDefaults();
-  const deltaPs = {};
+  const deltaPs: Record<string, any> = {};
   for (const [k, v] of Object.entries(json.playerState)) {
     if (JSON.stringify(v) !== JSON.stringify(defaults[k])) {
       deltaPs[k] = v;
@@ -272,7 +273,7 @@ export function importSaveFromJSON(json, targetSlot) {
     localStorage.setItem(key, code);
     return { ok: true };
   } catch (err) {
-    return { ok: false, reason: `localStorage write failed: ${err.message}` };
+    return { ok: false, reason: `localStorage write failed: ${(err as Error).message}` };
   }
 }
 
@@ -282,7 +283,7 @@ export function importSaveFromJSON(json, targetSlot) {
 // If the save was at a *choice point, restores the buttons directly.
 // If mid-scene (via *save_point), resumes execution from save.ip.
 // ---------------------------------------------------------------------------
-export async function restoreFromSave(save, {
+export async function restoreFromSave(save: any, {
   runStatsScene,
   renderFromLog,
   renderChoices,
@@ -294,7 +295,19 @@ export async function restoreFromSave(save, {
   parseAndCacheScene,
   fetchTextFileFn,
   evalValueFn,
-}) {
+}: {
+  runStatsScene:      () => Promise<void>;
+  renderFromLog:      (log: unknown[], options?: { skipAnimations?: boolean }) => void;
+  renderChoices:      (choices: unknown[]) => void;
+  runInterpreter:     (opts?: { suppressAutoSave?: boolean }) => Promise<void>;
+  clearNarrative:     () => void;
+  applyTransition:    () => void;
+  setChapterTitle:    (t: string) => void;
+  setChoiceArea:      ((el: HTMLElement | null) => void) | null;
+  parseAndCacheScene: (name: string) => Promise<void>;
+  fetchTextFileFn:    (name: string) => Promise<string>;
+  evalValueFn:        (expr: string) => unknown;
+}): Promise<void> {
   await parseStartup(fetchTextFileFn, evalValueFn);
 
   setPlayerState({ ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) });
@@ -303,7 +316,7 @@ export async function restoreFromSave(save, {
 
   if (Array.isArray(save.statRegistry) && save.statRegistry.length > 0) {
     const freshStatKeys = new Set(statRegistry.map(e => e.key));
-    const extra = save.statRegistry.filter(e => !freshStatKeys.has(e.key));
+    const extra = save.statRegistry.filter((e: any) => !freshStatKeys.has(e.key));
     if (extra.length > 0) {
       setStatRegistry([...statRegistry, ...extra]);
     }
