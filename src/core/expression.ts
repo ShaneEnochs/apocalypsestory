@@ -93,11 +93,11 @@ function tokenise(src: string): Token[] {
   return tokens;
 }
 
-function makeParser(tokens: Token[]) {
+function makeParser(tokens: Token[]): { parseExpr: () => unknown } {
   let pos = 0;
 
-  function peek()    { return tokens[pos]; }
-  function advance() { return tokens[pos++]; }
+  function peek():    Token { return tokens[pos]; }
+  function advance(): Token { return tokens[pos++]; }
   function expect(type: string): Token {
     if (peek().type !== type) {
       throw new Error(`[expression] Expected ${type} but got ${peek().type}`);

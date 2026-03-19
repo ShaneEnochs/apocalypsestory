@@ -78,7 +78,7 @@ let _activeStatusTab = 'stats';
 // ---------------------------------------------------------------------------
 // runStatsScene — parses stats.txt and rebuilds the status sidebar HTML.
 // ---------------------------------------------------------------------------
-export async function runStatsScene() {
+export async function runStatsScene(): Promise<void> {
   const text  = await _fetchTextFile('stats');
   const lines = text.split(/\r?\n/).map(raw => ({ raw, trimmed: raw.trim() }));
   styleState.colors = {};
@@ -270,7 +270,7 @@ export async function runStatsScene() {
 
   wireTabContent();
 
-  function wireTabContent() {
+  function wireTabContent(): void {
     const skillsStoreBtn = _statusPanel.querySelector('#status-store-btn-skills');
     if (skillsStoreBtn) skillsStoreBtn.addEventListener('click', () => showStore('skills'));
 
@@ -296,7 +296,7 @@ let _storeTrapRelease: (() => void) | null = null;
 let _storeActiveTab   = 'skills';
 let _preStoreTab:     string | null = null;
 
-export function showStore(tab: string | null = null) {
+export function showStore(tab: string | null = null): void {
   if (!_storeOverlay) return;
   if (tab) _storeActiveTab = tab;
   _preStoreTab = _activeStatusTab;
@@ -314,7 +314,7 @@ export function showStore(tab: string | null = null) {
   renderStore();
 }
 
-function hideStore() {
+function hideStore(): void {
   if (!_storeOverlay) return;
   _storeOverlay.classList.add('hidden');
   _storeOverlay.style.opacity = '0';
@@ -330,7 +330,7 @@ function hideStore() {
   });
 }
 
-function renderStore() {
+function renderStore(): void {
   if (!_storeOverlay) return;
   const box = _storeOverlay.querySelector('.store-modal-box');
   if (!box) return;

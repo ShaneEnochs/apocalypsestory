@@ -14,10 +14,10 @@ export function addJournalEntry(text: string, type = 'entry', unique = false): b
   return true;
 }
 
-export function getJournalEntries() {
+export function getJournalEntries(): Array<{ text: string; type: string; timestamp: number }> {
   return Array.isArray(playerState.journal) ? playerState.journal : [];
 }
 
-export function getAchievements() {
+export function getAchievements(): Array<{ text: string; type: string; timestamp: number }> {
   return getJournalEntries().filter(e => e.type === 'achievement');
 }

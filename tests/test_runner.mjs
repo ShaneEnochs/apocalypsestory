@@ -101,8 +101,8 @@ import { getAllocatableStatKeys } from '../src/systems/leveling.ts';
 import { importSaveFromJSON, SAVE_VERSION, encodeSaveCode, loadSaveFromSlot } from '../src/systems/saves.ts';
 
 // Skills and journal need dynamic import because they depend on state being set up
-const { skillRegistry, parseSkills, playerHasSkill, grantSkill, revokeSkill, purchaseSkill } = await import('../src/systems/skills.js');
-const { addJournalEntry, getJournalEntries, getAchievements } = await import('../src/systems/journal.js');
+const { skillRegistry, parseSkills, playerHasSkill, grantSkill, revokeSkill, purchaseSkill } = await import('../src/systems/skills.ts');
+const { addJournalEntry, getJournalEntries, getAchievements } = await import('../src/systems/journal.ts');
 
 // ---------------------------------------------------------------------------
 // Helper: reset state to clean defaults before each test group
@@ -438,7 +438,7 @@ assert(!playerHasSkill('blade_dancer'), 'blade_dancer revoked');
 assertDeepEq(playerState.skills, [], 'skills array empty after revoke');
 
 // Purchase requires skillRegistry setup — mock it
-const { skillRegistry: sr } = await import('../src/systems/skills.js');
+const { skillRegistry: sr } = await import('../src/systems/skills.ts');
 // Manually push a test skill into the registry
 sr.push({ key: 'test_skill', label: 'Test Skill', essenceCost: 3, description: 'A test.' });
 

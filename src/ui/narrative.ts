@@ -184,7 +184,7 @@ export function addSystem(text: string): void {
 // ---------------------------------------------------------------------------
 // clearNarrative — removes all narrative nodes, empties choice area
 // ---------------------------------------------------------------------------
-export function clearNarrative() {
+export function clearNarrative(): void {
   for (const el of [..._narrativeContent.children]) {
     if (el !== _choiceArea) el.remove();
   }
@@ -196,7 +196,7 @@ export function clearNarrative() {
 // ---------------------------------------------------------------------------
 // applyTransition — no-op. Kept so all call sites remain valid.
 // ---------------------------------------------------------------------------
-export function applyTransition() {
+export function applyTransition(): void {
   // intentionally empty
 }
 
