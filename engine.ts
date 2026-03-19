@@ -7,6 +7,7 @@ import {
   playerState, tempState, statRegistry, startup,
   currentScene, currentLines, ip,
   awaitingChoice,
+  pageBreakIp, setPageBreakIp,
   patchPlayerState, parseStartup, captureStartupDefaults,
   setPlayerState, setTempState,
   setCurrentScene, setCurrentLines, setIp,
@@ -211,7 +212,7 @@ function pushUndoSnapshot() {
     playerState:    JSON.parse(JSON.stringify(playerState)),
     tempState:      JSON.parse(JSON.stringify(tempState)),
     scene:          currentScene,
-    ip,
+    ip:             pageBreakIp ?? ip,
     narrativeLog:   JSON.parse(JSON.stringify(getNarrativeLog())),
     chapterTitle:   dom.chapterTitle?.textContent ?? null,
     awaitingChoice: awaitingChoice ? JSON.parse(JSON.stringify(awaitingChoice)) : null,
@@ -237,6 +238,7 @@ async function popUndo() {
   }
   setIp(snap.ip);
   setAwaitingChoice(null);
+  setPageBreakIp(null);
 
   if (dom.chapterTitle) dom.chapterTitle.textContent = snap.chapterTitle;
   setChapterTitleState(snap.chapterTitle ?? '');

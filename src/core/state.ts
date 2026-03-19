@@ -75,6 +75,18 @@ export let ip:            number        = 0;
 export let awaitingChoice: AwaitingChoiceState|null = null;
 
 // ---------------------------------------------------------------------------
+// Page break state — stores the ip of the *page_break line while the
+// interpreter is halted waiting for the user to click Continue.
+// Used by saves.ts to capture the correct ip in save payloads (instead of
+// the end-of-scene ip the interpreter jumps to for halting purposes).
+// null when not at a page break.
+// ---------------------------------------------------------------------------
+
+export let pageBreakIp: number|null = null;
+
+export function setPageBreakIp(n: number|null): void { pageBreakIp = n; }
+
+// ---------------------------------------------------------------------------
 // Startup metadata
 // ---------------------------------------------------------------------------
 
