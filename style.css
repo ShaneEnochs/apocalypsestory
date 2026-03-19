@@ -404,6 +404,35 @@ body {
 .skill-rarity--legendary em,
 .skill-rarity--legendary strong { color: var(--rarity-legendary) !important; }
 
+/* ── Epic glow ── */
+.inline-accent-epic,
+.skill-rarity--epic {
+  text-shadow: 0 0 6px rgba(176, 106, 255, 0.45),
+               0 0 14px rgba(176, 106, 255, 0.2);
+}
+
+/* ── Legendary glow ── */
+.inline-accent-legendary,
+.skill-rarity--legendary {
+  text-shadow: 0 0 6px rgba(240, 165, 0, 0.5),
+               0 0 14px rgba(240, 165, 0, 0.2),
+               0 0 24px rgba(240, 165, 0, 0.08);
+}
+
+/* ── Epic container accent ── */
+.store-card--rarity-epic,
+.skill-accordion--rarity-epic {
+  border-left: 2px solid rgba(176, 106, 255, 0.4);
+  background: rgba(176, 106, 255, 0.03);
+}
+
+/* ── Legendary container accent ── */
+.store-card--rarity-legendary,
+.skill-accordion--rarity-legendary {
+  border-left: 2px solid rgba(240, 165, 0, 0.35);
+  background: rgba(240, 165, 0, 0.03);
+}
+
 
 /* ============================================================
    4. APP LAYOUT

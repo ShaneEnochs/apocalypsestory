@@ -168,7 +168,7 @@ export async function runStatsScene(): Promise<void> {
       const desc    = escapeHtml(entry ? entry.description : '');
       const rarity  = entry?.rarity || 'common';
       const rarCls  = ` skill-rarity--${rarity}`;
-      return `<li class="skill-accordion"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name${rarCls}">${label}</span><span class="skill-accordion-chevron">▾</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
+      return `<li class="skill-accordion skill-accordion--rarity-${rarity}"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name${rarCls}">${label}</span><span class="skill-accordion-chevron">▾</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
     }).join('');
     skillsHtml += `<ul class="skill-accordion-list">${skillItems}</ul>`;
   }
@@ -190,7 +190,7 @@ export async function runStatsScene(): Promise<void> {
       const desc     = escapeHtml(regEntry ? regEntry.description : '');
       const rarity   = regEntry?.rarity || 'common';
       const rarCls   = ` skill-rarity--${rarity}`;
-      return `<li class="skill-accordion">
+      return `<li class="skill-accordion skill-accordion--rarity-${rarity}">
         <button class="skill-accordion-btn">
           <span class="skill-accordion-name${rarCls}">${label}</span>
           <span class="skill-accordion-chevron">▾</span>
@@ -399,7 +399,7 @@ function renderSkillsTab(container: Element, essence: number): void {
       const rarity    = skill.rarity || 'common';
       const rarCls    = ` skill-rarity--${rarity}`;
       html += `
-        <div class="store-card ${cardCls}" data-key="${escapeHtml(skill.key)}" data-type="skill">
+        <div class="store-card store-card--rarity-${rarity} ${cardCls}" data-key="${escapeHtml(skill.key)}" data-type="skill">
           <div class="store-card-top">
             <span class="store-card-name${rarCls}">${escapeHtml(skill.label)}</span>
             <div class="store-card-actions">
@@ -418,7 +418,7 @@ function renderSkillsTab(container: Element, essence: number): void {
       const rarity = skill.rarity || 'common';
       const rarCls = ` skill-rarity--${rarity}`;
       html += `
-        <div class="store-card store-card--owned" data-key="${escapeHtml(skill.key)}">
+        <div class="store-card store-card--rarity-${rarity} store-card--owned" data-key="${escapeHtml(skill.key)}">
           <div class="store-card-top">
             <span class="store-card-name${rarCls}">${escapeHtml(skill.label)}</span>
             <div class="store-card-actions">
@@ -471,7 +471,7 @@ function renderItemsTab(container: Element, essence: number): void {
     const rarity    = item.rarity || 'common';
     const rarCls    = ` skill-rarity--${rarity}`;
     html += `
-      <div class="store-card ${cardCls}" data-key="${escapeHtml(item.key)}" data-type="item">
+      <div class="store-card store-card--rarity-${rarity} ${cardCls}" data-key="${escapeHtml(item.key)}" data-type="item">
         <div class="store-card-top">
           <span class="store-card-name${rarCls}">${escapeHtml(item.label)}</span>
           <div class="store-card-actions">
