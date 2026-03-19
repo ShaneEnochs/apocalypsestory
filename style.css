@@ -381,6 +381,29 @@ body {
 .status-value.accent-amber { color: var(--amber); }
 .status-value.accent-red   { color: var(--red); }
 
+/* ── Rarity color overrides ── MUST BE LAST in color section ──
+   These supersede all other color rules including inline accents.
+   Applied via class on any element in any context. */
+.skill-rarity--common,
+.skill-rarity--common em,
+.skill-rarity--common strong    { color: var(--rarity-common)    !important; }
+
+.skill-rarity--uncommon,
+.skill-rarity--uncommon em,
+.skill-rarity--uncommon strong  { color: var(--rarity-uncommon)  !important; }
+
+.skill-rarity--rare,
+.skill-rarity--rare em,
+.skill-rarity--rare strong      { color: var(--rarity-rare)      !important; }
+
+.skill-rarity--epic,
+.skill-rarity--epic em,
+.skill-rarity--epic strong      { color: var(--rarity-epic)      !important; }
+
+.skill-rarity--legendary,
+.skill-rarity--legendary em,
+.skill-rarity--legendary strong { color: var(--rarity-legendary) !important; }
+
 
 /* ============================================================
    4. APP LAYOUT
@@ -1903,12 +1926,6 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   flex: 1;
   min-width: 0;
 }
-/* Rarity colors — !important ensures these always override base element colors */
-.skill-rarity--common    { color: var(--rarity-common)    !important; }
-.skill-rarity--uncommon  { color: var(--rarity-uncommon)  !important; }
-.skill-rarity--rare      { color: var(--rarity-rare)      !important; }
-.skill-rarity--epic      { color: var(--rarity-epic)      !important; }
-.skill-rarity--legendary { color: var(--rarity-legendary) !important; }
 
 
 .store-card-actions {
@@ -2092,9 +2109,15 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   background: rgba(0, 212, 245, 0.04);
 }
 
-.journal-achievement-icon {
-  color: var(--cyan);
-  margin-right: 2px;
+.journal-achievement-icon::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--cyan);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  margin-right: 6px;
+  vertical-align: middle;
 }
 
 
