@@ -1,4 +1,4 @@
-// engine.js — System Awakening coordinator
+// engine.ts — System Awakening coordinator
 //
 // Boots the engine, wires all UI modules together, and owns the undo system.
 // Serves as the single entry point bundled by esbuild into dist/engine.js.

@@ -1,4 +1,4 @@
-// src/core/state.js
+// src/core/state.ts
 var playerState = {};
 var tempState = {};
 var statRegistry = [];
@@ -159,7 +159,7 @@ async function parseStartup(fetchTextFileFn, evalValueFn) {
   }
 }
 
-// src/core/expression.js
+// src/core/expression.ts
 var TT = {
   NUM: "NUM",
   STR: "STR",
@@ -491,7 +491,7 @@ function evalValue(expr) {
   }
 }
 
-// src/core/parser.js
+// src/core/parser.ts
 function parseLines(text) {
   return text.split(/\r?\n/).map((raw) => {
     const indentMatch = raw.match(/^\s*/)?.[0] || "";
@@ -578,7 +578,7 @@ function findBlockEnd(fromIndex, parentIndent, currentLines2) {
   return i;
 }
 
-// src/systems/inventory.js
+// src/systems/inventory.ts
 function extractStackCount(itemStr) {
   const m = String(itemStr).match(/\((\d+)\)$/);
   return m ? Number(m[1]) : 1;
@@ -615,7 +615,7 @@ function removeInventoryItem(item) {
   return true;
 }
 
-// src/systems/saves.js
+// src/systems/saves.ts
 var SAVE_VERSION = 9;
 var SAVE_KEY_AUTO = "sa_save_auto";
 var SAVE_KEY_SLOTS = { 1: "sa_save_slot_1", 2: "sa_save_slot_2", 3: "sa_save_slot_3" };
@@ -656,15 +656,9 @@ function buildSaveCodePayload(label, narrativeLog) {
     nl: narrativeLog || [],
     ts: Date.now()
   };
-  if (label) {
-    payload.lb = label;
-  }
-  if (awaitingChoice) {
-    payload.ac = JSON.parse(JSON.stringify(awaitingChoice));
-  }
-  if (statRegistry.length > 0) {
-    payload.sr = JSON.parse(JSON.stringify(statRegistry));
-  }
+  if (label) payload.lb = label;
+  if (awaitingChoice) payload.ac = JSON.parse(JSON.stringify(awaitingChoice));
+  if (statRegistry.length > 0) payload.sr = JSON.parse(JSON.stringify(statRegistry));
   return payload;
 }
 function encodeSaveCode(narrativeLog, label = null) {
@@ -867,7 +861,7 @@ async function restoreFromSave(save, {
   }
 }
 
-// src/systems/skills.js
+// src/systems/skills.ts
 var skillRegistry = [];
 async function parseSkills(fetchTextFileFn) {
   let text;
@@ -953,7 +947,7 @@ function purchaseSkill(key) {
   return true;
 }
 
-// src/systems/journal.js
+// src/systems/journal.ts
 function addJournalEntry(text, type = "entry", unique = false) {
   if (!Array.isArray(playerState.journal)) playerState.journal = [];
   const normalised = text.trim();
@@ -970,7 +964,7 @@ function getAchievements() {
   return getJournalEntries().filter((e) => e.type === "achievement");
 }
 
-// src/core/interpreter.js
+// src/core/interpreter.ts
 var cb = {};
 function registerCallbacks(callbacks) {
   Object.assign(cb, callbacks);
@@ -1452,7 +1446,7 @@ registerCommand("*finish", async () => {
   await gotoScene(list[nextIdx]);
 });
 
-// src/systems/items.js
+// src/systems/items.ts
 var itemRegistry = [];
 async function parseItems(fetchTextFileFn) {
   let text;
@@ -1513,7 +1507,7 @@ function purchaseItem(key) {
   return true;
 }
 
-// src/ui/narrative.js
+// src/ui/narrative.ts
 function escapeHtml(val) {
   return String(val ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -1764,7 +1758,7 @@ function renderFromLog(log, { skipAnimations = true } = {}) {
   _narrativeLog = [...log];
 }
 
-// src/ui/panels.js
+// src/ui/panels.ts
 var _statusPanel = null;
 var _endingOverlay = null;
 var _endingTitle = null;
@@ -2185,7 +2179,7 @@ function showEndingScreen(title, content) {
   }, { once: true });
 }
 
-// src/ui/overlays.js
+// src/ui/overlays.ts
 var _splashOverlay = null;
 var _splashSlots = null;
 var _saveOverlay = null;
@@ -2568,7 +2562,7 @@ function showCharacterCreation() {
   });
 }
 
-// engine.js
+// engine.ts
 var dom = {
   narrativeContent: document.getElementById("narrative-content"),
   choiceArea: document.getElementById("choice-area"),
