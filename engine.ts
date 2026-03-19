@@ -565,7 +565,7 @@ async function boot() {
     setChapterTitle,
     setGameTitle,
     setGameByline: (t: string) => {
-      if (dom.splashTagline) dom.splashTagline.innerHTML = t;
+      if (dom.splashTagline) dom.splashTagline.textContent = t;
     },
     runStatsScene,
     fetchTextFile,
@@ -583,7 +583,7 @@ async function boot() {
     const title  = playerState.game_title  || '';
     const byline = playerState.game_byline || '';
     setGameTitle(title);
-    if (dom.splashTagline && byline) dom.splashTagline.innerHTML = byline;
+    if (dom.splashTagline && byline) dom.splashTagline.textContent = byline;
 
     showSplash();
   } catch (err) {
