@@ -12,26 +12,26 @@ import {
   setCurrentScene, setCurrentLines, setIp,
   setAwaitingChoice,
   setChapterTitleState,
-} from './engine/core/state.js';
+} from './src/core/state.js';
 
-import { evalValue } from './engine/core/expression.js';
+import { evalValue } from './src/core/expression.js';
 
 import {
   registerCallbacks, registerCaches,
   gotoScene, runInterpreter,
   executeBlock,
-} from './engine/core/interpreter.js';
+} from './src/core/interpreter.js';
 
-import { parseLines, indexLabels } from './engine/core/parser.js';
+import { parseLines, indexLabels } from './src/core/parser.js';
 
 import {
   loadSaveFromSlot, saveGameToSlot,
   deleteSaveSlot, exportSaveSlot, importSaveFromJSON,
   encodeSaveCode, decodeSaveCode,
-} from './engine/systems/saves.js';
+} from './src/systems/saves.js';
 
-import { parseSkills } from './engine/systems/skills.js';
-import { parseItems }  from './engine/systems/items.js';
+import { parseSkills } from './src/systems/skills.js';
+import { parseItems }  from './src/systems/items.js';
 
 import {
   init      as initNarrative,
@@ -39,12 +39,12 @@ import {
   renderChoices, showInputPrompt, showPageBreak, setChoiceArea,
   getNarrativeLog, renderFromLog,
   formatText,
-} from './engine/ui/narrative.js';
+} from './src/ui/narrative.js';
 
 import {
   init      as initPanels,
   runStatsScene, showEndingScreen,
-} from './engine/ui/panels.js';
+} from './src/ui/panels.js';
 
 import {
   init      as initOverlays,
@@ -54,7 +54,7 @@ import {
   showSaveMenu, hideSaveMenu,
   showCharacterCreation, wireCharCreation,
   loadAndResume,
-} from './engine/ui/overlays.js';
+} from './src/ui/overlays.js';
 
 // ---------------------------------------------------------------------------
 // DOM references

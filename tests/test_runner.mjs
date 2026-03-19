@@ -92,17 +92,17 @@ import {
   setStatRegistry, statRegistry,
   setCurrentScene, parseStartup,
   resolveStore,
-} from '../engine/core/state.js';
+} from '../src/core/state.js';
 
-import { evalValue } from '../engine/core/expression.js';
-import { parseLines, indexLabels, parseChoice, parseSystemBlock } from '../engine/core/parser.js';
-import { addInventoryItem, removeInventoryItem, itemBaseName, parseInventoryUpdateText } from '../engine/systems/inventory.js';
-import { getAllocatableStatKeys } from '../engine/systems/leveling.js';
-import { importSaveFromJSON, SAVE_VERSION, encodeSaveCode, loadSaveFromSlot } from '../engine/systems/saves.js';
+import { evalValue } from '../src/core/expression.js';
+import { parseLines, indexLabels, parseChoice, parseSystemBlock } from '../src/core/parser.js';
+import { addInventoryItem, removeInventoryItem, itemBaseName, parseInventoryUpdateText } from '../src/systems/inventory.js';
+import { getAllocatableStatKeys } from '../src/systems/leveling.js';
+import { importSaveFromJSON, SAVE_VERSION, encodeSaveCode, loadSaveFromSlot } from '../src/systems/saves.js';
 
 // Skills and journal need dynamic import because they depend on state being set up
-const { skillRegistry, parseSkills, playerHasSkill, grantSkill, revokeSkill, purchaseSkill } = await import('../engine/systems/skills.js');
-const { addJournalEntry, getJournalEntries, getAchievements } = await import('../engine/systems/journal.js');
+const { skillRegistry, parseSkills, playerHasSkill, grantSkill, revokeSkill, purchaseSkill } = await import('../src/systems/skills.js');
+const { addJournalEntry, getJournalEntries, getAchievements } = await import('../src/systems/journal.js');
 
 // ---------------------------------------------------------------------------
 // Helper: reset state to clean defaults before each test group
@@ -438,7 +438,7 @@ assert(!playerHasSkill('blade_dancer'), 'blade_dancer revoked');
 assertDeepEq(playerState.skills, [], 'skills array empty after revoke');
 
 // Purchase requires skillRegistry setup — mock it
-const { skillRegistry: sr } = await import('../engine/systems/skills.js');
+const { skillRegistry: sr } = await import('../src/systems/skills.js');
 // Manually push a test skill into the registry
 sr.push({ key: 'test_skill', label: 'Test Skill', essenceCost: 3, description: 'A test.' });
 
@@ -544,7 +544,7 @@ assertEq(playerState.essence, 0,  'parseStartup populates essence');
 assertEq(playerState.body,    10, 'parseStartup populates *create_stat key');
 
 // sceneList parsed correctly
-const { startup } = await import('../engine/core/state.js');
+const { startup } = await import('../src/core/state.js');
 assertEq(startup.sceneList.length, 2,          'sceneList has 2 entries');
 assertEq(startup.sceneList[0],     'prologue',  'first scene is prologue');
 assertEq(startup.sceneList[1],     'chapter_two', 'second scene is chapter_two');
