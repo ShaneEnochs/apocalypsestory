@@ -747,6 +747,167 @@ const noTagParsed = parseChoice(0, 0, { currentLines: noTagScene, evalValue });
 // statTag should be null and text left as-is
 assertEq(noTagParsed.choices[0].statTag, null, 'tag at start of text is not extracted');
 
+// ---------------------------------------------------------------------------
+group('Procedure system — parseProcedures / getProcedure (registry)');
+// ---------------------------------------------------------------------------
+
+const { parseProcedures, getProcedure, clearProcedureRegistry } =
+  await import('../src/systems/procedures.ts');
+
+const procText = `
+// Test procedures file
+
+*procedure greet
+  you wave hello
+  *return
+
+*procedure farewell
+  you say goodbye
+`;
+
+await parseProcedures(async (name) => {
+  if (name === 'procedures') return procText;
+  throw new Error(`not found: ${name}`);
+});
+
+assert(getProcedure('greet') !== null,    'greet procedure registered');
+assert(getProcedure('farewell') !== null, 'farewell procedure registered');
+assert(getProcedure('unknown') === null,  'unknown procedure returns null');
+
+// Case-insensitive lookup
+assert(getProcedure('GREET') !== null,    'getProcedure is case-insensitive (upper)');
+assert(getProcedure('Farewell') !== null, 'getProcedure is case-insensitive (mixed)');
+
+// Line content
+const greet     = getProcedure('greet');
+const greetBody = greet?.lines.filter(l => l.trimmed && !l.trimmed.startsWith('//')) ?? [];
+assertEq(greetBody.length,           2,             'greet has 2 non-empty lines');
+assertEq(greetBody[0].trimmed,       'you wave hello', 'greet: first line is text');
+assertEq(greetBody[1].trimmed,       '*return',     'greet: second line is *return');
+
+// missing procedures.txt — no crash, just a warning
+clearProcedureRegistry();
+let procWarn = '';
+const origWarnProc = console.warn;
+console.warn = (...a) => { procWarn = a.join(' '); origWarnProc(...a); };
+await parseProcedures(async () => { throw new Error('ENOENT'); });
+console.warn = origWarnProc;
+assert(procWarn.includes('[procedures]'),   'missing file logs [procedures] warning');
+assert(getProcedure('greet') === null,      'registry empty after failed parse');
+
+// Re-register for interpreter tests below
+await parseProcedures(async (name) => {
+  if (name === 'procedures') return procText + `
+*procedure add_essence
+  *set essence +10
+  *return
+
+*procedure nested_caller
+  *call add_essence
+  *call add_essence
+  *return
+
+*procedure no_explicit_return
+  *set essence +5
+`;
+  throw new Error('not found');
+});
+
+// ---------------------------------------------------------------------------
+group('Procedure system — *call / *return interpreter integration');
+// ---------------------------------------------------------------------------
+
+// Import interpreter and extra state helpers (same module instances as top-level imports)
+const {
+  registerCallbacks: regCB,
+  registerCaches:    regCaches,
+  runInterpreter:    runInterp,
+} = await import('../src/core/interpreter.ts');
+
+const { setCurrentLines: sCL, setIp: sIP, setCurrentScene: sCS } =
+  await import('../src/core/state.ts');
+
+const { parseLines: PL } = await import('../src/core/parser.ts');
+
+// Minimal mock callbacks that capture output without touching DOM
+const interpOutput = [];
+regCB({
+  addParagraph:        (t)  => interpOutput.push({ k: 'p',   t }),
+  addSystem:           (t)  => interpOutput.push({ k: 'sys', t }),
+  clearNarrative:      ()   => {},
+  applyTransition:     ()   => {},
+  renderChoices:       ()   => {},
+  showEndingScreen:    ()   => {},
+  showEngineError:     (m)  => interpOutput.push({ k: 'err', t: m }),
+  showInputPrompt:     ()   => {},
+  showPageBreak:       ()   => {},
+  scheduleStatsRender: ()   => {},
+  showToast:           ()   => {},
+  formatText:          (t)  => t,
+  setChapterTitle:     ()   => {},
+  setGameTitle:        ()   => {},
+  runStatsScene:       async () => {},
+  fetchTextFile:       async () => '',
+  getNarrativeLog:     ()   => [],
+});
+regCaches(new Map(), new Map());
+
+// Helper: run a short scene text and return output
+async function runScene(sceneText) {
+  resetState();
+  interpOutput.length = 0;
+  sCS('test_scene');
+  sCL(PL(sceneText));
+  sIP(0);
+  await runInterp({ suppressAutoSave: true });
+  return [...interpOutput];
+}
+
+// Test 1: *call executes procedure body and modifies playerState
+resetState();
+playerState.essence = 5;
+sCS('test_scene');
+sCL(PL('*call add_essence'));
+sIP(0);
+interpOutput.length = 0;
+await runInterp({ suppressAutoSave: true });
+assertEq(playerState.essence, 15, '*call add_essence: essence 5 → 15');
+assert(!interpOutput.some(o => o.k === 'err'), '*call add_essence: no engine errors');
+
+// Test 2: *call restores execution after the *call line
+resetState();
+playerState.essence = 0;
+const out2 = await runScene('*call add_essence\nhello after call');
+assertEq(playerState.essence, 10, '*call: state updated');
+assert(out2.some(o => o.k === 'p' && o.t === 'hello after call'), '*call: execution continues after return');
+
+// Test 3: nested *call (procedure calling another procedure)
+resetState();
+playerState.essence = 0;
+const out3 = await runScene('*call nested_caller');
+assertEq(playerState.essence, 20, 'nested *call: add_essence called twice (0 → 20)');
+assert(!out3.some(o => o.k === 'err'), 'nested *call: no engine errors');
+
+// Test 4: procedure without explicit *return auto-returns
+resetState();
+playerState.essence = 0;
+const out4 = await runScene('*call no_explicit_return\nafter');
+assertEq(playerState.essence, 5, 'no_explicit_return: state updated');
+assert(out4.some(o => o.k === 'p' && o.t === 'after'), 'no_explicit_return: execution continues after auto-return');
+
+// Test 5: *call unknown procedure — engine error, execution continues
+resetState();
+const out5 = await runScene('*call totally_unknown_proc\nstill running');
+assert(out5.some(o => o.k === 'err' && o.t.includes('totally_unknown_proc')), '*call unknown: engine error shown');
+assert(out5.some(o => o.k === 'p' && o.t === 'still running'), '*call unknown: execution continues after error');
+
+// Test 6: multiple *call in sequence
+resetState();
+playerState.essence = 0;
+const out6 = await runScene('*call add_essence\n*call add_essence\n*call add_essence');
+assertEq(playerState.essence, 30, 'three sequential *call: 0 → 30');
+assert(!out6.some(o => o.k === 'err'), 'sequential *calls: no engine errors');
+
 // ===========================================================================
 // Summary
 // ===========================================================================

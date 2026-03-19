@@ -30,8 +30,9 @@ import {
   encodeSaveCode, decodeSaveCode,
 } from './src/systems/saves.js';
 
-import { parseSkills } from './src/systems/skills.js';
-import { parseItems }  from './src/systems/items.js';
+import { parseSkills }      from './src/systems/skills.js';
+import { parseItems }       from './src/systems/items.js';
+import { parseProcedures }  from './src/systems/procedures.js';
 
 import {
   init      as initNarrative,
@@ -579,6 +580,7 @@ async function boot() {
     captureStartupDefaults();
     await parseSkills(fetchTextFile);
     await parseItems(fetchTextFile);
+    await parseProcedures(fetchTextFile);
 
     const title  = playerState.game_title  || '';
     const byline = playerState.game_byline || '';
