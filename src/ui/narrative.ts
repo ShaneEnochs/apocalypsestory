@@ -15,11 +15,20 @@ import {
   normalizeKey, resolveStore,
   awaitingChoice, setAwaitingChoice,
 } from '../core/state.js';
+import type { ChoiceOption } from '../core/state.js';
+
+export interface NarrativeLogEntry {
+  type:     string;
+  text?:    string;
+  varName?: string;
+  prompt?:  string;
+  value?:   string | null;
+}
 
 // ---------------------------------------------------------------------------
 // escapeHtml — sanitizes a runtime value for safe insertion into innerHTML.
 // ---------------------------------------------------------------------------
-export function escapeHtml(val) {
+export function escapeHtml(val: unknown): string {
   return String(val ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -30,19 +39,27 @@ export function escapeHtml(val) {
 // ---------------------------------------------------------------------------
 // Module-level DOM references and callbacks — populated by init()
 // ---------------------------------------------------------------------------
-let _narrativeContent  = null;
-let _choiceArea        = null;
-let _narrativePanel    = null;
-let _scheduleStats     = null;
-let _onBeforeChoice    = null;
+let _narrativeContent!: HTMLElement;
+let _choiceArea!:       HTMLElement;
+let _narrativePanel!:   HTMLElement;
+let _scheduleStats!:    () => void;
+let _onBeforeChoice!:   () => void;
 
 // Interpreter functions injected via init() to avoid circular import.
-let _executeBlock      = null;
-let _runInterpreter    = null;
+let _executeBlock!:   (start: number, end: number, resumeAfter?: number) => Promise<string>;
+let _runInterpreter!: (opts?: { suppressAutoSave?: boolean }) => Promise<void>;
 
 export function init({ narrativeContent, choiceArea, narrativePanel,
                        scheduleStatsRender, onBeforeChoice,
-                       executeBlock, runInterpreter }) {
+                       executeBlock, runInterpreter }: {
+  narrativeContent:    HTMLElement;
+  choiceArea:          HTMLElement;
+  narrativePanel:      HTMLElement;
+  scheduleStatsRender: () => void;
+  onBeforeChoice:      () => void;
+  executeBlock:        (start: number, end: number, resumeAfter?: number) => Promise<string>;
+  runInterpreter:      (opts?: { suppressAutoSave?: boolean }) => Promise<void>;
+}): void {
   _narrativeContent = narrativeContent;
   _choiceArea       = choiceArea;
   _narrativePanel   = narrativePanel;
@@ -52,7 +69,7 @@ export function init({ narrativeContent, choiceArea, narrativePanel,
   _runInterpreter   = runInterpreter   || null;
 }
 
-export function setChoiceArea(el) { _choiceArea = el; }
+export function setChoiceArea(el: HTMLElement): void { _choiceArea = el; }
 
 // ---------------------------------------------------------------------------
 // Narrative Log — records every piece of visible narrative content during play.
@@ -63,18 +80,18 @@ export function setChoiceArea(el) { _choiceArea = el; }
 // renderFromLog() consumes this log to rebuild the DOM without re-executing
 // any scene code. Used by popUndo and restoreFromSave.
 // ---------------------------------------------------------------------------
-let _narrativeLog = [];
+let _narrativeLog: NarrativeLogEntry[] = [];
 
-export function getNarrativeLog()        { return _narrativeLog; }
-export function setNarrativeLog(log)     { _narrativeLog = log; }
-export function pushNarrativeLogEntry(e) { _narrativeLog.push(e); }
-export function clearNarrativeLog()      { _narrativeLog = []; }
+export function getNarrativeLog(): NarrativeLogEntry[]        { return _narrativeLog; }
+export function setNarrativeLog(log: NarrativeLogEntry[]): void { _narrativeLog = log; }
+export function pushNarrativeLogEntry(e: NarrativeLogEntry): void { _narrativeLog.push(e); }
+export function clearNarrativeLog(): void      { _narrativeLog = []; }
 
 // ---------------------------------------------------------------------------
 // Pronoun resolver — reads from flat playerState keys set at char creation
 // ---------------------------------------------------------------------------
-function resolvePronoun(lower, isCapital) {
-  const map = {
+function resolvePronoun(lower: string, isCapital: boolean): string {
+  const map: Record<string, string> = {
     they:     playerState.pronouns_subject            || 'they',
     them:     playerState.pronouns_object             || 'them',
     their:    playerState.pronouns_possessive         || 'their',
@@ -90,7 +107,7 @@ function resolvePronoun(lower, isCapital) {
 // ---------------------------------------------------------------------------
 // formatText — resolves ${var} interpolation, pronoun tokens, and markdown.
 // ---------------------------------------------------------------------------
-export function formatText(text) {
+export function formatText(text: unknown): string {
   if (!text) return '';
   let result = String(text);
 
@@ -139,7 +156,7 @@ export function formatText(text) {
 // ---------------------------------------------------------------------------
 // addParagraph — appends a narrative paragraph before the choice area
 // ---------------------------------------------------------------------------
-export function addParagraph(text, cls = 'narrative-paragraph') {
+export function addParagraph(text: string, cls = 'narrative-paragraph'): void {
   const p = document.createElement('p');
   p.className = cls;
   p.innerHTML = formatText(text);
@@ -151,7 +168,7 @@ export function addParagraph(text, cls = 'narrative-paragraph') {
 // ---------------------------------------------------------------------------
 // addSystem — renders a system block
 // ---------------------------------------------------------------------------
-export function addSystem(text) {
+export function addSystem(text: string): void {
   const div       = document.createElement('div');
   const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(text);
   const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(text);
@@ -186,7 +203,7 @@ export function applyTransition() {
 // ---------------------------------------------------------------------------
 // renderChoices — builds choice buttons and wires click → executeBlock
 // ---------------------------------------------------------------------------
-export function renderChoices(choices) {
+export function renderChoices(choices: ChoiceOption[]): void {
   _choiceArea.innerHTML = '';
 
   _choiceArea.setAttribute('role', 'group');
@@ -243,7 +260,7 @@ export function renderChoices(choices) {
 
   // Focus first enabled button for keyboard accessibility.
   requestAnimationFrame(() => {
-    const firstEnabled = _choiceArea.querySelector('.choice-btn:not(:disabled)');
+    const firstEnabled = _choiceArea.querySelector<HTMLElement>('.choice-btn:not(:disabled)');
     if (firstEnabled) firstEnabled.focus({ preventScroll: true });
   });
 }
@@ -251,7 +268,7 @@ export function renderChoices(choices) {
 // ---------------------------------------------------------------------------
 // showPageBreak — inserts a "Continue" button that clears the screen.
 // ---------------------------------------------------------------------------
-export function showPageBreak(btnText, onContinue) {
+export function showPageBreak(btnText: string, onContinue: () => void): void {
   const btn = document.createElement('button');
   btn.className = 'choice-btn page-break-btn';
   btn.textContent = btnText || 'Continue';
@@ -265,8 +282,8 @@ export function showPageBreak(btnText, onContinue) {
 // ---------------------------------------------------------------------------
 // showInputPrompt — creates an inline text input in the narrative area.
 // ---------------------------------------------------------------------------
-export function showInputPrompt(varName, prompt, onSubmit) {
-  const logEntry = { type: 'input', varName, prompt, value: null };
+export function showInputPrompt(varName: string, prompt: string, onSubmit: (value: string) => void): void {
+  const logEntry: NarrativeLogEntry = { type: 'input', varName, prompt, value: null };
   _narrativeLog.push(logEntry);
 
   const wrapper = document.createElement('div');
@@ -316,7 +333,7 @@ export function showInputPrompt(varName, prompt, onSubmit) {
 // This is the heart of the save/load and undo approach: instead of
 // re-executing scene code, we replay the visible record of what was shown.
 // ---------------------------------------------------------------------------
-export function renderFromLog(log, { skipAnimations = true } = {}) {  // eslint-disable-line no-unused-vars
+export function renderFromLog(log: NarrativeLogEntry[], { skipAnimations = true }: { skipAnimations?: boolean } = {}): void {  // eslint-disable-line no-unused-vars
   for (const el of [..._narrativeContent.children]) {
     if (el !== _choiceArea) el.remove();
   }
@@ -336,8 +353,8 @@ export function renderFromLog(log, { skipAnimations = true } = {}) {  // eslint-
 
       case 'system': {
         const div       = document.createElement('div');
-        const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(entry.text);
-        const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(entry.text);
+        const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(entry.text ?? '');
+        const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(entry.text ?? '');
         div.className = `system-block${isEssence ? ' essence-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
         const formatted = formatText(entry.text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
         div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;

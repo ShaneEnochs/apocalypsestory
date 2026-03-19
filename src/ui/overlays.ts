@@ -28,40 +28,40 @@ export interface CharacterData {
 // ---------------------------------------------------------------------------
 
 // Splash
-let _splashOverlay  = null;
-let _splashSlots    = null;
+let _splashOverlay!: HTMLElement;
+let _splashSlots!:   HTMLElement;
 
 // Save menu
-let _saveOverlay    = null;
-let _saveBtn        = null;
+let _saveOverlay!: HTMLElement;
+let _saveBtn!:     HTMLElement;
 
 // Char creation
-let _charOverlay    = null;
-let _inputFirstName = null;
-let _inputLastName  = null;
-let _counterFirst   = null;
-let _counterLast    = null;
-let _errorFirstName = null;
-let _errorLastName  = null;
-let _charBeginBtn   = null;
+let _charOverlay!:    HTMLElement;
+let _inputFirstName!: HTMLInputElement;
+let _inputLastName!:  HTMLInputElement;
+let _counterFirst!:   HTMLElement;
+let _counterLast!:    HTMLElement;
+let _errorFirstName!: HTMLElement;
+let _errorLastName!:  HTMLElement;
+let _charBeginBtn!:   HTMLButtonElement;
 
 // Toast
-let _toast          = null;
+let _toast!: HTMLElement;
 
 // Callbacks injected by engine.js
-let _runStatsScene       = null;
-let _fetchTextFile       = null;
-let _evalValue           = null;
-let _renderFromLog       = null;
-let _renderChoices       = null;
-let _runInterpreter      = null;
-let _clearNarrative      = null;
-let _applyTransition     = null;
-let _setChapterTitle     = null;
-let _parseAndCacheScene  = null;
-let _clearUndoStack      = null;
-let _setChoiceArea       = null;
-let _setGameTitle        = null;
+let _runStatsScene!:      () => Promise<void>;
+let _fetchTextFile!:      (name: string) => Promise<string>;
+let _evalValue!:          (expr: string) => unknown;
+let _renderFromLog!:      (log: unknown[], opts?: { skipAnimations?: boolean }) => void;
+let _renderChoices!:      (choices: unknown[]) => void;
+let _runInterpreter!:     (opts?: { suppressAutoSave?: boolean }) => Promise<void>;
+let _clearNarrative!:     () => void;
+let _applyTransition!:    () => void;
+let _setChapterTitle!:    (t: string) => void;
+let _parseAndCacheScene!: (name: string) => Promise<void>;
+let _clearUndoStack:      (() => void) | null = null;
+let _setChoiceArea:       ((el: HTMLElement | null) => void) | null = null;
+let _setGameTitle:        ((t: string) => void) | null = null;
 
 export function init({
   splashOverlay, splashSlots,
@@ -76,7 +76,34 @@ export function init({
   parseAndCacheScene, setChoiceArea,
   clearUndoStack,
   setGameTitle,
-}) {
+}: {
+  splashOverlay:       HTMLElement;
+  splashSlots:         HTMLElement;
+  saveOverlay:         HTMLElement;
+  saveBtn:             HTMLElement;
+  charOverlay:         HTMLElement;
+  inputFirstName:      HTMLInputElement;
+  inputLastName:       HTMLInputElement;
+  counterFirst:        HTMLElement;
+  counterLast:         HTMLElement;
+  errorFirstName:      HTMLElement;
+  errorLastName:       HTMLElement;
+  charBeginBtn:        HTMLButtonElement;
+  toast:               HTMLElement;
+  runStatsScene:       () => Promise<void>;
+  fetchTextFile:       (name: string) => Promise<string>;
+  evalValue:           (expr: string) => unknown;
+  renderFromLog:       (log: unknown[], opts?: { skipAnimations?: boolean }) => void;
+  renderChoices:       (choices: unknown[]) => void;
+  runInterpreter:      (opts?: { suppressAutoSave?: boolean }) => Promise<void>;
+  clearNarrative:      () => void;
+  applyTransition:     () => void;
+  setChapterTitle:     (t: string) => void;
+  parseAndCacheScene:  (name: string) => Promise<void>;
+  setChoiceArea:       ((el: HTMLElement | null) => void) | null;
+  clearUndoStack:      (() => void) | null;
+  setGameTitle:        ((t: string) => void) | null;
+}): void {
   _splashOverlay  = splashOverlay;
   _splashSlots    = splashSlots;
 
@@ -114,22 +141,22 @@ export function init({
 // trapFocus — keyboard focus containment for modal overlays.
 // Returns a release() function that removes the listener and restores focus.
 // ---------------------------------------------------------------------------
-export function trapFocus(overlayEl, triggerEl = null) {
+export function trapFocus(overlayEl: HTMLElement, triggerEl: HTMLElement | null = null): () => void {
   const FOCUSABLE = [
     'a[href]', 'button:not([disabled])', 'input:not([disabled])',
     'select:not([disabled])', 'textarea:not([disabled])',
     '[tabindex]:not([tabindex="-1"])',
   ].join(',');
 
-  function getFocusable() {
+  function getFocusable(): HTMLElement[] {
     try {
-      return [...overlayEl.querySelectorAll(FOCUSABLE)].filter(
+      return [...overlayEl.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
         el => !el.closest('[hidden]') && getComputedStyle(el).display !== 'none'
       );
     } catch (_) { return []; }
   }
 
-  function handleKeydown(e) {
+  function handleKeydown(e: KeyboardEvent): void {
     if (e.key !== 'Tab') return;
     const focusable = getFocusable();
     if (!focusable.length) { e.preventDefault(); return; }
@@ -159,19 +186,19 @@ export function trapFocus(overlayEl, triggerEl = null) {
 // ---------------------------------------------------------------------------
 // Toast queue — messages are displayed one at a time.
 // ---------------------------------------------------------------------------
-const _toastQueue = [];
+const _toastQueue: Array<{ message: string; durationMs: number }> = [];
 let   _toastActive = false;
 
 function _processToastQueue() {
   if (_toastActive || _toastQueue.length === 0) return;
   _toastActive = true;
 
-  const { message, durationMs } = _toastQueue.shift();
+  const { message, durationMs } = _toastQueue.shift()!;
 
   _toast.textContent = message;
   _toast.className = _toast.className
     .split(' ')
-    .filter(c => c === 'toast' || c === 'hidden')
+    .filter((c: string) => c === 'toast' || c === 'hidden')
     .join(' ');
   _toast.classList.remove('hidden', 'toast-hide');
   _toast.classList.add('toast-show');
@@ -186,7 +213,7 @@ function _processToastQueue() {
   }, durationMs);
 }
 
-export function showToast(message, durationMs = 4000) {
+export function showToast(message: string, durationMs = 4000): void {
   _toastQueue.push({ message, durationMs });
   setTimeout(_processToastQueue, 0);
 }
@@ -194,21 +221,29 @@ export function showToast(message, durationMs = 4000) {
 // ---------------------------------------------------------------------------
 // Slot card helpers — sync a single card's DOM to a save (or null = empty)
 // ---------------------------------------------------------------------------
-export function populateSlotCard({ nameEl, metaEl, loadBtn, deleteBtn, cardEl, save }) {
+export function populateSlotCard({ nameEl, metaEl, loadBtn, deleteBtn, cardEl, save }: {
+  nameEl:    HTMLElement | null;
+  metaEl:    HTMLElement | null;
+  loadBtn:   HTMLElement | null;
+  deleteBtn: HTMLElement | null;
+  cardEl:    HTMLElement;
+  save:      any;
+}): void {
+  const lbtn = loadBtn as HTMLButtonElement | null;
   if (save) {
     const d = new Date(save.timestamp);
     const sceneDisplay = save.label
       ? save.label
       : save.scene.replace(/\.txt$/i, '').toUpperCase();
-    metaEl.textContent  = `${sceneDisplay} · ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
-    nameEl.textContent  = save.characterName || 'Unknown';
-    loadBtn.disabled    = false;
+    if (metaEl) metaEl.textContent  = `${sceneDisplay} · ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    if (nameEl) nameEl.textContent  = save.characterName || 'Unknown';
+    if (lbtn)   lbtn.disabled       = false;
     cardEl.classList.remove('slot-card--empty');
     if (deleteBtn) deleteBtn.classList.remove('hidden');
   } else {
-    nameEl.textContent  = '— Empty —';
-    metaEl.textContent  = '';
-    loadBtn.disabled    = true;
+    if (nameEl) nameEl.textContent  = '— Empty —';
+    if (metaEl) metaEl.textContent  = '';
+    if (lbtn)   lbtn.disabled       = true;
     cardEl.classList.add('slot-card--empty');
     if (deleteBtn) deleteBtn.classList.add('hidden');
   }
@@ -245,7 +280,7 @@ export function refreshAllSlotCards() {
 // ---------------------------------------------------------------------------
 // loadAndResume — shared helper used by splash load and in-game load flows.
 // ---------------------------------------------------------------------------
-export async function loadAndResume(save) {
+export async function loadAndResume(save: any): Promise<void> {
   _saveBtn.classList.remove('hidden');
   const undoBtn = document.getElementById('undo-btn');
   if (undoBtn) undoBtn.classList.remove('hidden');
@@ -301,7 +336,7 @@ export function hideSplash() {
 // ---------------------------------------------------------------------------
 // In-game save menu
 // ---------------------------------------------------------------------------
-let _saveTrapRelease = null;
+let _saveTrapRelease: (() => void) | null = null;
 
 export function showSaveMenu() {
   refreshAllSlotCards();
@@ -321,7 +356,7 @@ export function hideSaveMenu() {
 const NAME_MAX   = 14;
 const NAME_REGEX = /^[\p{L}\p{M}'\- ]*$/u;
 
-export function validateName(value, label) {
+export function validateName(value: string, label: string): string | null {
   const t = value.trim();
   if (!t)                  return `${label} cannot be empty.`;
   if (t.length > NAME_MAX) return `${label} must be ${NAME_MAX} characters or fewer.`;
@@ -332,14 +367,14 @@ export function validateName(value, label) {
 }
 
 export function wireCharCreation() {
-  function handleInput(inputEl, counterEl, errorEl, fieldLabel) {
+  function handleInput(inputEl: HTMLInputElement, counterEl: HTMLElement, errorEl: HTMLElement, fieldLabel: string): void {
     const cleaned = inputEl.value.replace(/[^\p{L}\p{M}'\- ]/gu, '');
     if (cleaned !== inputEl.value) {
-      const pos = inputEl.selectionStart - (inputEl.value.length - cleaned.length);
+      const pos = (inputEl.selectionStart ?? 0) - (inputEl.value.length - cleaned.length);
       inputEl.value = cleaned;
       try { inputEl.setSelectionRange(pos, pos); } catch (_) {}
     }
-    counterEl.textContent = NAME_MAX - inputEl.value.length;
+    counterEl.textContent = String(NAME_MAX - inputEl.value.length);
     // Validate against trimmed value so whitespace-only names show an error.
     const err = validateName(inputEl.value.trim() === '' ? '' : inputEl.value, fieldLabel);
     inputEl.classList.toggle('char-input--error', !!err);
@@ -352,13 +387,13 @@ export function wireCharCreation() {
     handleInput(_inputFirstName, _counterFirst, _errorFirstName, 'First name'));
   _inputLastName.addEventListener('input',  () =>
     handleInput(_inputLastName,  _counterLast,  _errorLastName,  'Last name'));
-  _inputLastName.addEventListener('keydown', e => {
+  _inputLastName.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.key === 'Enter' && !_charBeginBtn.disabled) _charBeginBtn.click();
   });
 
-  const pronounCards = [..._charOverlay.querySelectorAll('.pronoun-card')];
+  const pronounCards = [..._charOverlay.querySelectorAll<HTMLElement>('.pronoun-card')];
 
-  function selectCard(card) {
+  function selectCard(card: HTMLElement): void {
     pronounCards.forEach(c => {
       c.classList.remove('selected');
       c.setAttribute('aria-checked', 'false');
@@ -373,7 +408,7 @@ export function wireCharCreation() {
 
   pronounCards.forEach(card => {
     card.addEventListener('click', () => selectCard(card));
-    card.addEventListener('keydown', e => {
+    card.addEventListener('keydown', (e: KeyboardEvent) => {
       const idx = pronounCards.indexOf(card);
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault(); selectCard(pronounCards[(idx + 1) % pronounCards.length]);
@@ -395,15 +430,16 @@ export function wireCharCreation() {
   _charBeginBtn.addEventListener('click', () => {
     if (validateName(_inputFirstName.value, 'First name') ||
         validateName(_inputLastName.value,  'Last name'))  return;
-    const selected = _charOverlay.querySelector('.pronoun-card.selected');
+    const selected = _charOverlay.querySelector<HTMLElement>('.pronoun-card.selected');
     if (!selected) return;
     _charOverlay.classList.add('hidden');
-    if (typeof _charOverlay._trapRelease === 'function') {
-      _charOverlay._trapRelease();
-      _charOverlay._trapRelease = null;
+    const overlay = _charOverlay as any;
+    if (typeof overlay._trapRelease === 'function') {
+      overlay._trapRelease();
+      overlay._trapRelease = null;
     }
-    if (typeof _charOverlay._resolve === 'function') {
-      _charOverlay._resolve({
+    if (typeof overlay._resolve === 'function') {
+      overlay._resolve({
         firstName:                _inputFirstName.value.trim(),
         lastName:                 _inputLastName.value.trim(),
         pronouns_subject:         selected.dataset.subject,
@@ -430,7 +466,7 @@ export function showCharacterCreation(): Promise<CharacterData> {
   _inputLastName.classList.remove('char-input--error');
   _charBeginBtn.disabled = true;
 
-  _charOverlay.querySelectorAll('.pronoun-card').forEach(c => {
+  _charOverlay.querySelectorAll<HTMLElement>('.pronoun-card').forEach((c: HTMLElement) => {
     const def = c.dataset.pronouns === 'they/them';
     c.classList.toggle('selected', def);
     c.setAttribute('aria-checked', def ? 'true' : 'false');
@@ -441,9 +477,9 @@ export function showCharacterCreation(): Promise<CharacterData> {
   _charOverlay.style.opacity = '1';
   requestAnimationFrame(() => {
     const release = trapFocus(_charOverlay, null);
-    _charOverlay._trapRelease = release;
+    (_charOverlay as any)._trapRelease = release;
     try { _inputFirstName.focus(); } catch (_) {}
   });
 
-  return new Promise(resolve => { _charOverlay._resolve = resolve; });
+  return new Promise(resolve => { (_charOverlay as any)._resolve = resolve; });
 }

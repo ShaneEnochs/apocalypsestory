@@ -78,13 +78,13 @@ const dom = {
   saveOverlay:      document.getElementById('save-overlay'),
   saveMenuClose:    document.getElementById('save-menu-close'),
   charOverlay:      document.getElementById('char-creation-overlay'),
-  inputFirstName:   document.getElementById('input-first-name'),
-  inputLastName:    document.getElementById('input-last-name'),
+  inputFirstName:   document.getElementById('input-first-name') as HTMLInputElement | null,
+  inputLastName:    document.getElementById('input-last-name')  as HTMLInputElement | null,
   counterFirst:     document.getElementById('counter-first'),
   counterLast:      document.getElementById('counter-last'),
   errorFirstName:   document.getElementById('error-first-name'),
   errorLastName:    document.getElementById('error-last-name'),
-  charBeginBtn:     document.getElementById('char-begin-btn'),
+  charBeginBtn:     document.getElementById('char-begin-btn')   as HTMLButtonElement | null,
   endingOverlay:    document.getElementById('ending-overlay'),
   endingTitle:      document.getElementById('ending-title'),
   endingContent:    document.getElementById('ending-content'),
@@ -107,14 +107,14 @@ const labelsCache = new Map();
 // ---------------------------------------------------------------------------
 // Shared title setters — used by both initOverlays and registerCallbacks
 // ---------------------------------------------------------------------------
-function setChapterTitle(t) {
-  dom.chapterTitle.textContent = t;
+function setChapterTitle(t: string) {
+  if (dom.chapterTitle) dom.chapterTitle.textContent = t;
   setChapterTitleState(t);
 }
 
-function setGameTitle(t) {
-  if (dom.gameTitle)   dom.gameTitle.textContent = t;
-  if (dom.splashTitle) dom.splashTitle.textContent = t;
+function setGameTitle(t: string) {
+  if (dom.gameTitle)   dom.gameTitle.textContent   = t;
+  if (dom.splashTitle) (dom.splashTitle as HTMLElement).textContent = t;
   document.title = t;
 }
 
@@ -136,7 +136,7 @@ function scheduleStatsRender() {
 // ---------------------------------------------------------------------------
 // Text file fetching with cache
 // ---------------------------------------------------------------------------
-async function fetchTextFile(name) {
+async function fetchTextFile(name: string): Promise<string> {
   const key = name.endsWith('.txt') ? name : `${name}.txt`;
   if (sceneCache.has(key)) return sceneCache.get(key);
   const res = await fetch(key);
@@ -149,7 +149,7 @@ async function fetchTextFile(name) {
 // ---------------------------------------------------------------------------
 // Engine error display
 // ---------------------------------------------------------------------------
-function showEngineError(message) {
+function showEngineError(message: string) {
   clearNarrative();
   const div   = document.createElement('div');
   div.className = 'system-block';
@@ -166,14 +166,23 @@ function showEngineError(message) {
 
   div.appendChild(label);
   div.appendChild(text);
-  dom.narrativeContent.insertBefore(div, dom.choiceArea);
-  dom.chapterTitle.textContent = 'ERROR';
+  dom.narrativeContent?.insertBefore(div, dom.choiceArea);
+  if (dom.chapterTitle) dom.chapterTitle.textContent = 'ERROR';
 }
 
 // ---------------------------------------------------------------------------
 // Undo system
 // ---------------------------------------------------------------------------
-const _undoStack = [];
+interface UndoSnapshot {
+  playerState:    Record<string, any>;
+  tempState:      Record<string, any>;
+  scene:          string | null;
+  ip:             number;
+  narrativeLog:   any[];
+  chapterTitle:   string | null;
+  awaitingChoice: any;
+}
+const _undoStack: UndoSnapshot[] = [];
 const UNDO_MAX   = 10;
 
 function pushUndoSnapshot() {
@@ -183,7 +192,7 @@ function pushUndoSnapshot() {
     scene:          currentScene,
     ip,
     narrativeLog:   JSON.parse(JSON.stringify(getNarrativeLog())),
-    chapterTitle:   dom.chapterTitle.textContent,
+    chapterTitle:   dom.chapterTitle?.textContent ?? null,
     awaitingChoice: awaitingChoice ? JSON.parse(JSON.stringify(awaitingChoice)) : null,
   });
   if (_undoStack.length > UNDO_MAX) _undoStack.shift();
@@ -192,22 +201,24 @@ function pushUndoSnapshot() {
 
 async function popUndo() {
   if (_undoStack.length === 0) return;
-  const snap = _undoStack.pop();
+  const snap = _undoStack.pop()!;
 
   setPlayerState(JSON.parse(JSON.stringify(snap.playerState)));
   setTempState(JSON.parse(JSON.stringify(snap.tempState)));
-  setCurrentScene(snap.scene);
+  if (snap.scene) setCurrentScene(snap.scene);
 
-  const text = sceneCache.get(snap.scene.endsWith('.txt') ? snap.scene : `${snap.scene}.txt`);
-  if (text) {
-    setCurrentLines(parseLines(text));
-    indexLabels(snap.scene, currentLines, labelsCache);
+  if (snap.scene) {
+    const text = sceneCache.get(snap.scene.endsWith('.txt') ? snap.scene : `${snap.scene}.txt`);
+    if (text) {
+      setCurrentLines(parseLines(text));
+      indexLabels(snap.scene, currentLines, labelsCache);
+    }
   }
   setIp(snap.ip);
   setAwaitingChoice(null);
 
-  dom.chapterTitle.textContent = snap.chapterTitle;
-  setChapterTitleState(snap.chapterTitle);
+  if (dom.chapterTitle) dom.chapterTitle.textContent = snap.chapterTitle;
+  setChapterTitleState(snap.chapterTitle ?? '');
 
   renderFromLog(snap.narrativeLog, { skipAnimations: true });
 
@@ -234,29 +245,29 @@ function updateUndoBtn() {
 // ---------------------------------------------------------------------------
 function wireUI() {
   // Status panel toggle
-  dom.statusToggle.addEventListener('click', () => {
-    const visible = dom.statusPanel.classList.toggle('status-visible');
-    dom.statusPanel.classList.toggle('status-hidden', !visible);
+  dom.statusToggle?.addEventListener('click', () => {
+    const visible = dom.statusPanel?.classList.toggle('status-visible');
+    dom.statusPanel?.classList.toggle('status-hidden', !visible);
     runStatsScene();
   });
 
   // Close status panel on outside click
   document.addEventListener('click', e => {
     if (
-      !dom.statusPanel.contains(e.target as Node) &&
+      !dom.statusPanel?.contains(e.target as Node) &&
       e.target !== dom.statusToggle &&
       !dom.storeOverlay?.contains(e.target as Node)
     ) {
-      dom.statusPanel.classList.remove('status-visible');
-      dom.statusPanel.classList.add('status-hidden');
+      dom.statusPanel?.classList.remove('status-visible');
+      dom.statusPanel?.classList.add('status-hidden');
     }
   });
 
   // Save menu
-  dom.saveBtn.addEventListener('click', showSaveMenu);
-  dom.saveMenuClose.addEventListener('click', hideSaveMenu);
-  dom.saveOverlay.addEventListener('click', e => { if (e.target === dom.saveOverlay) hideSaveMenu(); });
-  dom.saveOverlay.addEventListener('keydown', e => { if (e.key === 'Escape') hideSaveMenu(); });
+  dom.saveBtn?.addEventListener('click', showSaveMenu);
+  dom.saveMenuClose?.addEventListener('click', hideSaveMenu);
+  dom.saveOverlay?.addEventListener('click', e => { if (e.target === dom.saveOverlay) hideSaveMenu(); });
+  dom.saveOverlay?.addEventListener('keydown', e => { if (e.key === 'Escape') hideSaveMenu(); });
 
   // Save to slot
   [1, 2, 3].forEach(slot => {
@@ -309,7 +320,7 @@ function wireUI() {
   }
 
   // New game
-  dom.splashNewBtn.addEventListener('click', async () => {
+  dom.splashNewBtn?.addEventListener('click', async () => {
     hideSplash();
     const charData = await showCharacterCreation();
     patchPlayerState({
@@ -322,7 +333,7 @@ function wireUI() {
       pronouns_reflexive:          charData.pronouns_reflexive,
       pronouns_label:              charData.pronouns_label,
     });
-    dom.saveBtn.classList.remove('hidden');
+    dom.saveBtn?.classList.remove('hidden');
     document.getElementById('undo-btn')?.classList.remove('hidden');
     _undoStack.splice(0);
     updateUndoBtn();
@@ -331,15 +342,15 @@ function wireUI() {
   });
 
   // Continue (splash load)
-  dom.splashLoadBtn.addEventListener('click', () => {
-    dom.splashOverlay.querySelector('.splash-btn-col')?.classList.add('hidden');
-    dom.splashSlots.classList.remove('hidden');
+  dom.splashLoadBtn?.addEventListener('click', () => {
+    dom.splashOverlay?.querySelector('.splash-btn-col')?.classList.add('hidden');
+    dom.splashSlots?.classList.remove('hidden');
     refreshAllSlotCards();
   });
 
-  dom.splashSlotsBack.addEventListener('click', () => {
-    dom.splashSlots.classList.add('hidden');
-    dom.splashOverlay.querySelector('.splash-btn-col')?.classList.remove('hidden');
+  dom.splashSlotsBack?.addEventListener('click', () => {
+    dom.splashSlots?.classList.add('hidden');
+    dom.splashOverlay?.querySelector('.splash-btn-col')?.classList.remove('hidden');
   });
 
   // Load from splash slots
@@ -399,7 +410,7 @@ function wireUI() {
           showToast(`Imported to Slot ${targetSlot}.`);
           refreshAllSlotCards();
         } else {
-          showToast(`Import failed: ${result.reason}`);
+          showToast(`Import failed: ${(result as { ok: false; reason: string }).reason}`);
         }
       } catch {
         showToast('Import failed: file could not be parsed as JSON.');
@@ -440,7 +451,7 @@ function wireUI() {
       if (!code) { showToast('Paste a save code first.'); return; }
 
       const result = decodeSaveCode(code);
-      if (!result.ok) { showToast(`Load failed: ${result.reason}`); return; }
+      if (!result.ok) { showToast(`Load failed: ${(result as { ok: false; reason: string }).reason}`); return; }
 
       hideSaveMenu();
       await loadAndResume(result.save);
@@ -456,9 +467,9 @@ async function boot() {
   registerCaches(sceneCache, labelsCache);
 
   initNarrative({
-    narrativeContent: dom.narrativeContent,
-    choiceArea:       dom.choiceArea,
-    narrativePanel:   dom.narrativePanel,
+    narrativeContent: dom.narrativeContent as HTMLElement,
+    choiceArea:       dom.choiceArea       as HTMLElement,
+    narrativePanel:   dom.narrativePanel   as HTMLElement,
     scheduleStatsRender,
     onBeforeChoice:   pushUndoSnapshot,
     executeBlock,
@@ -466,7 +477,7 @@ async function boot() {
   });
 
   initPanels({
-    statusPanel:     dom.statusPanel,
+    statusPanel:     dom.statusPanel     as HTMLElement,
     endingOverlay:   dom.endingOverlay,
     endingTitle:     dom.endingTitle,
     endingContent:   dom.endingContent,
@@ -480,24 +491,24 @@ async function boot() {
   });
 
   initOverlays({
-    splashOverlay:  dom.splashOverlay,
-    splashSlots:    dom.splashSlots,
-    saveOverlay:    dom.saveOverlay,
-    saveBtn:        dom.saveBtn,
-    charOverlay:    dom.charOverlay,
-    inputFirstName: dom.inputFirstName,
-    inputLastName:  dom.inputLastName,
-    counterFirst:   dom.counterFirst,
-    counterLast:    dom.counterLast,
-    errorFirstName: dom.errorFirstName,
-    errorLastName:  dom.errorLastName,
-    charBeginBtn:   dom.charBeginBtn,
-    toast:          dom.toast,
+    splashOverlay:  dom.splashOverlay  as HTMLElement,
+    splashSlots:    dom.splashSlots    as HTMLElement,
+    saveOverlay:    dom.saveOverlay    as HTMLElement,
+    saveBtn:        dom.saveBtn        as HTMLElement,
+    charOverlay:    dom.charOverlay    as HTMLElement,
+    inputFirstName: dom.inputFirstName as HTMLInputElement,
+    inputLastName:  dom.inputLastName  as HTMLInputElement,
+    counterFirst:   dom.counterFirst   as HTMLElement,
+    counterLast:    dom.counterLast    as HTMLElement,
+    errorFirstName: dom.errorFirstName as HTMLElement,
+    errorLastName:  dom.errorLastName  as HTMLElement,
+    charBeginBtn:   dom.charBeginBtn   as HTMLButtonElement,
+    toast:          dom.toast          as HTMLElement,
     runStatsScene,
     fetchTextFile,
     evalValue,
-    renderFromLog,
-    renderChoices,
+    renderFromLog:  renderFromLog  as (log: unknown[], opts?: { skipAnimations?: boolean }) => void,
+    renderChoices:  renderChoices  as (choices: unknown[]) => void,
     runInterpreter,
     clearNarrative,
     applyTransition,
@@ -507,9 +518,9 @@ async function boot() {
       setCurrentLines(parseLines(text));
       indexLabels(name, currentLines, labelsCache);
     },
-    setChoiceArea: (el) => {
+    setChoiceArea: (el: HTMLElement | null) => {
       dom.choiceArea = el;
-      setChoiceArea(el);
+      if (el) setChoiceArea(el);
     },
     clearUndoStack: () => {
       _undoStack.splice(0);
@@ -533,7 +544,7 @@ async function boot() {
     formatText,
     setChapterTitle,
     setGameTitle,
-    setGameByline: (t) => {
+    setGameByline: (t: string) => {
       if (dom.splashTagline) dom.splashTagline.innerHTML = t;
     },
     runStatsScene,
@@ -556,7 +567,7 @@ async function boot() {
 
     showSplash();
   } catch (err) {
-    showEngineError(`Boot failed: ${err.message}`);
+    showEngineError(`Boot failed: ${(err as Error).message}`);
   }
 }
 

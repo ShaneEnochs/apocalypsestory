@@ -9,7 +9,7 @@ import { playerState } from '../core/state.js';
 // extractStackCount — returns the numeric stack count from an inventory
 // string, or 1 if no "(N)" suffix is present.
 // ---------------------------------------------------------------------------
-function extractStackCount(itemStr) {
+function extractStackCount(itemStr: string): number {
   const m = String(itemStr).match(/\((\d+)\)$/);
   return m ? Number(m[1]) : 1;
 }
@@ -18,7 +18,7 @@ function extractStackCount(itemStr) {
 // itemBaseName — strips the trailing stack count from an item name.
 // e.g. "Sword (3)" → "Sword"
 // ---------------------------------------------------------------------------
-export function itemBaseName(item) {
+export function itemBaseName(item: string): string {
   return String(item).replace(/\s*\(\d+\)$/, '').trim();
 }
 
@@ -26,12 +26,12 @@ export function itemBaseName(item) {
 // addInventoryItem — adds one copy of item to playerState.inventory.
 // Creates the array if it doesn't exist. Returns true if successful.
 // ---------------------------------------------------------------------------
-export function addInventoryItem(item) {
+export function addInventoryItem(item: string): boolean {
   const normalized = itemBaseName(item);
   if (!normalized) return false;
   if (!Array.isArray(playerState.inventory)) playerState.inventory = [];
 
-  const idx = playerState.inventory.findIndex(i => itemBaseName(i) === normalized);
+  const idx = playerState.inventory.findIndex((i: string) => itemBaseName(i) === normalized);
   if (idx === -1) {
     playerState.inventory.push(normalized);
   } else {
@@ -45,12 +45,12 @@ export function addInventoryItem(item) {
 // removeInventoryItem — removes one copy of item from playerState.inventory.
 // Decrements the stack count, or removes entirely if count reaches 1.
 // ---------------------------------------------------------------------------
-export function removeInventoryItem(item) {
+export function removeInventoryItem(item: string): boolean {
   const normalized = itemBaseName(item);
   if (!normalized) return false;
   if (!Array.isArray(playerState.inventory)) return false;
 
-  const idx = playerState.inventory.findIndex(i => itemBaseName(i) === normalized);
+  const idx = playerState.inventory.findIndex((i: string) => itemBaseName(i) === normalized);
   if (idx === -1) {
     console.warn(`[inventory] *remove_item: "${normalized}" not found.`);
     return false;
@@ -67,12 +67,12 @@ export function removeInventoryItem(item) {
 // parseInventoryUpdateText — extracts item names from a system block string.
 // Used to detect "Inventory updated: Item A, Item B".
 // ---------------------------------------------------------------------------
-export function parseInventoryUpdateText(text) {
+export function parseInventoryUpdateText(text: string): string[] {
   const m = text.match(/Inventory\s+updated\s*:\s*([^\n]+)/i);
   if (!m) return [];
   return m[1].trim().split(',')
-    .map(e => e.trim().replace(/\.$/, ''))
-    .filter(e => e &&
+    .map((e: string) => e.trim().replace(/\.$/, ''))
+    .filter((e: string) => e &&
       e.length <= 60 &&
       !/\b(assembled|acquired|secured|updated|complete|lost|destroyed)\b/i.test(e));
 }

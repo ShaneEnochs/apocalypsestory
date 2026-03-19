@@ -18,28 +18,42 @@ import { itemBaseName } from '../systems/inventory.js';
 import { getJournalEntries, getAchievements } from '../systems/journal.js';
 import { escapeHtml, formatText } from './narrative.js';
 import { evalValue } from '../core/expression.js';
+import type { SkillEntry } from '../systems/skills.js';
+import type { ItemEntry } from '../systems/items.js';
 
 // ---------------------------------------------------------------------------
 // Module-level DOM references and callbacks — populated by init()
 // ---------------------------------------------------------------------------
-let _statusPanel        = null;
-let _endingOverlay      = null;
-let _endingTitle        = null;
-let _endingContent      = null;
-let _endingStats        = null;
-let _endingActionBtn    = null;
-let _storeOverlay       = null;
-let _fetchTextFile      = null;
-let _scheduleStats      = null;
-let _trapFocus          = null;
-let _showToast          = null;
+let _statusPanel!:     HTMLElement;
+let _endingOverlay:    HTMLElement | null = null;
+let _endingTitle:      HTMLElement | null = null;
+let _endingContent:    HTMLElement | null = null;
+let _endingStats:      HTMLElement | null = null;
+let _endingActionBtn:  HTMLElement | null = null;
+let _storeOverlay:     HTMLElement | null = null;
+let _fetchTextFile!:   (name: string) => Promise<string>;
+let _scheduleStats!:   () => void;
+let _trapFocus:        ((el: HTMLElement, trigger: HTMLElement | null) => (() => void)) | null = null;
+let _showToast!:       (msg: string, duration?: number) => void;
 
 export function init({ statusPanel,
                        endingOverlay, endingTitle, endingContent,
                        endingStats, endingActionBtn,
                        storeOverlay,
                        fetchTextFile, scheduleStatsRender, trapFocus,
-                       showToast }) {
+                       showToast }: {
+  statusPanel:        HTMLElement;
+  endingOverlay:      HTMLElement | null;
+  endingTitle:        HTMLElement | null;
+  endingContent:      HTMLElement | null;
+  endingStats:        HTMLElement | null;
+  endingActionBtn:    HTMLElement | null;
+  storeOverlay:       HTMLElement | null;
+  fetchTextFile:      (name: string) => Promise<string>;
+  scheduleStatsRender: () => void;
+  trapFocus:          ((el: HTMLElement, trigger: HTMLElement | null) => (() => void)) | null;
+  showToast:          ((msg: string, duration?: number) => void) | null;
+}): void {
   _statusPanel        = statusPanel;
   _endingOverlay      = endingOverlay;
   _endingTitle        = endingTitle;
@@ -50,13 +64,13 @@ export function init({ statusPanel,
   _fetchTextFile      = fetchTextFile;
   _scheduleStats      = scheduleStatsRender;
   _trapFocus          = trapFocus;
-  _showToast          = showToast || (() => {});
+  _showToast          = showToast ?? (() => {});
 }
 
 // ---------------------------------------------------------------------------
 // styleState — cached color / icon metadata parsed from stats.txt.
 // ---------------------------------------------------------------------------
-const styleState = { colors: {}, icons: {} };
+const styleState: { colors: Record<string, string>; icons: Record<string, string> } = { colors: {}, icons: {} };
 
 // Active tab for the status panel — persists across re-renders
 let _activeStatusTab = 'stats';
@@ -70,7 +84,7 @@ export async function runStatsScene() {
   styleState.colors = {};
   styleState.icons  = {};
 
-  const entries = [];
+  const entries: Array<{ type: string; name?: string; key?: string; label?: string }> = [];
   lines.forEach(line => {
     const t = line.trimmed;
     if (!t || t.startsWith('//')) return;
@@ -111,7 +125,7 @@ export async function runStatsScene() {
       statsHtml += `<div class="status-section"><div class="status-label status-section-header">${escapeHtml(e.name)}</div>`;
       inGroup = true;
     }
-    if (e.type === 'stat') {
+    if (e.type === 'stat' && e.key) {
       const cc = styleState.colors[e.key] || '';
       const ic = styleState.icons[e.key]  ?? '';
       const rawVal = playerState[e.key] ?? '—';
@@ -230,7 +244,7 @@ export async function runStatsScene() {
     ${tabs.map(t => `<button class="status-tab ${_activeStatusTab === t.key ? 'status-tab--active' : ''}" data-tab="${t.key}">${t.label}</button>`).join('')}
   </div>`;
 
-  const contentMap = {
+  const contentMap: Record<string, string> = {
     stats:        statsHtml,
     skills:       skillsHtml,
     inventory:    inventoryHtml,
@@ -242,10 +256,10 @@ export async function runStatsScene() {
   _statusPanel.innerHTML = panelHtml;
 
   // --- Wire tab switching ---
-  _statusPanel.querySelectorAll('.status-tab').forEach(btn => {
+  _statusPanel.querySelectorAll<HTMLElement>('.status-tab').forEach(btn => {
     btn.addEventListener('click', () => {
-      _activeStatusTab = btn.dataset.tab;
-      _statusPanel.querySelectorAll('.status-tab').forEach(b =>
+      _activeStatusTab = btn.dataset.tab ?? 'stats';
+      _statusPanel.querySelectorAll<HTMLElement>('.status-tab').forEach(b =>
         b.classList.toggle('status-tab--active', b.dataset.tab === _activeStatusTab)
       );
       const pane = _statusPanel.querySelector('#status-tab-pane');
@@ -263,8 +277,8 @@ export async function runStatsScene() {
     const invStoreBtn = _statusPanel.querySelector('#status-store-btn-inv');
     if (invStoreBtn) invStoreBtn.addEventListener('click', () => showStore('items'));
 
-    _statusPanel.querySelectorAll('.skill-accordion-btn').forEach(btn => {
-      const desc = btn.nextElementSibling;
+    _statusPanel.querySelectorAll<HTMLElement>('.skill-accordion-btn').forEach(btn => {
+      const desc = btn.nextElementSibling as HTMLElement | null;
       if (!desc) return;
       btn.addEventListener('click', () => {
         const isOpen = desc.style.display !== 'none';
@@ -278,22 +292,23 @@ export async function runStatsScene() {
 // ---------------------------------------------------------------------------
 // Store system — full-screen overlay with Skills and Items tabs
 // ---------------------------------------------------------------------------
-let _storeTrapRelease = null;
+let _storeTrapRelease: (() => void) | null = null;
 let _storeActiveTab   = 'skills';
-let _preStoreTab      = null;
+let _preStoreTab:     string | null = null;
 
-export function showStore(tab = null) {
+export function showStore(tab: string | null = null) {
   if (!_storeOverlay) return;
   if (tab) _storeActiveTab = tab;
   _preStoreTab = _activeStatusTab;
 
-  _storeOverlay.classList.remove('hidden');
+  const overlay = _storeOverlay;
+  overlay.classList.remove('hidden');
   requestAnimationFrame(() => {
-    _storeOverlay.style.opacity = '1';
+    overlay.style.opacity = '1';
   });
 
   if (_trapFocus) {
-    _storeTrapRelease = _trapFocus(_storeOverlay, null);
+    _storeTrapRelease = _trapFocus(overlay, null);
   }
 
   renderStore();
@@ -316,6 +331,7 @@ function hideStore() {
 }
 
 function renderStore() {
+  if (!_storeOverlay) return;
   const box = _storeOverlay.querySelector('.store-modal-box');
   if (!box) return;
 
@@ -338,14 +354,15 @@ function renderStore() {
 
   box.querySelector('#store-close-btn')?.addEventListener('click', hideStore);
 
-  box.querySelectorAll('.store-tab').forEach(tab => {
+  box.querySelectorAll<HTMLElement>('.store-tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      _storeActiveTab = tab.dataset.tab;
+      _storeActiveTab = tab.dataset.tab ?? 'skills';
       renderStore();
     });
   });
 
   const content = box.querySelector('#store-content');
+  if (!content) return;
   if (_storeActiveTab === 'skills') {
     renderSkillsTab(content, essence);
   } else {
@@ -353,11 +370,11 @@ function renderStore() {
   }
 
   requestAnimationFrame(() => {
-    box.querySelector('#store-close-btn')?.focus({ preventScroll: true });
+    (box.querySelector('#store-close-btn') as HTMLElement | null)?.focus({ preventScroll: true });
   });
 }
 
-function renderSkillsTab(container, essence) {
+function renderSkillsTab(container: Element, essence: number): void {
   if (skillRegistry.length === 0) {
     container.innerHTML = `<div class="store-empty">No skills available.</div>`;
     return;
@@ -419,9 +436,9 @@ function renderSkillsTab(container, essence) {
 
   container.innerHTML = html;
 
-  container.querySelectorAll('.store-purchase-btn').forEach(btn => {
+  container.querySelectorAll<HTMLElement>('.store-purchase-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const key = btn.dataset.key;
+      const key = btn.dataset.key ?? '';
       if (purchaseSkill(key)) {
         _showToast(`Skill unlocked: ${skillRegistry.find(s => s.key === key)?.label || key}`);
         renderStore();
@@ -430,7 +447,7 @@ function renderSkillsTab(container, essence) {
   });
 }
 
-function renderItemsTab(container, essence) {
+function renderItemsTab(container: Element, essence: number): void {
   if (itemRegistry.length === 0) {
     container.innerHTML = `<div class="store-empty">No items available.</div>`;
     return;
@@ -468,9 +485,9 @@ function renderItemsTab(container, essence) {
 
   container.innerHTML = html;
 
-  container.querySelectorAll('.store-purchase-btn').forEach(btn => {
+  container.querySelectorAll<HTMLElement>('.store-purchase-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const key = btn.dataset.key;
+      const key = btn.dataset.key ?? '';
       if (purchaseItem(key)) {
         _showToast(`Purchased: ${itemRegistry.find(i => i.key === key)?.label || key}`);
         renderStore();
@@ -482,22 +499,22 @@ function renderItemsTab(container, essence) {
 // ---------------------------------------------------------------------------
 // showEndingScreen
 // ---------------------------------------------------------------------------
-export function showEndingScreen(title, content) {
+export function showEndingScreen(title: string, content: string): void {
   if (!_endingOverlay) return;
-  _endingTitle.textContent   = title;
-  _endingContent.textContent = content;
+  if (_endingTitle)   _endingTitle.textContent   = title;
+  if (_endingContent) _endingContent.textContent = content;
 
-  const statsLines = [];
+  const statsLines: string[] = [];
   statRegistry.forEach(({ key, label }) => {
     statsLines.push(`${label}: ${playerState[key] ?? '—'}`);
   });
-  _endingStats.textContent = statsLines.join('  ·  ');
+  if (_endingStats) _endingStats.textContent = statsLines.join('  ·  ');
 
   _endingOverlay.classList.remove('hidden');
   _endingOverlay.style.opacity = '1';
   if (_trapFocus) {
     const release = _trapFocus(_endingOverlay, null);
-    _endingOverlay._trapRelease = release;
+    (_endingOverlay as any)._trapRelease = release;
   }
 
   _endingActionBtn?.addEventListener('click', () => {

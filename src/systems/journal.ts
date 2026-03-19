@@ -4,10 +4,10 @@ import { playerState } from '../core/state.js';
 
 // addJournalEntry — unique=true skips insert if matching text+type exists.
 // Returns true if inserted, false if deduplicated.
-export function addJournalEntry(text, type = 'entry', unique = false) {
+export function addJournalEntry(text: string, type = 'entry', unique = false): boolean {
   if (!Array.isArray(playerState.journal)) playerState.journal = [];
   const normalised = text.trim();
-  if (unique && playerState.journal.some(e => e.text === normalised && e.type === type)) {
+  if (unique && playerState.journal.some((e: { text: string; type: string }) => e.text === normalised && e.type === type)) {
     return false;
   }
   playerState.journal.push({ text: normalised, type, timestamp: Date.now() });

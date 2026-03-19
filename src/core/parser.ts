@@ -52,7 +52,7 @@ export function indexLabels(
   lines: ParsedLine[],
   labelsCache: Map<string, Record<string, number>>,
 ): void {
-  const map = {};
+  const map: Record<string, number> = {};
   lines.forEach((line, idx) => {
     const m = line.trimmed.match(/^\*label\s+([\w_\-]+)/);
     if (m) map[m[1]] = idx;

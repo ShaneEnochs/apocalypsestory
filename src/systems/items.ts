@@ -9,11 +9,20 @@
 import { playerState, normalizeKey } from '../core/state.js';
 import { addInventoryItem } from './inventory.js';
 
+export interface ItemEntry {
+  key:         string;
+  label:       string;
+  essenceCost: number;
+  rarity:      string;
+  description: string;
+  condition:   string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Item registry — populated by parseItems from items.txt
 // [{ key, label, essenceCost, description, rarity, condition }]
 // ---------------------------------------------------------------------------
-export let itemRegistry = [];
+export let itemRegistry: ItemEntry[] = [];
 
 // ---------------------------------------------------------------------------
 // parseItems — reads items.txt and populates itemRegistry.
@@ -22,19 +31,19 @@ export let itemRegistry = [];
 //            Description text (indented).
 //          *require expression  (optional — hides until true)
 // ---------------------------------------------------------------------------
-export async function parseItems(fetchTextFileFn) {
+export async function parseItems(fetchTextFileFn: (name: string) => Promise<string>): Promise<void> {
   let text;
   try {
     text = await fetchTextFileFn('items');
   } catch (err) {
-    console.warn('[items] items.txt not found — item store disabled.', err.message);
+    console.warn('[items] items.txt not found — item store disabled.', (err as Error).message);
     itemRegistry = [];
     return;
   }
 
   const lines = text.split(/\r?\n/);
-  const parsed = [];
-  let current = null;
+  const parsed: ItemEntry[] = [];
+  let current: ItemEntry | null = null;
 
   for (const raw of lines) {
     const trimmed = raw.trim();
@@ -78,7 +87,7 @@ export async function parseItems(fetchTextFileFn) {
 // purchaseItem — deducts Essence, then adds the item to inventory.
 // Returns true on success, false if can't afford. Items stack on repeat buys.
 // ---------------------------------------------------------------------------
-export function purchaseItem(key) {
+export function purchaseItem(key: string): boolean {
   const k     = normalizeKey(key);
   const entry = itemRegistry.find(i => i.key === k);
   if (!entry) {

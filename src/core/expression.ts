@@ -14,6 +14,11 @@
 
 import { playerState, tempState, normalizeKey, resolveStore } from './state.js';
 
+interface Token {
+  type:   string;
+  value?: string | number | boolean;
+}
+
 const TT = {
   NUM: 'NUM', STR: 'STR', BOOL: 'BOOL', IDENT: 'IDENT',
   LBRACKET: '[', RBRACKET: ']', LPAREN: '(', RPAREN: ')',
@@ -24,8 +29,8 @@ const TT = {
   EOF: 'EOF',
 };
 
-function tokenise(src) {
-  const tokens = [];
+function tokenise(src: string): Token[] {
+  const tokens: Token[] = [];
   let i = 0;
 
   while (i < src.length) {
@@ -63,7 +68,7 @@ function tokenise(src) {
       '(': TT.LPAREN, ')': TT.RPAREN, '[': TT.LBRACKET, ']': TT.RBRACKET,
       '!': TT.NOT,   ',': TT.COMMA,
     };
-    if (SINGLE[src[i]]) { tokens.push({ type: SINGLE[src[i]], value: src[i] }); i++; continue; }
+    if ((SINGLE as Record<string, string>)[src[i]]) { tokens.push({ type: (SINGLE as Record<string, string>)[src[i]], value: src[i] }); i++; continue; }
 
     if (/[a-zA-Z_]/.test(src[i])) {
       let j = i;
@@ -88,25 +93,25 @@ function tokenise(src) {
   return tokens;
 }
 
-function makeParser(tokens) {
+function makeParser(tokens: Token[]) {
   let pos = 0;
 
   function peek()    { return tokens[pos]; }
   function advance() { return tokens[pos++]; }
-  function expect(type) {
+  function expect(type: string): Token {
     if (peek().type !== type) {
       throw new Error(`[expression] Expected ${type} but got ${peek().type}`);
     }
     return advance();
   }
 
-  function parseExpr() { return parseOr(); }
+  function parseExpr(): unknown { return parseOr(); }
 
   // Both sides are always fully parsed before the boolean is applied so that
   // function calls inside or/and branches consume their tokens regardless of
   // whether the short-circuit result is already determined.
-  function parseOr() {
-    let left = parseAnd();
+  function parseOr(): unknown {
+    let left: unknown = parseAnd();
     while (peek().type === TT.OR) {
       advance();
       const right = parseAnd();
@@ -115,8 +120,8 @@ function makeParser(tokens) {
     return left;
   }
 
-  function parseAnd() {
-    let left = parseNot();
+  function parseAnd(): unknown {
+    let left: unknown = parseNot();
     while (peek().type === TT.AND) {
       advance();
       const right = parseNot();
@@ -125,7 +130,7 @@ function makeParser(tokens) {
     return left;
   }
 
-  function parseNot() {
+  function parseNot(): unknown {
     if (peek().type === TT.NOT) {
       advance();
       return !parseNot();
@@ -133,36 +138,36 @@ function makeParser(tokens) {
     return parseComparison();
   }
 
-  function parseComparison() {
-    let left = parseAddSub();
+  function parseComparison(): unknown {
+    let left: unknown = parseAddSub();
     const CMP = [TT.LT, TT.GT, TT.LTE, TT.GTE, TT.EQ, TT.NEQ];
     while (CMP.includes(peek().type)) {
       const op    = advance().type;
       const right = parseAddSub();
       /* eslint-disable eqeqeq */
-      if (op === TT.LT)  left = left <  right;
-      if (op === TT.GT)  left = left >  right;
-      if (op === TT.LTE) left = left <= right;
-      if (op === TT.GTE) left = left >= right;
-      if (op === TT.EQ)  left = left == right;
-      if (op === TT.NEQ) left = left != right;
+      if (op === TT.LT)  left = (left as any) <  (right as any);
+      if (op === TT.GT)  left = (left as any) >  (right as any);
+      if (op === TT.LTE) left = (left as any) <= (right as any);
+      if (op === TT.GTE) left = (left as any) >= (right as any);
+      if (op === TT.EQ)  left = (left as any) == (right as any);
+      if (op === TT.NEQ) left = (left as any) != (right as any);
       /* eslint-enable eqeqeq */
     }
     return left;
   }
 
-  function parseAddSub() {
-    let left = parseMulDiv();
+  function parseAddSub(): unknown {
+    let left: unknown = parseMulDiv();
     while (peek().type === TT.PLUS || peek().type === TT.MINUS) {
       const op    = advance().type;
       const right = parseMulDiv();
-      left = op === TT.PLUS ? left + right : left - right;
+      left = op === TT.PLUS ? (left as any) + (right as any) : (left as any) - (right as any);
     }
     return left;
   }
 
-  function parseMulDiv() {
-    let left = parseUnary();
+  function parseMulDiv(): unknown {
+    let left: unknown = parseUnary();
     while (peek().type === TT.STAR || peek().type === TT.SLASH) {
       const op    = advance().type;
       const right = parseUnary();
@@ -170,19 +175,19 @@ function makeParser(tokens) {
         console.warn('[expression] Division by zero — returning 0');
         left = 0;
       } else {
-        left = op === TT.STAR ? left * right : left / right;
+        left = op === TT.STAR ? (left as any) * (right as any) : (left as any) / (right as any);
       }
     }
     return left;
   }
 
-  function parseUnary() {
-    if (peek().type === TT.MINUS) { advance(); return -parseUnary(); }
+  function parseUnary(): unknown {
+    if (peek().type === TT.MINUS) { advance(); return -(parseUnary() as number); }
     if (peek().type === TT.NOT)   { advance(); return !parseUnary(); }
     return parsePrimary();
   }
 
-  function parsePrimary() {
+  function parsePrimary(): unknown {
     const tok = peek();
 
     if (tok.type === TT.NUM)  { advance(); return tok.value; }
@@ -197,7 +202,7 @@ function makeParser(tokens) {
 
     if (tok.type === TT.LPAREN) {
       advance();
-      const val = parseExpr();
+      const val: unknown = parseExpr();
       expect(TT.RPAREN);
       return val;
     }
@@ -206,9 +211,9 @@ function makeParser(tokens) {
       advance();
       if (peek().type === TT.LPAREN) {
         advance();
-        return parseFunction(tok.value);
+        return parseFunction(tok.value as string);
       }
-      const key   = normalizeKey(tok.value);
+      const key   = normalizeKey(tok.value as string);
       const store = resolveStore(key);
       if (store !== null) return store[key];
       // Unknown identifiers return 0 (falsy) so *if conditions with typos
@@ -220,8 +225,8 @@ function makeParser(tokens) {
     throw new Error(`[expression] Unexpected token ${tok.type}`);
   }
 
-  function parseArgList() {
-    const args = [];
+  function parseArgList(): unknown[] {
+    const args: unknown[] = [];
     if (peek().type === TT.RPAREN) { advance(); return args; }
     args.push(parseExpr());
     while (peek().type === TT.COMMA) { advance(); args.push(parseExpr()); }
@@ -229,7 +234,7 @@ function makeParser(tokens) {
     return args;
   }
 
-  const BUILTINS = {
+  const BUILTINS: Record<string, (args: unknown[]) => unknown> = {
     random: (args) => {
       const lo = Math.ceil(Number(args[0]  ?? 1));
       const hi = Math.floor(Number(args[1] ?? lo));
@@ -248,7 +253,7 @@ function makeParser(tokens) {
     },
   };
 
-  function parseFunction(name) {
+  function parseFunction(name: string): unknown {
     const lower = name.toLowerCase();
     const fn    = BUILTINS[lower];
     if (!fn) {
@@ -262,7 +267,7 @@ function makeParser(tokens) {
   return { parseExpr };
 }
 
-export function evalValue(expr) {
+export function evalValue(expr: string): unknown {
   const trimmed = expr.trim();
   if (/^"[^"]*"$/.test(trimmed)) return trimmed.slice(1, -1);
   if (trimmed === '[]') return [];
@@ -272,7 +277,7 @@ export function evalValue(expr) {
     return parser.parseExpr();
   } catch (err) {
     // Return 0 (falsy) on parse error so broken conditions fail closed.
-    console.warn(`[expression] Parse error in "${trimmed}": ${err.message}`);
+    console.warn(`[expression] Parse error in "${trimmed}": ${(err as Error).message}`);
     return 0;
   }
 }
