@@ -200,7 +200,7 @@ function _processToastQueue(): void {
     .split(' ')
     .filter((c: string) => c === 'toast' || c === 'hidden')
     .join(' ');
-  if (rarity) _toast.classList.add(`toast--rarity-${rarity}`);
+  if (rarity && rarity !== 'common') _toast.classList.add(`toast--rarity-${rarity}`);
   _toast.classList.remove('hidden', 'toast-hide');
   _toast.classList.add('toast-show');
 

@@ -161,7 +161,7 @@ export async function runStatsScene(): Promise<void> {
       const cc = styleState.colors[e.key] || '';
       const ic = styleState.icons[e.key]  ?? '';
       const rawVal = playerState[e.key] ?? '—';
-      statsHtml += `<div class="status-row"><span class="status-label">${ic ? ic + ' ' : ''}${escapeHtml(e.label)}</span><span class="status-value ${cc}">${formatText(String(rawVal))}</span></div>`;
+      statsHtml += `<div class="status-row" data-stat-key="${e.key}"><span class="status-label">${ic ? ic + ' ' : ''}${escapeHtml(e.label)}</span><span class="status-value ${cc}">${formatText(String(rawVal))}</span></div>`;
     }
   });
   if (inGroup) statsHtml += `</div>`;
@@ -302,21 +302,25 @@ export async function runStatsScene(): Promise<void> {
 
   wireTabContent();
 
-  // Diff numeric stat values against the previous render and flash changed ones.
-  _statusPanel.querySelectorAll<HTMLElement>('.status-row').forEach(row => {
-    const label = row.querySelector('.status-label')?.textContent?.trim();
-    const valEl = row.querySelector<HTMLElement>('.status-value');
-    if (!label || !valEl) return;
-    const rawVal = parseFloat(valEl.textContent || '');
+  // Diff numeric stat values against the previous render.
+  // Uses entries + playerState directly so _prevStatValues stays current even
+  // when the Stats tab is not the active pane (DOM rows won't exist then).
+  // Flash classes are only applied when Stats is the active tab.
+  entries.forEach(e => {
+    if (e.type !== 'stat' || !e.key) return;
+    const rawVal = parseFloat(String(playerState[e.key] ?? ''));
     if (isNaN(rawVal)) return;
-    const key  = label.toLowerCase();
-    const prev = _prevStatValues.get(key);
-    if (prev !== undefined && prev !== rawVal) {
-      const cls = rawVal > prev ? 'stat-flash--up' : 'stat-flash--down';
-      valEl.classList.add(cls);
-      valEl.addEventListener('animationend', () => valEl.classList.remove(cls), { once: true });
+    const prev = _prevStatValues.get(e.key);
+    _prevStatValues.set(e.key, rawVal);
+    if (prev !== undefined && prev !== rawVal && _activeStatusTab === 'stats') {
+      const row  = _statusPanel.querySelector<HTMLElement>(`.status-row[data-stat-key="${e.key}"]`);
+      const valEl = row?.querySelector<HTMLElement>('.status-value');
+      if (valEl) {
+        const cls = rawVal > prev ? 'stat-flash--up' : 'stat-flash--down';
+        valEl.classList.add(cls);
+        valEl.addEventListener('animationend', () => valEl.classList.remove(cls), { once: true });
+      }
     }
-    _prevStatValues.set(key, rawVal);
   });
 
   function wireTabContent(): void {

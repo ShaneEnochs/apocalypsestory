@@ -116,11 +116,16 @@ function setChapterTitle(t: string) {
 
 function showChapterCard(title: string): void {
   document.querySelector('.chapter-card')?.remove();
-  const card = document.createElement('div');
+  const card   = document.createElement('div');
   card.className = 'chapter-card';
-  card.innerHTML =
-    `<span class="chapter-card-label">Chapter</span>` +
-    `<span class="chapter-card-title">${title}</span>`;
+  const lbl    = document.createElement('span');
+  lbl.className = 'chapter-card-label';
+  lbl.textContent = 'Chapter';
+  const ttl    = document.createElement('span');
+  ttl.className = 'chapter-card-title';
+  ttl.textContent = title;        // textContent — no XSS risk
+  card.appendChild(lbl);
+  card.appendChild(ttl);
   if (dom.narrativePanel) {
     dom.narrativePanel.insertBefore(card, dom.narrativePanel.firstChild);
   }

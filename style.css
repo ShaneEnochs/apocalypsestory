@@ -2460,3 +2460,11 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   .overlay-title { font-size: 1.1rem; letter-spacing: var(--ls-normal); }
   .overlay-btn   { font-size: var(--text-sm); padding: 10px 24px; }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Ensure char creation children are visible if animations are disabled */
+  .char-box > * {
+    opacity: 1;
+    animation: none;
+  }
+}
