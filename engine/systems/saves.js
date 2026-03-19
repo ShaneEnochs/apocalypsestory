@@ -1,18 +1,11 @@
-// ---------------------------------------------------------------------------
 // systems/saves.js — Save / load / slot management + save code system
 //
-// All save slots (auto, 1, 2, 3) now store SA1 save codes in localStorage.
+// All save slots (auto, 1, 2, 3) store SA1 save codes in localStorage.
 // SA1 is a compact format: base64-encoded JSON with delta-compressed
 // playerState and a CRC-16 checksum for corruption detection.
 //
 // Format:  SA1|<base64_payload>|<4_char_hex_crc>
-//
-// SAVE_VERSION history:
-//   v7: Essence replaces XP/skill_points. game_title added.
-//   v8: Store system (items.txt, item purchases).
-//   v9: Simplification refactor — removed sessionState, pauseState, leveling.
-//       Flat pronoun keys. All slots use SA1 save code format.
-// ---------------------------------------------------------------------------
+// Current save version: 9
 
 import {
   playerState, tempState, currentScene, ip,
@@ -40,7 +33,7 @@ export function saveKeyForSlot(slot) {
 }
 
 // ---------------------------------------------------------------------------
-// _staleSaveFound
+// Stale save detection — set when a version-mismatched save is discarded
 // ---------------------------------------------------------------------------
 export let _staleSaveFound = false;
 export function clearStaleSaveFound() { _staleSaveFound = false; }
@@ -62,10 +55,7 @@ function crc16(str) {
 
 // ---------------------------------------------------------------------------
 // buildSaveCodePayload — builds the compact payload for SA1 encoding.
-//
-// Delta-compresses playerState against startup defaults so only changed
-// keys are stored. Includes statRegistry, label, and timestamp for full
-// round-trip fidelity.
+// Delta-compresses playerState against startup defaults.
 // ---------------------------------------------------------------------------
 function buildSaveCodePayload(label, narrativeLog) {
   const defaults = getStartupDefaults();
@@ -94,7 +84,6 @@ function buildSaveCodePayload(label, narrativeLog) {
     payload.ac = JSON.parse(JSON.stringify(awaitingChoice));
   }
 
-  // Always include statRegistry so runtime *create_stat entries survive.
   if (statRegistry.length > 0) {
     payload.sr = JSON.parse(JSON.stringify(statRegistry));
   }
@@ -107,7 +96,6 @@ function buildSaveCodePayload(label, narrativeLog) {
 // ---------------------------------------------------------------------------
 export function encodeSaveCode(narrativeLog, label = null) {
   const json = JSON.stringify(buildSaveCodePayload(label, narrativeLog));
-  // btoa only handles Latin-1; use encodeURIComponent + unescape for full Unicode
   const compressed = btoa(unescape(encodeURIComponent(json)));
   const checksum = crc16(compressed);
   return `SA1|${compressed}|${checksum}`;
@@ -115,11 +103,7 @@ export function encodeSaveCode(narrativeLog, label = null) {
 
 // ---------------------------------------------------------------------------
 // decodeSaveCode — decodes an SA1 string into a full save object.
-//
 // Returns { ok, save?, reason? }.
-// The returned save object has the shape that restoreFromSave expects:
-//   { version, scene, ip, chapterTitle, playerState, statRegistry,
-//     narrativeLog, awaitingChoice, characterName, timestamp, label }
 // ---------------------------------------------------------------------------
 export function decodeSaveCode(code) {
   const trimmed = code.trim();
@@ -151,7 +135,6 @@ export function decodeSaveCode(code) {
     return { ok: false, reason: `Save code is from a different game version (v${json.v}, expected v${SAVE_VERSION}).` };
   }
 
-  // Reconstruct full playerState by merging delta over startup defaults
   const defaults = getStartupDefaults();
   const fullPlayerState = { ...defaults, ...json.ps };
 
@@ -189,10 +172,7 @@ export function saveGameToSlot(slot, label = null, narrativeLog = []) {
 
 // ---------------------------------------------------------------------------
 // loadSaveFromSlot — reads from localStorage and decodes SA1.
-//
-// Backward compatibility: if the stored value is not an SA1 string (i.e. it's
-// a legacy raw JSON blob from a previous engine version), it's treated as a
-// stale save and discarded with a notice.
+// Legacy raw JSON blobs from older engine versions are discarded.
 // ---------------------------------------------------------------------------
 export function loadSaveFromSlot(slot) {
   const key = saveKeyForSlot(slot);
@@ -201,11 +181,9 @@ export function loadSaveFromSlot(slot) {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
 
-    // SA1 save codes always start with 'SA1|'
     if (raw.startsWith('SA1|')) {
       const result = decodeSaveCode(raw);
       if (result.ok) return result.save;
-      // Decode failed — corrupted or version mismatch
       console.warn(`[saves] Slot "${slot}" decode failed: ${result.reason}`);
       if (result.reason.includes('different game version')) {
         setStaleSaveFound();
@@ -232,11 +210,9 @@ export function deleteSaveSlot(slot) {
 }
 
 // ---------------------------------------------------------------------------
-// exportSaveSlot (ENH-10, FIX #12, BUG-G fix)
-//
-// Exports the decoded save object as a JSON file. The file contains the
-// full expanded save (not the compact SA1 string) for human readability
-// and cross-engine compatibility.
+// exportSaveSlot — exports the decoded save as a human-readable JSON file.
+// The anchor element is attached to the document before .click() for
+// cross-browser compatibility (Firefox requires it).
 // ---------------------------------------------------------------------------
 export function exportSaveSlot(slot) {
   const save = loadSaveFromSlot(slot);
@@ -250,9 +226,6 @@ export function exportSaveSlot(slot) {
   a.href         = url;
   a.download     = filename;
 
-  // BUG-G fix: the anchor must be attached to the document before .click() is
-  // called.  Chromium allows clicking a detached element but Firefox silently
-  // ignores it, so the export button did nothing on Firefox.
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -261,10 +234,8 @@ export function exportSaveSlot(slot) {
 }
 
 // ---------------------------------------------------------------------------
-// importSaveFromJSON (ENH-10)
-//
-// Validates an imported JSON save object, then re-encodes it as SA1 and
-// stores it in the target slot.
+// importSaveFromJSON — validates an imported JSON save object, re-encodes
+// as SA1, and stores it in the target slot.
 // ---------------------------------------------------------------------------
 export function importSaveFromJSON(json, targetSlot) {
   if (!json || typeof json !== 'object' || Array.isArray(json))
@@ -279,7 +250,6 @@ export function importSaveFromJSON(json, targetSlot) {
   const key = saveKeyForSlot(targetSlot);
   if (!key) return { ok: false, reason: `Invalid target slot: "${targetSlot}".` };
 
-  // Build delta-compressed playerState for the SA1 payload
   const defaults = getStartupDefaults();
   const deltaPs = {};
   for (const [k, v] of Object.entries(json.playerState)) {
@@ -317,15 +287,8 @@ export function importSaveFromJSON(json, targetSlot) {
 // ---------------------------------------------------------------------------
 // restoreFromSave — applies a save object to live engine state.
 //
-// The save object is the expanded form returned by decodeSaveCode or
-// loadSaveFromSlot — it contains full playerState, statRegistry, etc.
-//
-// BUG-3 fix (code review): Previously, saves taken mid-scene via *save_point
-//   (where awaitingChoice is null) would paint the narrative log and then
-//   freeze — runInterpreter was never called to continue execution from
-//   save.ip. Now we always call runInterpreter({ suppressAutoSave: true })
-//   when there is no awaitingChoice to restore, so mid-scene saves resume
-//   correctly without triggering a redundant auto-save.
+// If the save was at a *choice point, restores the buttons directly.
+// If mid-scene (via *save_point), resumes execution from save.ip.
 // ---------------------------------------------------------------------------
 export async function restoreFromSave(save, {
   runStatsScene,
@@ -340,16 +303,12 @@ export async function restoreFromSave(save, {
   fetchTextFileFn,
   evalValueFn,
 }) {
-  // 1. Re-parse startup to establish fresh defaults.
   await parseStartup(fetchTextFileFn, evalValueFn);
 
-  // 2. Merge saved playerState over fresh defaults.
   setPlayerState({ ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) });
 
-  // 3. Clear temp state.
   clearTempState();
 
-  // Restore statRegistry from save.
   if (Array.isArray(save.statRegistry) && save.statRegistry.length > 0) {
     const freshStatKeys = new Set(statRegistry.map(e => e.key));
     const extra = save.statRegistry.filter(e => !freshStatKeys.has(e.key));
@@ -358,39 +317,30 @@ export async function restoreFromSave(save, {
     }
   }
 
-  // 4. Parse and cache the saved scene.
   await parseAndCacheScene(save.scene);
   setCurrentScene(save.scene);
   setIp(save.ip ?? 0);
   setAwaitingChoice(null);
 
-  // 5. Restore chapter title.
   if (save.chapterTitle) {
     setChapterTitle(save.chapterTitle);
   }
 
-  // 6. Render narrative from the saved log.
   clearNarrative();
   applyTransition();
   renderFromLog(save.narrativeLog ?? [], { skipAnimations: true });
 
-  // 6b. Re-point _choiceArea (BUG-05).
   if (typeof setChoiceArea === 'function') {
     setChoiceArea(document.getElementById('choice-area'));
   }
 
-  // 7. Run stats panel.
   await runStatsScene();
 
-  // 8. Re-render choices or resume execution depending on save type.
   if (save.awaitingChoice) {
-    // Save was taken at a *choice point — restore buttons directly.
     setAwaitingChoice(save.awaitingChoice);
     renderChoices(save.awaitingChoice.choices);
   } else {
-    // BUG-3 fix: Save was taken mid-scene via *save_point. The log has been
-    // painted but ip still points into the scene. Resume execution from that
-    // position so the game continues rather than freezing.
+    // Mid-scene save — resume execution without triggering a redundant auto-save.
     await runInterpreter({ suppressAutoSave: true });
   }
 }

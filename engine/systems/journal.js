@@ -1,11 +1,8 @@
-// ---------------------------------------------------------------------------
 // systems/journal.js — Journal and achievements
-// (Copied from original — no changes needed for bug fixes)
-// ---------------------------------------------------------------------------
 
 import { playerState } from '../core/state.js';
 
-// ENH-02: unique=true skips insert if matching text+type already exists.
+// addJournalEntry — unique=true skips insert if matching text+type exists.
 // Returns true if inserted, false if deduplicated.
 export function addJournalEntry(text, type = 'entry', unique = false) {
   if (!Array.isArray(playerState.journal)) playerState.journal = [];

@@ -1,7 +1,7 @@
-// ---------------------------------------------------------------------------
-// systems/leveling.js — Leveling system removed.
-// getAllocatableStatKeys is kept for the stats panel (*stat_registered).
-// ---------------------------------------------------------------------------
+// systems/leveling.js — Leveling system stub
+//
+// The leveling system was removed but getAllocatableStatKeys is still used
+// by the stats panel for *stat_registered rendering.
 
 import { statRegistry } from '../core/state.js';
 

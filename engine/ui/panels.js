@@ -1,24 +1,10 @@
-// ---------------------------------------------------------------------------
 // ui/panels.js — Stats panel, store, ending screen
 //
-// Phase 3: Added Store system — a full-screen overlay with Skills and Items
-// tabs where players spend Essence. Store button appears in the status panel.
+// Renders the status sidebar with tabs (Stats, Skills, Inv, Log), the
+// Essence-based store overlay, and the ending screen.
 //
-// FIX #5: All author-controlled strings rendered into innerHTML now pass
-//   through escapeHtml() imported from narrative.js. This covers:
-//     - inventory item names (from parseInventoryUpdateText / scene files)
-//     - skill labels and descriptions (from skills.txt)
-//     - journal entry and achievement text (from *journal / *achievement)
-//     - stat group names (from stats.txt *stat_group)
-//     - stat labels (from stats.txt *stat / *stat_registered)
-//   These are author-controlled rather than player-controlled, so the XSS
-//   risk is lower (a malicious author could inject via a scene file), but
-//   defensive escaping is correct practice and costs nothing.
-//
-// FIX #6: Common rarity items/skills now correctly receive the
-//   skill-rarity--common CSS class so they render white instead of
-//   inheriting the base cyan color from .store-card-name / .skill-accordion-name.
-// ---------------------------------------------------------------------------
+// All author-controlled strings rendered into innerHTML pass through
+// escapeHtml() for defensive XSS prevention.
 
 import {
   playerState, statRegistry,
@@ -43,10 +29,10 @@ let _endingContent      = null;
 let _endingStats        = null;
 let _endingActionBtn    = null;
 let _storeOverlay       = null;
-let _fetchTextFile      = null;   // async (name) → string
-let _scheduleStats      = null;   // () → void
-let _trapFocus          = null;   // (el, trigger) → release fn
-let _showToast          = null;   // (msg: string) → void
+let _fetchTextFile      = null;
+let _scheduleStats      = null;
+let _trapFocus          = null;
+let _showToast          = null;
 
 export function init({ statusPanel,
                        endingOverlay, endingTitle, endingContent,
@@ -69,7 +55,6 @@ export function init({ statusPanel,
 
 // ---------------------------------------------------------------------------
 // styleState — cached color / icon metadata parsed from stats.txt.
-// Reset on each runStatsScene call so stale entries don't bleed across loads.
 // ---------------------------------------------------------------------------
 const styleState = { colors: {}, icons: {} };
 
@@ -78,14 +63,6 @@ let _activeStatusTab = 'stats';
 
 // ---------------------------------------------------------------------------
 // runStatsScene — parses stats.txt and rebuilds the status sidebar HTML.
-//
-// stats.txt directives:
-//   *stat_group "Label"       — opens a collapsible section
-//   *stat key "Label"         — renders one stat row
-//   *stat_registered          — renders all statRegistry entries in order
-//   *stat_color key className — attaches a CSS class to a stat value
-//   *stat_icon  key "emoji"   — prepends an icon to a stat label
-//   *inventory                — renders the inventory list
 // ---------------------------------------------------------------------------
 export async function runStatsScene() {
   const text  = await _fetchTextFile('stats');
@@ -93,7 +70,6 @@ export async function runStatsScene() {
   styleState.colors = {};
   styleState.icons  = {};
 
-  // --- Parse stats.txt entries ---
   const entries = [];
   lines.forEach(line => {
     const t = line.trimmed;
@@ -144,11 +120,10 @@ export async function runStatsScene() {
   });
   if (inGroup) statsHtml += `</div>`;
 
-  // ACHIEVEMENTS as expandable accordions at bottom of stats tab
+  // Achievements accordion at bottom of stats tab
   const achvsForStats = getAchievements();
   if (achvsForStats.length > 0) {
     const achvAccordions = achvsForStats.map(a => {
-      // Achievements may optionally have a title — text before " — " is the title
       const dashIdx = a.text.indexOf(' — ');
       const title   = dashIdx !== -1 ? escapeHtml(a.text.slice(0, dashIdx)) : escapeHtml(a.text);
       const body    = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : '';
@@ -163,7 +138,7 @@ export async function runStatsScene() {
     statsHtml += `<div class="status-section"><div class="status-label status-section-header">Achievements</div><ul class="skill-accordion-list">${achvAccordions}</ul></div>`;
   }
 
-  // SKILLS TAB — store button at top, then owned skills with rarity colors
+  // SKILLS TAB
   const hasSkillStore = skillRegistry.length > 0;
   let skillsHtml = hasSkillStore
     ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-skills" data-store-tab="skills">◈ Skill Store</button></div>`
@@ -178,14 +153,13 @@ export async function runStatsScene() {
       const label   = escapeHtml(entry ? entry.label : k);
       const desc    = escapeHtml(entry ? entry.description : '');
       const rarity  = entry?.rarity || 'common';
-      // FIX #6: Always apply rarity class (including common) so CSS override works
       const rarCls  = ` skill-rarity--${rarity}`;
       return `<li class="skill-accordion"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name${rarCls}">${label}</span><span class="skill-accordion-chevron">▾</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
     }).join('');
     skillsHtml += `<ul class="skill-accordion-list">${skillItems}</ul>`;
   }
 
-  // INVENTORY TAB — store button at top, then items with rarity colors
+  // INVENTORY TAB
   const hasItemStore = itemRegistry.length > 0;
   let inventoryHtml = hasItemStore
     ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-inv" data-store-tab="items">◈ Item Store</button></div>`
@@ -201,7 +175,6 @@ export async function runStatsScene() {
       const label    = escapeHtml(invEntry);
       const desc     = escapeHtml(regEntry ? regEntry.description : '');
       const rarity   = regEntry?.rarity || 'common';
-      // FIX #6: Always apply rarity class (including common) so CSS override works
       const rarCls   = ` skill-rarity--${rarity}`;
       return `<li class="skill-accordion">
         <button class="skill-accordion-btn">
@@ -214,7 +187,7 @@ export async function runStatsScene() {
     inventoryHtml += `<ul class="skill-accordion-list">${invAccordions}</ul>`;
   }
 
-  // ACHIEVEMENTS TAB — accordion achievements + flat journal entries
+  // LOG TAB — achievements + journal entries
   let achievementsHtml = '';
   const achvs = getAchievements();
   const jentries = getJournalEntries().filter(j => j.type !== 'achievement');
@@ -284,17 +257,15 @@ export async function runStatsScene() {
   wireTabContent();
 
   function wireTabContent() {
-    // Store buttons — skills tab opens skills store, inv tab opens items store
     const skillsStoreBtn = _statusPanel.querySelector('#status-store-btn-skills');
     if (skillsStoreBtn) skillsStoreBtn.addEventListener('click', () => showStore('skills'));
 
     const invStoreBtn = _statusPanel.querySelector('#status-store-btn-inv');
     if (invStoreBtn) invStoreBtn.addEventListener('click', () => showStore('items'));
 
-    // Skill/inventory/achievement accordions
     _statusPanel.querySelectorAll('.skill-accordion-btn').forEach(btn => {
       const desc = btn.nextElementSibling;
-      if (!desc) return;  // achievements without body text have no desc element
+      if (!desc) return;
       btn.addEventListener('click', () => {
         const isOpen = desc.style.display !== 'none';
         desc.style.display = isOpen ? 'none' : 'block';
@@ -308,13 +279,12 @@ export async function runStatsScene() {
 // Store system — full-screen overlay with Skills and Items tabs
 // ---------------------------------------------------------------------------
 let _storeTrapRelease = null;
-let _storeActiveTab   = 'skills';   // preserved across open/close
-let _preStoreTab      = null;       // remembers sidebar tab before store opened
+let _storeActiveTab   = 'skills';
+let _preStoreTab      = null;
 
 export function showStore(tab = null) {
   if (!_storeOverlay) return;
   if (tab) _storeActiveTab = tab;
-  // Remember which sidebar tab was active so hideStore can restore it
   _preStoreTab = _activeStatusTab;
 
   _storeOverlay.classList.remove('hidden');
@@ -334,13 +304,9 @@ function hideStore() {
   _storeOverlay.classList.add('hidden');
   _storeOverlay.style.opacity = '0';
   if (_storeTrapRelease) { _storeTrapRelease(); _storeTrapRelease = null; }
-  // Return to whichever sidebar tab was active before the store opened
   _activeStatusTab = _preStoreTab || (_storeActiveTab === 'items' ? 'inventory' : 'skills');
   _preStoreTab = null;
   _scheduleStats();
-  // The document-level click-outside handler may close the sidebar in the
-  // same event cycle (the close button is outside #status-panel). Re-apply
-  // the visible class in the next frame so the sidebar stays open.
   requestAnimationFrame(() => {
     if (_statusPanel) {
       _statusPanel.classList.add('status-visible');
@@ -370,10 +336,8 @@ function renderStore() {
     </div>
     <div class="store-content" id="store-content"></div>`;
 
-  // Wire close button
   box.querySelector('#store-close-btn')?.addEventListener('click', hideStore);
 
-  // Wire tabs
   box.querySelectorAll('.store-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       _storeActiveTab = tab.dataset.tab;
@@ -381,7 +345,6 @@ function renderStore() {
     });
   });
 
-  // Render active tab content
   const content = box.querySelector('#store-content');
   if (_storeActiveTab === 'skills') {
     renderSkillsTab(content, essence);
@@ -389,7 +352,6 @@ function renderStore() {
     renderItemsTab(content, essence);
   }
 
-  // Focus close button
   requestAnimationFrame(() => {
     box.querySelector('#store-close-btn')?.focus({ preventScroll: true });
   });
@@ -401,13 +363,11 @@ function renderSkillsTab(container, essence) {
     return;
   }
 
-  // Filter by *require condition — hide skills whose condition evaluates false
   const visible = skillRegistry.filter(s => {
     if (!s.condition) return true;
     try { return !!evalValue(s.condition); } catch { return true; }
   });
 
-  // Split into available vs owned
   const available = visible.filter(s => !playerHasSkill(s.key));
   const owned     = visible.filter(s => playerHasSkill(s.key));
 
@@ -420,7 +380,6 @@ function renderSkillsTab(container, essence) {
       const cardCls   = canAfford ? '' : 'store-card--unaffordable';
       const badgeCls  = canAfford ? 'store-cost-badge--can-afford' : '';
       const rarity    = skill.rarity || 'common';
-      // FIX #6: Always apply rarity class (including common) so CSS override works
       const rarCls    = ` skill-rarity--${rarity}`;
       html += `
         <div class="store-card ${cardCls}" data-key="${escapeHtml(skill.key)}" data-type="skill">
@@ -440,7 +399,6 @@ function renderSkillsTab(container, essence) {
     html += `<div class="store-section-label store-section-label--owned">Owned</div>`;
     owned.forEach(skill => {
       const rarity = skill.rarity || 'common';
-      // FIX #6: Always apply rarity class (including common) so CSS override works
       const rarCls = ` skill-rarity--${rarity}`;
       html += `
         <div class="store-card store-card--owned" data-key="${escapeHtml(skill.key)}">
@@ -461,7 +419,6 @@ function renderSkillsTab(container, essence) {
 
   container.innerHTML = html;
 
-  // Wire purchase buttons
   container.querySelectorAll('.store-purchase-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const key = btn.dataset.key;
@@ -479,7 +436,6 @@ function renderItemsTab(container, essence) {
     return;
   }
 
-  // Filter by *require condition
   const visible = itemRegistry.filter(item => {
     if (!item.condition) return true;
     try { return !!evalValue(item.condition); } catch { return true; }
@@ -496,7 +452,6 @@ function renderItemsTab(container, essence) {
     const cardCls   = canAfford ? '' : 'store-card--unaffordable';
     const badgeCls  = canAfford ? 'store-cost-badge--can-afford' : '';
     const rarity    = item.rarity || 'common';
-    // FIX #6: Always apply rarity class (including common) so CSS override works
     const rarCls    = ` skill-rarity--${rarity}`;
     html += `
       <div class="store-card ${cardCls}" data-key="${escapeHtml(item.key)}" data-type="item">
@@ -513,7 +468,6 @@ function renderItemsTab(container, essence) {
 
   container.innerHTML = html;
 
-  // Wire purchase buttons
   container.querySelectorAll('.store-purchase-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const key = btn.dataset.key;

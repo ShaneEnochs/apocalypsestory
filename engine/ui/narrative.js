@@ -1,38 +1,14 @@
-// ---------------------------------------------------------------------------
 // ui/narrative.js — Narrative rendering, log management, choices
 //
-// FIX #4: formatText variable interpolation now HTML-escapes substituted
-//   values before they are assigned via innerHTML. Player-controlled strings
-//   (first_name, last_name, any variable set via *input) previously flowed
-//   raw into innerHTML, enabling XSS. All substituted values are now passed
-//   through escapeHtml() before insertion.
+// Renders paragraphs, system blocks, input prompts, and choice buttons.
+// Manages the narrative log used for save/load and undo replay.
 //
-//   escapeHtml() is exported so panels.js can reuse the same helper for
-//   inventory items, skill descriptions, journal entries, and stat labels.
+// formatText resolves ${var} interpolation, pronoun tokens, and markdown.
+// All substituted values are HTML-escaped before insertion into innerHTML
+// to prevent XSS from player-controlled strings.
 //
-//   Plain author-written narrative text and markdown (**bold** / *italic*)
-//   are NOT escaped — only the dynamic values injected from state are.
-//   This preserves all existing formatting behaviour for authored content.
-//
-// FIX Main + A + B (sweep 4): Choice click handler rewritten.
-//   - awaitingChoice is now read directly from state.js (no circular import).
-//   - setAwaitingChoice(null) is called before executeBlock so the stale
-//     truthy value doesn't cause executeBlock to bail immediately.
-//   - The correct resume IP (awaitingChoice.end — the whole choice block end)
-//     is captured before clearing, not choice.end (individual option end).
-//   - executeBlock and runInterpreter are received via init() callbacks
-//     to avoid a circular import with interpreter.js.
-//
-// BUG J fix (sweep 6): choice container gets role="group" + aria-label;
-//   disabled buttons get aria-disabled="true"; first enabled button
-//   receives focus after render via requestAnimationFrame.
-// BUG K fix (sweep 6): choiceMade guard prevents double-click / rapid-tap
-//   race on touch devices.
-// ANIM removal: all animationDelay stagger logic removed from addParagraph,
-//   addSystem, showInputPrompt, renderChoices, and renderFromLog. The
-//   delayIndex counter in state.js has also been removed. applyTransition
-//   is now a no-op. All narrative elements render at full opacity immediately.
-// ---------------------------------------------------------------------------
+// escapeHtml is exported so panels.js can reuse it for inventory items,
+// skill descriptions, journal entries, and stat labels.
 
 import {
   playerState, tempState,
@@ -42,8 +18,6 @@ import {
 
 // ---------------------------------------------------------------------------
 // escapeHtml — sanitizes a runtime value for safe insertion into innerHTML.
-// Handles &, <, >, " which are the HTML injection vectors.
-// Exported for reuse in panels.js.
 // ---------------------------------------------------------------------------
 export function escapeHtml(val) {
   return String(val ?? '')
@@ -62,8 +36,7 @@ let _narrativePanel    = null;
 let _scheduleStats     = null;
 let _onBeforeChoice    = null;
 
-// FIX Main/A/B (sweep 4): interpreter functions injected via init() to avoid
-// circular import (narrative.js → interpreter.js → [via callbacks] → narrative.js).
+// Interpreter functions injected via init() to avoid circular import.
 let _executeBlock      = null;
 let _runInterpreter    = null;
 
@@ -84,14 +57,8 @@ export function setChoiceArea(el) { _choiceArea = el; }
 // ---------------------------------------------------------------------------
 // Narrative Log — records every piece of visible narrative content during play.
 //
-// Each entry is a plain object describing one rendered item:
-//   { type: 'paragraph', text }
-//   { type: 'system',    text }
-//   { type: 'input',     varName, prompt, value }   (value filled on submit)
-//
-// Choices and page-break buttons are NOT logged — they are transient
-// interactive state, not historical narrative content. Page breaks clear the
-// narrative when clicked, so the log resets to [] on clearNarrative().
+// Each entry: { type, text } for paragraph/system, or
+//             { type, varName, prompt, value } for input.
 //
 // renderFromLog() consumes this log to rebuild the DOM without re-executing
 // any scene code. Used by popUndo and restoreFromSave.
@@ -128,22 +95,15 @@ export function formatText(text) {
   let result = String(text);
 
   // 1. Variable interpolation: ${varName}
-  // MINOR-3 fix: after HTML-escaping the substituted value, also escape any
-  // asterisks it contains so player-controlled strings (names entered via
-  // character creation or *input) cannot accidentally trigger the **bold** /
-  // *italic* markdown that runs in step 3. This is a defence-in-depth measure;
-  // the HTML-escape in escapeHtml() already prevents XSS, but without this
-  // step a player named "**Boss**" would render bold in narrative paragraphs.
+  // Substituted values are HTML-escaped, and asterisks are escaped to &#42;
+  // so player-controlled strings can't trigger **bold** / *italic* markdown.
   result = result.replace(/\$\{([a-zA-Z_][\w]*)\}/g, (_, v) => {
     const k     = normalizeKey(v);
     const store = resolveStore(k);
     return escapeHtml(store ? store[k] : '').replace(/\*/g, '&#42;');
   });
 
-  // 2. Pronoun tokens: {they}, {Them}, {their}, {theirs}, etc.
-  // Pronoun values come from playerState and are also player-controlled, so
-  // apply the same asterisk-escape after HTML-escaping (resolvePronoun already
-  // calls escapeHtml internally).
+  // 2. Pronoun tokens: {they}, {Them}, {their}, etc.
   result = result.replace(
     /\{(They|Them|Their|Theirs|Themself|they|them|their|theirs|themself)\}/g,
     (_, token) => {
@@ -154,26 +114,15 @@ export function formatText(text) {
   );
 
   // 3. Markdown: **bold** and *italic*
-  // Only author-written text reaches this step; player-controlled substitutions
-  // had their asterisks escaped to &#42; above.
   result = result
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
   // 4. Inline color spans: [cyan]...[/cyan], [amber]...[/amber], etc.
-  // Renders as <span class="inline-accent-{color}">...</span>.
-  // Defined last so color tags can wrap bold/italic markup without
-  // interfering with the markdown pass above.
-  // Rarity aliases: [common], [uncommon], [rare], [epic], [legendary]
-  // also accepted alongside their color equivalents [white], [blue], [purple], [gold].
   const COLOR_TAGS = [
-    // Core theme
     'cyan', 'amber', 'green', 'red',
-    // Rarity names
     'common', 'uncommon', 'rare', 'epic', 'legendary',
-    // Rarity color aliases
     'white', 'blue', 'purple', 'gold',
-    // Neutral shades
     'silver', 'dim', 'faint',
   ];
   for (const color of COLOR_TAGS) {
@@ -196,13 +145,11 @@ export function addParagraph(text, cls = 'narrative-paragraph') {
   p.innerHTML = formatText(text);
   _narrativeContent.insertBefore(p, _choiceArea);
 
-  // Log the raw text (before formatText) so renderFromLog can re-resolve
-  // variable interpolation against the restored state on load/undo.
   _narrativeLog.push({ type: 'paragraph', text });
 }
 
 // ---------------------------------------------------------------------------
-// addSystem — renders a system block, applies rewards, triggers level-up UI
+// addSystem — renders a system block
 // ---------------------------------------------------------------------------
 export function addSystem(text) {
   const div       = document.createElement('div');
@@ -214,7 +161,6 @@ export function addSystem(text) {
   div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
   _narrativeContent.insertBefore(div, _choiceArea);
 
-  // Log the raw system text so renderFromLog can reconstruct the block.
   _narrativeLog.push({ type: 'system', text });
 }
 
@@ -226,20 +172,12 @@ export function clearNarrative() {
     if (el !== _choiceArea) el.remove();
   }
   _choiceArea.innerHTML = '';
-  // Reset scroll position so new content starts at the top.
-  // Use scrollTo with 'instant' to override the CSS scroll-behavior: smooth
-  // which can cause the reset to animate and race with new content being added.
   _narrativeContent.scrollTo({ top: 0, behavior: 'instant' });
-
-  // Clear the narrative log — a page break or scene transition starts fresh.
   _narrativeLog = [];
 }
 
 // ---------------------------------------------------------------------------
-// applyTransition — formerly added a CSS 'transitioning' class for a
-// fade/slide effect. Removed: the setTimeout race was a source of bugs
-// where new content rendered while the panel was still opacity:0.
-// Kept as a no-op so all call sites remain valid without changes.
+// applyTransition — no-op. Kept so all call sites remain valid.
 // ---------------------------------------------------------------------------
 export function applyTransition() {
   // intentionally empty
@@ -247,25 +185,14 @@ export function applyTransition() {
 
 // ---------------------------------------------------------------------------
 // renderChoices — builds choice buttons and wires click → executeBlock
-//
-// Called by the interpreter (via the cb.renderChoices callback registered
-// in engine.js).
-//
-// BUG J fix: choice container gets role="group" + aria-label; permanently-
-//   disabled buttons get aria-disabled="true"; first enabled button
-//   receives focus after render via requestAnimationFrame.
-// BUG K fix: choiceMade guard prevents double-click / rapid-tap executing
-//   the same choice twice.
 // ---------------------------------------------------------------------------
 export function renderChoices(choices) {
   _choiceArea.innerHTML = '';
 
-  // BUG J: mark container as a labelled group for screen readers
   _choiceArea.setAttribute('role', 'group');
   _choiceArea.setAttribute('aria-label', 'Story choices');
 
-  // BUG K: single-fire guard — set true on the first click; all subsequent
-  // clicks/taps in this choice round are silently dropped.
+  // Single-fire guard prevents double-click / rapid-tap race.
   let choiceMade = false;
 
   choices.forEach((choice) => {
@@ -273,7 +200,7 @@ export function renderChoices(choices) {
     btn.className = 'choice-btn';
     btn.innerHTML = `<span>${formatText(choice.text)}</span>`;
 
-    // ENH-09: Render inline stat requirement badge if the choice has one.
+    // Render inline stat requirement badge if present.
     if (choice.statTag) {
       const { label, requirement } = choice.statTag;
       const key = normalizeKey(label.replace(/\s+/g, '_'));
@@ -314,7 +241,7 @@ export function renderChoices(choices) {
     _choiceArea.appendChild(btn);
   });
 
-  // BUG J: move keyboard focus to the first enabled button
+  // Focus first enabled button for keyboard accessibility.
   requestAnimationFrame(() => {
     const firstEnabled = _choiceArea.querySelector('.choice-btn:not(:disabled)');
     if (firstEnabled) firstEnabled.focus({ preventScroll: true });
@@ -323,11 +250,6 @@ export function renderChoices(choices) {
 
 // ---------------------------------------------------------------------------
 // showPageBreak — inserts a "Continue" button that clears the screen.
-// Used by the *page_break directive. The button text is configurable
-// (e.g. "The next day..."). Clicking clears the screen and resumes.
-//
-// Page breaks are intentionally NOT logged: clicking one clears the narrative
-// and starts a fresh screen, so the log resets via clearNarrative() anyway.
 // ---------------------------------------------------------------------------
 export function showPageBreak(btnText, onContinue) {
   const btn = document.createElement('button');
@@ -342,13 +264,8 @@ export function showPageBreak(btnText, onContinue) {
 
 // ---------------------------------------------------------------------------
 // showInputPrompt — creates an inline text input in the narrative area.
-// Used by the *input directive. Creates a styled input field in the narrative
-// area and calls onSubmit(value) when the player presses Enter or clicks Submit.
 // ---------------------------------------------------------------------------
 export function showInputPrompt(varName, prompt, onSubmit) {
-  // Create the log entry immediately with value: null. The value field is
-  // mutated to the actual string inside doSubmit so that renderFromLog can
-  // show the completed answer when restoring from an undo or save.
   const logEntry = { type: 'input', varName, prompt, value: null };
   _narrativeLog.push(logEntry);
 
@@ -374,10 +291,8 @@ export function showInputPrompt(varName, prompt, onSubmit) {
     const value = field.value.trim();
     if (!value) return;
 
-    // Mutate the log entry so renderFromLog can show the submitted value
     logEntry.value = value;
 
-    // Collapse the input widget to a read-only display
     wrapper.classList.add('input-prompt-block--submitted');
     wrapper.innerHTML = `
       <span class="system-block-label">[ INPUT ]</span>
@@ -392,8 +307,6 @@ export function showInputPrompt(varName, prompt, onSubmit) {
     if (e.key === 'Enter') doSubmit();
   });
 
-  // Auto-focus the input field without scrolling to it — the player should
-  // read from the top of the screen, not jump to the input widget.
   requestAnimationFrame(() => field.focus({ preventScroll: true }));
 }
 
@@ -402,15 +315,8 @@ export function showInputPrompt(varName, prompt, onSubmit) {
 //
 // This is the heart of the save/load and undo approach: instead of
 // re-executing scene code, we replay the visible record of what was shown.
-// No rewards are re-applied, no interpreter runs, no state changes occur.
-//
-// The skipAnimations option is retained for API compatibility but is now a
-// no-op — all elements render at full opacity immediately since CSS
-// animation-based staggering has been removed.
 // ---------------------------------------------------------------------------
 export function renderFromLog(log, { skipAnimations = true } = {}) {  // eslint-disable-line no-unused-vars
-  // Clear DOM — but do NOT touch _narrativeLog here; we're about to adopt
-  // the incoming log as the new current log at the end of this function.
   for (const el of [..._narrativeContent.children]) {
     if (el !== _choiceArea) el.remove();
   }
@@ -456,6 +362,5 @@ export function renderFromLog(log, { skipAnimations = true } = {}) {  // eslint-
     }
   }
 
-  // Adopt the incoming log as the current live log.
   _narrativeLog = [...log];
 }
