@@ -1,33 +1,28 @@
-// ---------------------------------------------------------------------------
 // build.js — esbuild bundler for System Awakening
 //
 // Bundles engine.js and all its ES module imports into a single file at
-// dist/engine.js. For production use on GitHub Pages (fewer HTTP requests).
+// dist/engine.js, which Netlify serves as the game entry point.
 //
 // Usage:
-//   npm install        (installs esbuild)
-//   npm run build      (runs this script)
+//   npm install       (installs esbuild — one time only)
+//   npm run build     (runs this script)
 //
-// The output goes to dist/engine.js. To use it:
-//   1. Copy dist/engine.js to the repo root (or adjust index.html's script src)
-//   2. index.html keeps type="module" — esbuild's output is a valid ES module
-//
-// For development, the unbundled modules work fine with any static file server
-// (including GitHub Pages). Bundling is an optimisation, not a requirement.
-// ---------------------------------------------------------------------------
+// Netlify runs this automatically on every push to main.
+// For local development, the unbundled source files work fine with:
+//   npm run dev       (serves on localhost:3000)
 
 import { build } from 'esbuild';
 
 try {
-  const result = await build({
+  await build({
     entryPoints: ['engine.js'],
-    bundle: true,
-    format: 'esm',
-    outfile: 'dist/engine.js',
-    minify: false,           // keep readable for debugging; set true for production
-    sourcemap: true,         // dist/engine.js.map
-    target: ['es2020'],
-    logLevel: 'info',
+    bundle:      true,
+    format:      'esm',
+    outfile:     'dist/engine.js',
+    minify:      false,   // set true for a smaller production build
+    sourcemap:   true,    // generates dist/engine.js.map for debugging
+    target:      ['es2020'],
+    logLevel:    'info',
   });
   console.log('Build complete: dist/engine.js');
 } catch (err) {
