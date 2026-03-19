@@ -10,131 +10,99 @@
 //   tempState    — scene-scoped, cleared by clearTempState() on *goto_scene
 //   statRegistry — ordered list of allocatable stats declared via *create_stat
 
-/**
- * @typedef {Object} StatRegistryEntry
- * @property {string} key        — normalised lowercase key
- * @property {string} label      — human-readable label from *create_stat
- * @property {number} defaultVal — initial value declared in startup.txt
- */
+/** normalised lowercase key, human-readable label, initial value */
+export interface StatRegistryEntry {
+  key:        string;
+  label:      string;
+  defaultVal: number;
+}
 
-/**
- * @typedef {Object} ParsedLine
- * @property {string} raw     — original line text including whitespace
- * @property {string} trimmed — leading/trailing whitespace removed
- * @property {number} indent  — number of leading whitespace characters
- */
+/** one parsed line from a scene file */
+export interface ParsedLine {
+  raw:     string;  // original line text including whitespace
+  trimmed: string;  // leading/trailing whitespace removed
+  indent:  number;  // number of leading whitespace characters
+}
 
-/**
- * @typedef {Object} AwaitingChoiceState
- * @property {number}         end       — line index past the entire *choice block
- * @property {ChoiceOption[]} choices   — parsed choice options
- * @property {number}         [_blockEnd] — set by executeBlock when a choice is hit inside a block
- * @property {number}         [_savedIp]  — ip to resume at after choice is made
- */
+/** inline stat requirement badge on a choice option */
+export interface StatTag {
+  label:       string;  // stat label text (e.g. "Strength")
+  requirement: number;  // minimum value required
+}
 
-/**
- * @typedef {Object} ChoiceOption
- * @property {string}  text       — display text for the option
- * @property {boolean} selectable — false if *selectable_if condition failed
- * @property {number}  start      — first line index of the option's body
- * @property {number}  end        — line index past the option's body
- * @property {StatTag|null} statTag — inline stat requirement badge, if any
- */
+/** a single parsed choice option */
+export interface ChoiceOption {
+  text:       string;       // display text for the option
+  selectable: boolean;      // false if *selectable_if condition failed
+  start:      number;       // first line index of the option's body
+  end:        number;       // line index past the option's body
+  statTag:    StatTag|null; // inline stat requirement badge, if any
+}
 
-/**
- * @typedef {Object} StatTag
- * @property {string} label       — stat label text (e.g. "Strength")
- * @property {number} requirement — minimum value required
- */
+/** persisted state while waiting for the player to pick a choice */
+export interface AwaitingChoiceState {
+  end:        number;        // line index past the entire *choice block
+  choices:    ChoiceOption[];
+  _blockEnd?: number;        // set by executeBlock when a choice is hit inside a block
+  _savedIp?:  number;        // ip to resume at after choice is made
+}
 
-/**
- * @typedef {Object} StartupMeta
- * @property {string[]} sceneList — ordered scene names from *scene_list
- */
+/** metadata loaded from startup.txt */
+export interface StartupMeta {
+  sceneList: string[]; // ordered scene names from *scene_list
+}
 
 // ---------------------------------------------------------------------------
 // Core game state
 // ---------------------------------------------------------------------------
 
-/** @type {Record<string, any>} */
-export let playerState   = {};
-
-/** @type {Record<string, any>} */
-export let tempState     = {};
-
-/** @type {StatRegistryEntry[]} */
-export let statRegistry  = [];
+export let playerState:   Record<string, any>    = {};
+export let tempState:     Record<string, any>    = {};
+export let statRegistry:  StatRegistryEntry[]    = [];
 
 // ---------------------------------------------------------------------------
 // Interpreter position / flow
 // ---------------------------------------------------------------------------
 
-/** @type {string|null} */
-export let currentScene  = null;
-
-/** @type {ParsedLine[]} */
-export let currentLines  = [];
-
-/** @type {number} */
-export let ip            = 0;
+export let currentScene:  string|null   = null;
+export let currentLines:  ParsedLine[]  = [];
+export let ip:            number        = 0;
 
 // ---------------------------------------------------------------------------
 // Choice state
 // ---------------------------------------------------------------------------
 
-/** @type {AwaitingChoiceState|null} */
-export let awaitingChoice = null;
+export let awaitingChoice: AwaitingChoiceState|null = null;
 
 // ---------------------------------------------------------------------------
 // Startup metadata
 // ---------------------------------------------------------------------------
 
-/** @type {StartupMeta} */
-export let startup = { sceneList: [] };
+export let startup: StartupMeta = { sceneList: [] };
 
 // ---------------------------------------------------------------------------
 // chapterTitle — state-side mirror of the DOM #chapter-title text.
 // Persisted in the save payload so restore can set it without a DOM query.
 // ---------------------------------------------------------------------------
 
-/** @type {string} */
-export let chapterTitle = '—';
+export let chapterTitle: string = '—';
 
-/** @param {string} t */
-export function setChapterTitleState(t) { chapterTitle = t; }
+export function setChapterTitleState(t: string)    { chapterTitle = t; }
 
 // ---------------------------------------------------------------------------
 // Setters
 // ---------------------------------------------------------------------------
 
-/** @param {Record<string, any>} s */
-export function setPlayerState(s)           { playerState = s; }
-
-/** @param {Record<string, any>} patch */
-export function patchPlayerState(patch)     { Object.assign(playerState, patch); }
-
-/** @param {Record<string, any>} s */
-export function setTempState(s)             { tempState = s; }
-
-/** @param {StatRegistryEntry[]} r */
-export function setStatRegistry(r)          { statRegistry = r; }
-
-/** @param {StartupMeta} s */
-export function setStartup(s)               { startup = s; }
-
-/** @param {string} s */
-export function setCurrentScene(s)          { currentScene = s; }
-
-/** @param {ParsedLine[]} l */
-export function setCurrentLines(l)          { currentLines = l; }
-
-/** @param {number} n */
-export function setIp(n)                    { ip = n; }
-
-export function advanceIp()                 { ip += 1; }
-
-/** @param {AwaitingChoiceState|null} c */
-export function setAwaitingChoice(c)        { awaitingChoice = c; }
+export function setPlayerState(s: Record<string, any>)   { playerState = s; }
+export function patchPlayerState(patch: Record<string, any>) { Object.assign(playerState, patch); }
+export function setTempState(s: Record<string, any>)     { tempState = s; }
+export function setStatRegistry(r: StatRegistryEntry[])  { statRegistry = r; }
+export function setStartup(s: StartupMeta)               { startup = s; }
+export function setCurrentScene(s: string)               { currentScene = s; }
+export function setCurrentLines(l: ParsedLine[])         { currentLines = l; }
+export function setIp(n: number)                         { ip = n; }
+export function advanceIp()                              { ip += 1; }
+export function setAwaitingChoice(c: AwaitingChoiceState|null) { awaitingChoice = c; }
 
 // ---------------------------------------------------------------------------
 // clearTempState — called by gotoScene on cross-scene navigation
@@ -146,11 +114,7 @@ export function clearTempState() {
 // ---------------------------------------------------------------------------
 // normalizeKey — canonical lowercase key used everywhere a variable is looked up
 // ---------------------------------------------------------------------------
-/**
- * @param {string} k — raw variable name
- * @returns {string} trimmed, lowercased key
- */
-export function normalizeKey(k) {
+export function normalizeKey(k: string): string {
   return String(k).trim().toLowerCase();
 }
 
@@ -159,11 +123,7 @@ export function normalizeKey(k) {
 // owns the given key, or null if the key is undeclared in both.
 // This is the single source of truth for variable lookup order: temp → player.
 // ---------------------------------------------------------------------------
-/**
- * @param {string} key — normalised variable key
- * @returns {Record<string, any>|null}
- */
-export function resolveStore(key) {
+export function resolveStore(key: string): Record<string, any>|null {
   if (Object.prototype.hasOwnProperty.call(tempState,   key)) return tempState;
   if (Object.prototype.hasOwnProperty.call(playerState, key)) return playerState;
   return null;
@@ -174,15 +134,13 @@ export function resolveStore(key) {
 // Used by save code delta encoding to avoid storing unchanged default values.
 // ---------------------------------------------------------------------------
 
-/** @type {Record<string, any>} */
-let _startupDefaults = {};
+let _startupDefaults: Record<string, any> = {};
 
-export function captureStartupDefaults() {
+export function captureStartupDefaults(): void {
   _startupDefaults = JSON.parse(JSON.stringify(playerState));
 }
 
-/** @returns {Record<string, any>} */
-export function getStartupDefaults() {
+export function getStartupDefaults(): Record<string, any> {
   return _startupDefaults;
 }
 
@@ -193,11 +151,7 @@ export function getStartupDefaults() {
 // Accepts evalValueFn as a parameter to avoid a circular import with
 // expression.js (which also needs to read state).
 // ---------------------------------------------------------------------------
-/**
- * @param {string} command — the full *set directive line (e.g. "*set xp +100")
- * @param {(expr: string) => any} evalValueFn — expression evaluator
- */
-export function setVar(command, evalValueFn) {
+export function setVar(command: string, evalValueFn: (expr: string) => any): void {
   const m = command.match(/^\*set\s+([a-zA-Z_][\w]*)\s+(.+)$/);
   if (!m) return;
   const [, rawKey, rhs] = m;
@@ -225,11 +179,7 @@ export function setVar(command, evalValueFn) {
 // Applies rhs using the same arithmetic-shorthand logic as setVar, then clamps
 // the result to [min, max]. Bounds are optional; omitting one means unbounded.
 // ---------------------------------------------------------------------------
-/**
- * @param {string} command — the full *set_stat directive line
- * @param {(expr: string) => any} evalValueFn — expression evaluator
- */
-export function setStatClamped(command, evalValueFn) {
+export function setStatClamped(command: string, evalValueFn: (expr: string) => any): void {
   const m = command.match(/^\*set_stat\s+([a-zA-Z_][\w]*)\s+(.+)$/);
   if (!m) return;
   const [, rawKey, rest] = m;
@@ -269,11 +219,7 @@ export function setStatClamped(command, evalValueFn) {
 // ---------------------------------------------------------------------------
 // declareTemp — handles the *temp directive
 // ---------------------------------------------------------------------------
-/**
- * @param {string} command — the full *temp directive line
- * @param {(expr: string) => any} evalValueFn — expression evaluator
- */
-export function declareTemp(command, evalValueFn) {
+export function declareTemp(command: string, evalValueFn: (expr: string) => any): void {
   const m = command.match(/^\*temp\s+([a-zA-Z_][\w]*)(?:\s+(.+))?$/);
   if (!m) return;
   const [, rawKey, rhs] = m;
@@ -288,12 +234,10 @@ export function declareTemp(command, evalValueFn) {
 // ---------------------------------------------------------------------------
 let _statRegistryWarningFired = false;
 
-/**
- * @param {(name: string) => Promise<string>} fetchTextFileFn — loads a .txt file by name
- * @param {(expr: string) => any} evalValueFn — expression evaluator
- * @returns {Promise<void>}
- */
-export async function parseStartup(fetchTextFileFn, evalValueFn) {
+export async function parseStartup(
+  fetchTextFileFn: (name: string) => Promise<string>,
+  evalValueFn: (expr: string) => any,
+): Promise<void> {
   const text  = await fetchTextFileFn('startup');
   const lines = text.split(/\r?\n/).map(raw => ({
     raw,

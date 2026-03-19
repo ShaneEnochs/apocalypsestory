@@ -66,7 +66,7 @@ function buildSaveCodePayload(label, narrativeLog) {
     }
   }
 
-  const payload = {
+  const payload: Record<string, any> = {
     v:  SAVE_VERSION,
     s:  currentScene,
     ip,
@@ -76,17 +76,9 @@ function buildSaveCodePayload(label, narrativeLog) {
     ts: Date.now(),
   };
 
-  if (label) {
-    payload.lb = label;
-  }
-
-  if (awaitingChoice) {
-    payload.ac = JSON.parse(JSON.stringify(awaitingChoice));
-  }
-
-  if (statRegistry.length > 0) {
-    payload.sr = JSON.parse(JSON.stringify(statRegistry));
-  }
+  if (label)            payload.lb = label;
+  if (awaitingChoice)   payload.ac = JSON.parse(JSON.stringify(awaitingChoice));
+  if (statRegistry.length > 0) payload.sr = JSON.parse(JSON.stringify(statRegistry));
 
   return payload;
 }
@@ -258,7 +250,7 @@ export function importSaveFromJSON(json, targetSlot) {
     }
   }
 
-  const payload = {
+  const payload: Record<string, any> = {
     v:  SAVE_VERSION,
     s:  json.scene,
     ip: json.ip ?? 0,
@@ -268,9 +260,9 @@ export function importSaveFromJSON(json, targetSlot) {
     ts: json.timestamp || Date.now(),
   };
 
-  if (json.label) payload.lb = json.label;
+  if (json.label)          payload.lb = json.label;
   if (json.awaitingChoice) payload.ac = json.awaitingChoice;
-  if (json.statRegistry) payload.sr = json.statRegistry;
+  if (json.statRegistry)   payload.sr = json.statRegistry;
 
   try {
     const jsonStr = JSON.stringify(payload);

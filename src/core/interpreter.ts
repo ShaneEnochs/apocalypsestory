@@ -18,33 +18,28 @@
 //     → skills.js       (grantSkill, revokeSkill, playerHasSkill)
 //     ← engine.js       (injects UI callbacks at boot via registerCallbacks)
 
-/**
- * @typedef {import('./state.js').ParsedLine} ParsedLine
- * @typedef {import('./state.js').AwaitingChoiceState} AwaitingChoiceState
- * @typedef {import('./state.js').ChoiceOption} ChoiceOption
- */
+import type { ParsedLine, AwaitingChoiceState, ChoiceOption } from './state.js';
 
-/**
- * @typedef {Object} InterpreterCallbacks
- * @property {(text: string) => void}           addParagraph
- * @property {(text: string) => void}           addSystem
- * @property {() => void}                       clearNarrative
- * @property {() => void}                       applyTransition
- * @property {(choices: ChoiceOption[]) => void} renderChoices
- * @property {(title: string, content: string) => void} showEndingScreen
- * @property {(msg: string) => void}            showEngineError
- * @property {(varName: string, prompt: string, onSubmit: (value: string) => void) => void} showInputPrompt
- * @property {(btnText: string, onContinue: () => void) => void} showPageBreak
- * @property {() => void}                       scheduleStatsRender
- * @property {(msg: string, duration?: number) => void} showToast
- * @property {(text: string) => string}         formatText
- * @property {(t: string) => void}              setChapterTitle
- * @property {(t: string) => void}              setGameTitle
- * @property {(t: string) => void}              [setGameByline]
- * @property {() => Promise<void>}              runStatsScene
- * @property {(name: string) => Promise<string>} fetchTextFile
- * @property {() => any[]}                      getNarrativeLog
- */
+export interface InterpreterCallbacks {
+  addParagraph:       (text: string) => void;
+  addSystem:          (text: string) => void;
+  clearNarrative:     () => void;
+  applyTransition:    () => void;
+  renderChoices:      (choices: ChoiceOption[]) => void;
+  showEndingScreen:   (title: string, content: string) => void;
+  showEngineError:    (msg: string) => void;
+  showInputPrompt:    (varName: string, prompt: string, onSubmit: (value: string) => void) => void;
+  showPageBreak:      (btnText: string, onContinue: () => void) => void;
+  scheduleStatsRender: () => void;
+  showToast:          (msg: string, duration?: number) => void;
+  formatText:         (text: string) => string;
+  setChapterTitle:    (t: string) => void;
+  setGameTitle:       (t: string) => void;
+  setGameByline?:     (t: string) => void;
+  runStatsScene:      () => Promise<void>;
+  fetchTextFile:      (name: string) => Promise<string>;
+  getNarrativeLog:    () => any[];
+}
 
 import {
   playerState, tempState, currentLines, ip, currentScene,
@@ -67,46 +62,34 @@ import { addJournalEntry }                                         from '../syst
 // Callback registry — UI functions injected by engine.js at boot.
 // ---------------------------------------------------------------------------
 
-/** @type {Partial<InterpreterCallbacks>} */
-const cb = {};
+const cb: Partial<InterpreterCallbacks> = {};
 
-/** @param {InterpreterCallbacks} callbacks */
-export function registerCallbacks(callbacks) {
+export function registerCallbacks(callbacks: InterpreterCallbacks): void {
   Object.assign(cb, callbacks);
 }
 
 // Scene and label caches — passed in from engine.js so the same Map instance
 // is used everywhere.
 
-/** @type {Map<string, string>|null} */
-let _sceneCache  = null;
+let _sceneCache:  Map<string, string>|null                   = null;
+let _labelsCache: Map<string, Record<string, number>>|null   = null;
 
-/** @type {Map<string, Record<string, number>>|null} */
-let _labelsCache = null;
-
-/**
- * @param {Map<string, string>} sceneCache
- * @param {Map<string, Record<string, number>>} labelsCache
- */
-export function registerCaches(sceneCache, labelsCache) {
+export function registerCaches(
+  sceneCache:  Map<string, string>,
+  labelsCache: Map<string, Record<string, number>>,
+): void {
   _sceneCache  = sceneCache;
   _labelsCache = labelsCache;
 }
 
 // Gosub call stack — stores return addresses for *gosub/*return
-/** @type {number[]} */
-const _gosubStack = [];
+const _gosubStack: number[] = [];
 
 // ---------------------------------------------------------------------------
 // isDirective — exact prefix match that prevents *goto matching *goto_scene.
 // A directive boundary is end-of-string OR a whitespace character.
 // ---------------------------------------------------------------------------
-/**
- * @param {string} trimmed   — trimmed line text
- * @param {string} directive — directive to test (e.g. "*goto")
- * @returns {boolean}
- */
-export function isDirective(trimmed, directive) {
+export function isDirective(trimmed: string, directive: string): boolean {
   if (!trimmed.startsWith(directive)) return false;
   const rest = trimmed.slice(directive.length);
   return rest === '' || /\s/.test(rest[0]);
@@ -116,12 +99,7 @@ export function isDirective(trimmed, directive) {
 // Flow helpers
 // ---------------------------------------------------------------------------
 
-/**
- * @param {number} fromIndex    — line index to start scanning from
- * @param {number} parentIndent — indent level of the parent block
- * @returns {number} line index of the first line outside the block
- */
-export function findBlockEnd(fromIndex, parentIndent) {
+export function findBlockEnd(fromIndex: number, parentIndent: number): number {
   let i = fromIndex;
   while (i < currentLines.length) {
     const l = currentLines[i];
@@ -131,12 +109,7 @@ export function findBlockEnd(fromIndex, parentIndent) {
   return i;
 }
 
-/**
- * @param {number} fromIndex — line index of the *if line
- * @param {number} indent    — indent level of the *if line
- * @returns {number} line index past the entire if/elseif/else chain
- */
-export function findIfChainEnd(fromIndex, indent) {
+export function findIfChainEnd(fromIndex: number, indent: number): number {
   let i = fromIndex + 1;
   while (i < currentLines.length) {
     const line = currentLines[i];
@@ -152,11 +125,7 @@ export function findIfChainEnd(fromIndex, indent) {
   return i;
 }
 
-/**
- * @param {string} raw — trimmed line starting with *if, *elseif, or *loop
- * @returns {boolean}
- */
-export function evaluateCondition(raw) {
+export function evaluateCondition(raw: string): boolean {
   const condition = raw
     .replace(/^\*if\s*/,     '')
     .replace(/^\*elseif\s*/, '')
@@ -169,13 +138,7 @@ export function evaluateCondition(raw) {
 // executeBlock — runs lines [start, end) then sets ip to resumeAfter.
 // Returns a reason string: 'choice', 'goto', or 'normal'.
 // ---------------------------------------------------------------------------
-/**
- * @param {number} start       — first line index to execute
- * @param {number} end         — line index past the last line to execute
- * @param {number} [resumeAfter] — ip to set after normal completion (defaults to end)
- * @returns {Promise<'choice'|'goto'|'normal'>}
- */
-export async function executeBlock(start, end, resumeAfter = end) {
+export async function executeBlock(start: number, end: number, resumeAfter = end): Promise<'choice'|'goto'|'normal'> {
   setIp(start);
   while (ip < end) {
     await executeCurrentLine();
@@ -204,12 +167,7 @@ export async function executeBlock(start, end, resumeAfter = end) {
 // runInterpreter finishes, if no *title ran, a fallback sets the uppercased
 // scene name.
 // ---------------------------------------------------------------------------
-/**
- * @param {string}      name  — scene name (without .txt extension)
- * @param {string|null} [label] — optional *label to jump to after loading
- * @returns {Promise<void>}
- */
-export async function gotoScene(name, label = null) {
+export async function gotoScene(name: string, label: string|null = null): Promise<void> {
   let text;
   try {
     text = await cb.fetchTextFile(name);
@@ -244,12 +202,7 @@ export async function gotoScene(name, label = null) {
   }
 }
 
-/**
- * @param {Object} [options]
- * @param {boolean} [options.suppressAutoSave] — skip auto-save (used by restoreFromSave)
- * @returns {Promise<void>}
- */
-export async function runInterpreter({ suppressAutoSave = false } = {}) {
+export async function runInterpreter({ suppressAutoSave = false }: { suppressAutoSave?: boolean } = {}): Promise<void> {
   while (ip < currentLines.length) {
     await executeCurrentLine();
     if (awaitingChoice) break;
@@ -269,18 +222,11 @@ export async function runInterpreter({ suppressAutoSave = false } = {}) {
 // order and the first match wins.
 // ---------------------------------------------------------------------------
 
-/**
- * @typedef {(t: string, line: ParsedLine) => void|Promise<void>} DirectiveHandler
- */
+type DirectiveHandler = (t: string, line: ParsedLine) => void|Promise<void>;
 
-/** @type {Map<string, DirectiveHandler>} */
-const commands = new Map();
+const commands = new Map<string, DirectiveHandler>();
 
-/**
- * @param {string}           directive — e.g. "*goto_scene"
- * @param {DirectiveHandler} handler
- */
-function registerCommand(directive, handler) {
+function registerCommand(directive: string, handler: DirectiveHandler): void {
   commands.set(directive, handler);
 }
 
@@ -289,8 +235,7 @@ function registerCommand(directive, handler) {
 // Skips empty / comment lines. Plain text lines become paragraphs.
 // Directive lines are dispatched through the command registry.
 // ---------------------------------------------------------------------------
-/** @returns {Promise<void>} */
-export async function executeCurrentLine() {
+export async function executeCurrentLine(): Promise<void> {
   const line = currentLines[ip];
   if (!line) return;
   if (!line.trimmed || line.trimmed.startsWith('//')) { advanceIp(); return; }
@@ -426,8 +371,7 @@ registerCommand('*temp', (t) => {
 });
 
 // *award_essence N  /  *add_essence N
-/** @param {number} n */
-function _handleAddEssence(n) {
+function _handleAddEssence(n: number): void {
   if (n > 0) {
     playerState.essence = Number(playerState.essence || 0) + n;
     cb.scheduleStatsRender();
@@ -443,10 +387,8 @@ registerCommand('*add_essence', (t) => {
 
 /**
  * stripItemName — strips surrounding quotes from item name arguments.
- * @param {string} raw
- * @returns {string}
  */
-function stripItemName(raw) {
+function stripItemName(raw: string): string {
   const s = raw.trim();
   if ((s.startsWith('"') && s.endsWith('"')) ||
       (s.startsWith("'") && s.endsWith("'"))) {

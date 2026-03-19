@@ -15,7 +15,7 @@ import { build } from 'esbuild';
 
 try {
   await build({
-    entryPoints: ['engine.js'],
+    entryPoints: ['engine.ts'],
     bundle:      true,
     format:      'esm',
     outfile:     'dist/engine.js',

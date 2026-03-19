@@ -6,15 +6,16 @@
   "type": "module",
   "scripts": {
     "build": "node build.js",
-    "test": "node tests/test_runner.mjs",
+    "test": "npx tsx tests/test_runner.mjs",
     "test:e2e": "npx playwright test",
-    "test:all": "node tests/test_runner.mjs && npx playwright test",
+    "test:all": "npx tsx tests/test_runner.mjs && npx playwright test",
     "dev": "npx serve . -l 3000 -s"
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0",
     "esbuild": "^0.21.0",
     "serve": "^14.2.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }

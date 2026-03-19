@@ -2,7 +2,7 @@
 
 ## What Was Done (this session)
 
-Completed Phase 3 of the TypeScript migration plan.
+Completed Phase 4 of the TypeScript migration plan — all source files converted from `.js` to `.ts`.
 
 **Branch:** `claude/review-commit-handoff-yqAJ5`
 
@@ -10,23 +10,31 @@ Completed Phase 3 of the TypeScript migration plan.
 
 | What | Detail |
 |------|--------|
-| TypeScript installed | `typescript@5.9.3` added to `devDependencies` |
-| `tsconfig.json` created | `allowJs: true`, `checkJs: false`, `strict: false`, `noEmit: true` |
-| `engine/` → `src/` | All source files moved; imports updated in `engine.js` and `tests/test_runner.mjs` |
-| Build verified | `dist/engine.js` still 98.5 kb, 20 ms build time |
-| Tests verified | 183/183 pass |
+| All 14 source files renamed | `git mv *.js → *.ts` for all files in `src/` and root `engine.ts` |
+| `state.ts` | 6 JSDoc `@typedef` blocks → real exported TypeScript interfaces |
+| `state.ts` | `@type` JSDoc → inline TS type annotations on all `export let` vars and function params |
+| `parser.ts` | JSDoc `@typedef {import()} X` → `import type { X } from './state.js'` |
+| `parser.ts` | 4 local JSDoc typedefs → inline `interface` declarations |
+| `interpreter.ts` | JSDoc `@typedef {import()} X` → `import type { X } from './state.js'` |
+| `interpreter.ts` | `InterpreterCallbacks` JSDoc typedef → exported `interface InterpreterCallbacks` |
+| `interpreter.ts` | `DirectiveHandler` typedef → `type DirectiveHandler = ...` |
+| `saves.ts` | Two `payload` objects typed as `Record<string, any>` to fix optional-property errors |
+| `build.js` | `entryPoints: ['engine.ts']` |
+| `tsconfig.json` | `include` updated to `engine.ts` |
+| `package.json` | Test scripts changed from `node` → `npx tsx` (tsx added as devDependency) |
+| `tests/test_runner.mjs` | Import paths updated to `.ts` extensions |
+| Build | 98.5 kb, 33 ms (unchanged) |
+| Tests | 183/183 pass |
 
-### Current Folder Structure
+### `tsc --noEmit` Status
 
-```
-src/
-  core/       state.js, expression.js, parser.js, interpreter.js
-  systems/    saves.js, inventory.js, skills.js, items.js, journal.js, leveling.js
-  ui/         narrative.js, panels.js, overlays.js
-  tests/      e2e.spec.mjs
-engine.js     (root entry point — imports from ./src/…)
-tsconfig.json
-```
+25 type errors remain — all are DOM narrowing issues in `engine.ts` and `src/ui/narrative.ts`:
+
+- `HTMLElement` used where `HTMLInputElement`, `HTMLButtonElement` etc. are expected (`.value`, `.disabled`, `.files`)
+- `EventTarget` used where `Node` is expected (`.contains()`)
+- `unknown` typed return from `showCharacterCreation()` being destructured
+
+These are the **Phase 5 workload** — they don't affect the build or tests, but will need to be fixed before `strict: true` is clean.
 
 ---
 
@@ -36,40 +44,63 @@ tsconfig.json
 |-------|------|--------|
 | 1 | Patch-diary comment cleanup (all source files) | Done — `f62ddce` |
 | 1/2 | JSDoc `@typedef`/`@param`/`@returns` on `state.js`, `parser.js`, `interpreter.js` | Done — `4136097` |
-| 3 | TypeScript installed + `tsconfig.json` + `engine/` → `src/` rename | Done — this session |
+| 3 | TypeScript installed + `tsconfig.json` + `engine/` → `src/` rename | Done — `f740cbf` |
+| 4 | All `.js` → `.ts`; real interfaces in `state`, `parser`, `interpreter` | Done — this session |
 
 ---
 
 ## What's Next
 
-### Phase 4 — Convert `.js` → `.ts` (in dependency order)
+### Phase 5 — Fix `tsc --noEmit` errors + Enable `strict: true`
 
-Rename files one by one; fix any type errors that surface after each rename.
-esbuild handles `.ts` natively — no separate `tsc` compile step.
+Two related tasks:
 
-Dependency order:
+**5a. Fix the 25 remaining DOM type errors** (before enabling strict):
+
+All in `engine.ts` and `src/ui/narrative.ts`. The pattern is always the same:
+
+```typescript
+// Before (broken — HTMLElement lacks .value):
+const field = document.getElementById('save-code-field');
+if (field) field.value = code;
+
+// After (fixed):
+const field = document.getElementById('save-code-field') as HTMLInputElement | null;
+if (field) field.value = code;
 ```
-state → expression → parser → inventory → journal → leveling →
-skills → items → saves → narrative → panels → overlays →
-interpreter → engine
+
+Common casts needed:
+- `getElementById('...')` → cast to `HTMLInputElement`, `HTMLButtonElement`, `HTMLTextAreaElement` etc.
+- `e.target` → cast to `Node` inside `.contains()` calls
+- Return type of `showCharacterCreation()` in `overlays.ts` needs to be typed
+
+**5b. Enable strict mode** in `tsconfig.json`:
+
+```json
+"strict": true
 ```
 
-For each file:
-1. `git mv src/…/foo.js src/…/foo.ts`
-2. Update any files that import it to use the new `.ts` extension (or drop the extension — esbuild resolves both)
-3. `npm run build` — confirm still 98.5 kb
-4. `npm test` — confirm 183 pass
+Then fix any new errors that surface (likely implicit `any` parameters).
 
-### Phase 5 — Enable `strict: true`
+---
 
-After all files are `.ts`, flip `"strict": false` → `"strict": true` in `tsconfig.json`
-and fix the type errors that surface (likely: implicit `any` on callbacks, missing return
-types, undefined checks).
+## Current Folder Structure
+
+```
+engine.ts           (root entry point — imports from ./src/…)
+src/
+  core/       state.ts, expression.ts, parser.ts, interpreter.ts
+  systems/    saves.ts, inventory.ts, skills.ts, items.ts, journal.ts, leveling.ts
+  ui/         narrative.ts, panels.ts, overlays.ts
+  tests/      e2e.spec.mjs
+tsconfig.json
+```
 
 ---
 
 ## Notes
 
-- esbuild strips all JSDoc/type annotations — bundle size is unaffected by annotation density.
-- `tsconfig.json` is for editor intelligence and `tsc --noEmit` checks only; esbuild is still the actual bundler.
-- `checkJs: false` keeps existing `.js` files silent during Phase 4 while files are being converted incrementally.
+- esbuild strips all type annotations — bundle size is unaffected.
+- `tsx` (added as devDependency) powers `npm test` so Node.js can run the `.ts` test suite directly.
+- Internal imports still use `.js` extensions (e.g. `from './state.js'`) — this is intentional and correct: esbuild and tsx both resolve these to the `.ts` files.
+- `checkJs: false` can be removed now that all files are `.ts`.
