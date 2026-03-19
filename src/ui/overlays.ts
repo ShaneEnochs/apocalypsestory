@@ -186,20 +186,21 @@ export function trapFocus(overlayEl: HTMLElement, triggerEl: HTMLElement | null 
 // ---------------------------------------------------------------------------
 // Toast queue — messages are displayed one at a time.
 // ---------------------------------------------------------------------------
-const _toastQueue: Array<{ message: string; durationMs: number }> = [];
+const _toastQueue: Array<{ message: string; durationMs: number; rarity?: string }> = [];
 let   _toastActive = false;
 
-function _processToastQueue() {
+function _processToastQueue(): void {
   if (_toastActive || _toastQueue.length === 0) return;
   _toastActive = true;
 
-  const { message, durationMs } = _toastQueue.shift()!;
+  const { message, durationMs, rarity } = _toastQueue.shift()!;
 
   _toast.textContent = message;
   _toast.className = _toast.className
     .split(' ')
     .filter((c: string) => c === 'toast' || c === 'hidden')
     .join(' ');
+  if (rarity && rarity !== 'common') _toast.classList.add(`toast--rarity-${rarity}`);
   _toast.classList.remove('hidden', 'toast-hide');
   _toast.classList.add('toast-show');
 
@@ -213,8 +214,8 @@ function _processToastQueue() {
   }, durationMs);
 }
 
-export function showToast(message: string, durationMs = 4000): void {
-  _toastQueue.push({ message, durationMs });
+export function showToast(message: string, durationMs = 4000, rarity?: string): void {
+  _toastQueue.push({ message, durationMs, rarity });
   setTimeout(_processToastQueue, 0);
 }
 
@@ -250,7 +251,7 @@ export function populateSlotCard({ nameEl, metaEl, loadBtn, deleteBtn, cardEl, s
 }
 
 // refreshAllSlotCards — updates every card in both splash and in-game menus
-export function refreshAllSlotCards() {
+export function refreshAllSlotCards(): void {
   ['auto', 1, 2, 3].forEach(slot => {
     const save = loadSaveFromSlot(slot);
     const s    = String(slot);
@@ -309,7 +310,7 @@ export async function loadAndResume(save: any): Promise<void> {
 // ---------------------------------------------------------------------------
 // Splash screen
 // ---------------------------------------------------------------------------
-export function showSplash() {
+export function showSplash(): void {
   ['auto', 1, 2, 3].forEach(loadSaveFromSlot);
   refreshAllSlotCards();
 
@@ -329,7 +330,7 @@ export function showSplash() {
   _splashOverlay.querySelector('.splash-btn-col')?.classList.remove('hidden');
 }
 
-export function hideSplash() {
+export function hideSplash(): void {
   _splashOverlay.classList.add('hidden');
 }
 
@@ -338,14 +339,14 @@ export function hideSplash() {
 // ---------------------------------------------------------------------------
 let _saveTrapRelease: (() => void) | null = null;
 
-export function showSaveMenu() {
+export function showSaveMenu(): void {
   refreshAllSlotCards();
   _saveOverlay.classList.remove('hidden');
   _saveOverlay.style.opacity = '1';
   _saveTrapRelease = trapFocus(_saveOverlay, _saveBtn);
 }
 
-export function hideSaveMenu() {
+export function hideSaveMenu(): void {
   _saveOverlay.classList.add('hidden');
   if (_saveTrapRelease) { _saveTrapRelease(); _saveTrapRelease = null; }
 }
@@ -366,7 +367,7 @@ export function validateName(value: string, label: string): string | null {
   return null;
 }
 
-export function wireCharCreation() {
+export function wireCharCreation(): void {
   function handleInput(inputEl: HTMLInputElement, counterEl: HTMLElement, errorEl: HTMLElement, fieldLabel: string): void {
     const cleaned = inputEl.value.replace(/[^\p{L}\p{M}'\- ]/gu, '');
     if (cleaned !== inputEl.value) {

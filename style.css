@@ -381,6 +381,58 @@ body {
 .status-value.accent-amber { color: var(--amber); }
 .status-value.accent-red   { color: var(--red); }
 
+/* ── Rarity color overrides ── MUST BE LAST in color section ──
+   These supersede all other color rules including inline accents.
+   Applied via class on any element in any context. */
+.skill-rarity--common,
+.skill-rarity--common em,
+.skill-rarity--common strong    { color: var(--rarity-common)    !important; }
+
+.skill-rarity--uncommon,
+.skill-rarity--uncommon em,
+.skill-rarity--uncommon strong  { color: var(--rarity-uncommon)  !important; }
+
+.skill-rarity--rare,
+.skill-rarity--rare em,
+.skill-rarity--rare strong      { color: var(--rarity-rare)      !important; }
+
+.skill-rarity--epic,
+.skill-rarity--epic em,
+.skill-rarity--epic strong      { color: var(--rarity-epic)      !important; }
+
+.skill-rarity--legendary,
+.skill-rarity--legendary em,
+.skill-rarity--legendary strong { color: var(--rarity-legendary) !important; }
+
+/* ── Epic glow ── */
+.inline-accent-epic,
+.skill-rarity--epic {
+  text-shadow: 0 0 6px rgba(176, 106, 255, 0.45),
+               0 0 14px rgba(176, 106, 255, 0.2);
+}
+
+/* ── Legendary glow ── */
+.inline-accent-legendary,
+.skill-rarity--legendary {
+  text-shadow: 0 0 6px rgba(240, 165, 0, 0.5),
+               0 0 14px rgba(240, 165, 0, 0.2),
+               0 0 24px rgba(240, 165, 0, 0.08);
+}
+
+/* ── Epic container accent ── */
+.store-card--rarity-epic,
+.skill-accordion--rarity-epic {
+  border-left: 2px solid rgba(176, 106, 255, 0.4);
+  background: rgba(176, 106, 255, 0.03);
+}
+
+/* ── Legendary container accent ── */
+.store-card--rarity-legendary,
+.skill-accordion--rarity-legendary {
+  border-left: 2px solid rgba(240, 165, 0, 0.35);
+  background: rgba(240, 165, 0, 0.03);
+}
+
 
 /* ============================================================
    4. APP LAYOUT
@@ -544,6 +596,16 @@ body {
   border-right: none;
 }
 
+@keyframes sceneFade {
+  0%   { opacity: 1; }
+  20%  { opacity: 0.25; }
+  100% { opacity: 1; }
+}
+
+#narrative-panel.scene-fade {
+  animation: sceneFade 500ms ease-out;
+}
+
 #narrative-content {
   height: 100%;
   overflow-y: auto;
@@ -558,6 +620,52 @@ body {
 #narrative-content::-webkit-scrollbar-track  { background: transparent; }
 #narrative-content::-webkit-scrollbar-thumb  { background: var(--border-dim); border-radius: 2px; }
 #narrative-content::-webkit-scrollbar-thumb:hover { background: var(--border-glow); }
+
+@keyframes chapterCardReveal {
+  0%   { opacity: 0; transform: translateY(-8px); }
+  15%  { opacity: 1; transform: translateY(0); }
+  75%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(4px); }
+}
+
+.chapter-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  margin: 0 0 1.4em;
+  text-align: center;
+  animation: chapterCardReveal 2.2s ease forwards;
+  pointer-events: none;
+  border-top: 1px solid rgba(0, 212, 245, 0.15);
+  border-bottom: 1px solid rgba(0, 212, 245, 0.15);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(0, 212, 245, 0.03) 50%,
+    transparent 100%
+  );
+}
+
+.chapter-card-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--cyan-dim);
+  margin-bottom: 6px;
+}
+
+.chapter-card-title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  letter-spacing: 0.2em;
+  color: var(--cyan);
+  text-transform: uppercase;
+  text-shadow: 0 0 20px rgba(0, 212, 245, 0.3);
+}
 
 .narrative-paragraph {
   margin-bottom: 1.2em;
@@ -823,6 +931,19 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 }
 
 .status-row .status-label { margin-bottom: 0; }
+
+@keyframes statFlashUp {
+  0%   { color: var(--green); text-shadow: 0 0 8px rgba(76, 220, 138, 0.5); }
+  100% { color: inherit; text-shadow: none; }
+}
+
+@keyframes statFlashDown {
+  0%   { color: var(--red); text-shadow: 0 0 8px rgba(224, 85, 85, 0.5); }
+  100% { color: inherit; text-shadow: none; }
+}
+
+.stat-flash--up   { animation: statFlashUp   800ms ease-out; }
+.stat-flash--down { animation: statFlashDown 800ms ease-out; }
 
 /* XP bar */
 .xp-bar-track { height: 3px; background: var(--border-dim); margin-top: 6px; overflow: hidden; }
@@ -1113,7 +1234,53 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
    14. CHARACTER CREATION
    ============================================================ */
 
-.char-box         { max-width: 460px; padding: 40px 36px 36px; text-align: left; }
+.char-box {
+  max-width: 460px;
+  padding: 40px 36px 36px;
+  text-align: left;
+  /* 9C — subtle digital grid background */
+  background-image:
+    linear-gradient(rgba(0, 212, 245, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 245, 0.02) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: center;
+}
+
+/* 9B — system-scan entrance animation */
+@keyframes charScanIn {
+  0%   { opacity: 0; transform: translateY(6px); filter: blur(2px); }
+  100% { opacity: 1; transform: translateY(0);   filter: blur(0); }
+}
+
+.char-box > * {
+  opacity: 0;
+  animation: charScanIn 400ms ease forwards;
+}
+
+.char-box > :nth-child(1) { animation-delay:   0ms; }
+.char-box > :nth-child(2) { animation-delay: 120ms; }
+.char-box > :nth-child(3) { animation-delay: 240ms; }
+.char-box > :nth-child(4) { animation-delay: 360ms; }
+.char-box > :nth-child(5) { animation-delay: 480ms; }
+.char-box > :nth-child(6) { animation-delay: 560ms; }
+.char-box > :nth-child(7) { animation-delay: 640ms; }
+
+/* 9A — character portrait / HUD silhouette frame */
+.char-portrait-frame {
+  position: relative;
+  width: 160px;
+  height: 192px;
+  margin: 0 auto 20px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 212, 245, 0.2);
+}
+
+.char-portrait-frame svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .char-header      { margin-bottom: 28px; text-align: center; }
 .char-header .system-block-label { display: inline-block; font-size: var(--text-sm); letter-spacing: 0.22em; color: var(--cyan-dim); opacity: 1; margin-bottom: 0; }
 .char-field-group { margin-bottom: 20px; }
@@ -1903,12 +2070,6 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   flex: 1;
   min-width: 0;
 }
-/* Rarity colors — !important ensures these always override base element colors */
-.skill-rarity--common    { color: var(--rarity-common)    !important; }
-.skill-rarity--uncommon  { color: var(--rarity-uncommon)  !important; }
-.skill-rarity--rare      { color: var(--rarity-rare)      !important; }
-.skill-rarity--epic      { color: var(--rarity-epic)      !important; }
-.skill-rarity--legendary { color: var(--rarity-legendary) !important; }
 
 
 .store-card-actions {
@@ -1989,6 +2150,28 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   color: var(--text-faint);
   padding: 24px 14px;
   text-align: center;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+  gap: 12px;
+}
+
+.empty-state svg {
+  width: 48px;
+  height: 48px;
+  opacity: 0.35;
+}
+
+.empty-state-text {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  text-align: center;
+  margin: 0;
 }
 
 
@@ -2092,9 +2275,15 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   background: rgba(0, 212, 245, 0.04);
 }
 
-.journal-achievement-icon {
-  color: var(--cyan);
-  margin-right: 2px;
+.journal-achievement-icon::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--cyan);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  margin-right: 6px;
+  vertical-align: middle;
 }
 
 
@@ -2142,6 +2331,13 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 .toast--levelup.toast-show { animation: toastInCenter 0.25s ease forwards; }
 .toast--levelup.toast-hide { animation: toastOutCenter 0.3s ease forwards; }
+
+.toast--rarity-uncommon  { border-left: 3px solid var(--rarity-uncommon); }
+.toast--rarity-rare      { border-left: 3px solid var(--rarity-rare); }
+.toast--rarity-epic      { border-left: 3px solid var(--rarity-epic);
+                           box-shadow: -4px 0 12px rgba(176, 106, 255, 0.15); }
+.toast--rarity-legendary { border-left: 3px solid var(--rarity-legendary);
+                           box-shadow: -4px 0 12px rgba(240, 165, 0, 0.15); }
 
 
 
@@ -2279,4 +2475,12 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   .overlay-box   { padding: 22px 16px; }
   .overlay-title { font-size: 1.1rem; letter-spacing: var(--ls-normal); }
   .overlay-btn   { font-size: var(--text-sm); padding: 10px 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Ensure char creation children are visible if animations are disabled */
+  .char-box > * {
+    opacity: 1;
+    animation: none;
+  }
 }

@@ -31,7 +31,7 @@ export interface InterpreterCallbacks {
   showInputPrompt:    (varName: string, prompt: string, onSubmit: (value: string) => void) => void;
   showPageBreak:      (btnText: string, onContinue: () => void) => void;
   scheduleStatsRender: () => void;
-  showToast:          (msg: string, duration?: number) => void;
+  showToast:          (msg: string, duration?: number, rarity?: string) => void;
   formatText:         (text: string) => string;
   setChapterTitle:    (t: string) => void;
   setGameTitle:       (t: string) => void;
@@ -57,6 +57,7 @@ import { addInventoryItem, removeInventoryItem, itemBaseName }     from '../syst
 import { saveGameToSlot }                                          from '../systems/saves.js';
 import { grantSkill, revokeSkill, playerHasSkill }                 from '../systems/skills.js';
 import { addJournalEntry }                                         from '../systems/journal.js';
+import { getProcedure }                                            from '../systems/procedures.js';
 
 // ---------------------------------------------------------------------------
 // Callback registry — UI functions injected by engine.js at boot.
@@ -82,8 +83,37 @@ export function registerCaches(
   _labelsCache = labelsCache;
 }
 
-// Gosub call stack — stores return addresses for *gosub/*return
+// Gosub call stack — stores return addresses for *gosub/*return (scene-local)
 const _gosubStack: number[] = [];
+
+// ---------------------------------------------------------------------------
+// Cross-file call stack — stores execution context frames pushed by *call.
+// Each frame captures enough to restore the calling context on *return.
+// ---------------------------------------------------------------------------
+interface CallFrame {
+  scene:            string;
+  lines:            ParsedLine[];
+  ip:               number;       // resume at this ip after the procedure returns
+  gosubStackLength: number;       // restore _gosubStack length (discard any gosubs inside proc)
+  onReturn:         () => void;   // signals the waiting *call loop that *return fired
+}
+
+const _callStack: CallFrame[] = [];
+
+function returnFromProcedure(): void {
+  if (_callStack.length === 0) return;
+  const frame = _callStack.pop()!;
+  setCurrentScene(frame.scene);
+  setCurrentLines(frame.lines);
+  setIp(frame.ip);
+  _gosubStack.length = frame.gosubStackLength;
+  frame.onReturn();
+}
+
+// True while the interpreter is halted at a *page_break waiting for the user
+// to click Continue. Suppresses the trailing auto-save in runInterpreter so
+// it doesn't overwrite the correct save made inside the *page_break handler.
+let _atPageBreak = false;
 
 // ---------------------------------------------------------------------------
 // isDirective — exact prefix match that prevents *goto matching *goto_scene.
@@ -180,6 +210,7 @@ export async function gotoScene(name: string, label: string|null = null): Promis
 
   clearTempState();
   _gosubStack.length = 0;
+  _callStack.length  = 0;
   setCurrentScene(name);
   setCurrentLines(parseLines(text));
   indexLabels(name, currentLines, _labelsCache!);
@@ -209,7 +240,7 @@ export async function runInterpreter({ suppressAutoSave = false }: { suppressAut
   }
   cb.runStatsScene();
 
-  if (!suppressAutoSave && cb.getNarrativeLog) {
+  if (!suppressAutoSave && !_atPageBreak && cb.getNarrativeLog) {
     saveGameToSlot('auto', null, cb.getNarrativeLog() as any);
   }
 }
@@ -502,9 +533,17 @@ registerCommand('*page_break', (t) => {
   const btnText  = t.replace(/^\*page_break\s*/, '').trim() || 'Continue';
   const resumeIp = ip + 1;
 
+  // Auto-save NOW, while ip still points at this *page_break line.
+  // On restore the interpreter will re-execute *page_break and show
+  // the button again. The trailing save in runInterpreter is suppressed
+  // via _atPageBreak so it can't overwrite this with ip = end-of-scene.
+  if (cb.getNarrativeLog) saveGameToSlot('auto', null, cb.getNarrativeLog() as any);
+
+  _atPageBreak = true;
   setIp(currentLines.length);
 
   cb.showPageBreak(btnText, () => {
+    _atPageBreak = false;
     cb.clearNarrative();
     setIp(resumeIp);
     runInterpreter().catch(err => cb.showEngineError(err instanceof Error ? err.message : String(err)));
@@ -629,6 +668,57 @@ registerCommand('*patch_state', (t) => {
   advanceIp();
 });
 
+// *call procedureName — invoke a named procedure from procedures.txt.
+//
+// Design: runs the procedure's lines in a nested loop inside this handler.
+// A closure flag (_returned) lets *return signal the loop to exit cleanly
+// without comparing array references or using a depth counter.
+//
+// Choices inside procedures are handled correctly: if awaitingChoice is set
+// inside the nested loop, we return from this handler immediately (the outer
+// runInterpreter loop then breaks). The _callStack frame stays live. When the
+// player picks a choice and runInterpreter resumes, it continues naturally
+// inside the procedure. *return later pops the frame and calls onReturn(),
+// which is a harmless no-op since the nested loop is already gone — but
+// runInterpreter's outer loop then continues from the restored parent context.
+//
+// Nested *call (procedure calling another procedure) works by the same logic:
+// each *call has its own _returned closure; only the innermost onReturn fires
+// on each *return, so outer loops continue correctly.
+registerCommand('*call', async (t) => {
+  const name = t.replace(/^\*call\s*/, '').trim().toLowerCase();
+  const proc = getProcedure(name);
+
+  if (!proc) {
+    cb.showEngineError(`*call: Unknown procedure "${name}". Check procedures.txt.`);
+    advanceIp();
+    return;
+  }
+
+  let _returned = false;
+
+  _callStack.push({
+    scene:            currentScene!,
+    lines:            currentLines,   // exact reference restored on return
+    ip:               ip + 1,         // resume AFTER the *call line
+    gosubStackLength: _gosubStack.length,
+    onReturn:         () => { _returned = true; },
+  });
+
+  setCurrentLines(proc.lines);
+  setIp(0);
+
+  while (ip < currentLines.length && !_returned) {
+    await executeCurrentLine();
+    if (awaitingChoice) return;   // halt — procedure showed a choice
+  }
+
+  if (!_returned) {
+    // Procedure fell off the end without an explicit *return — auto-return.
+    returnFromProcedure();
+  }
+});
+
 // *gosub label — call a subroutine, push return address
 registerCommand('*gosub', (t) => {
   const label  = t.replace(/^\*gosub\s*/, '').trim();
@@ -642,10 +732,15 @@ registerCommand('*gosub', (t) => {
   setIp(labels[label]);
 });
 
-// *return — return from a *gosub subroutine
+// *return — return from a *call procedure or a *gosub subroutine.
+// Checks _callStack first so procedures take priority over scene-local gosubs.
 registerCommand('*return', () => {
+  if (_callStack.length > 0) {
+    returnFromProcedure();
+    return;
+  }
   if (_gosubStack.length === 0) {
-    cb.showEngineError(`*return without matching *gosub in scene "${currentScene}".`);
+    cb.showEngineError(`*return without matching *gosub or *call in scene "${currentScene}".`);
     setIp(currentLines.length);
     return;
   }
