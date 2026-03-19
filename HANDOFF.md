@@ -1,86 +1,75 @@
-# Year Zero — JSDoc Annotations Handoff
+# Year Zero — TypeScript Migration Handoff
 
-## What Was Done
+## What Was Done (this session)
 
-Added JSDoc `@typedef`, `@param`, `@returns`, and `@type` annotations to the three critical engine files, completing the annotation work described in Phase 1/2 of the TypeScript migration plan.
+Completed Phase 3 of the TypeScript migration plan.
 
-**Branch:** `claude/review-year-zero-engine-kvh70` (not yet merged to main)
+**Branch:** `claude/review-commit-handoff-yqAJ5`
 
-**Commit:** `Add JSDoc type annotations to state.js, parser.js, interpreter.js`
+### Changes
 
-### Files Changed (+260 lines, no logic changes)
+| What | Detail |
+|------|--------|
+| TypeScript installed | `typescript@5.9.3` added to `devDependencies` |
+| `tsconfig.json` created | `allowJs: true`, `checkJs: false`, `strict: false`, `noEmit: true` |
+| `engine/` → `src/` | All source files moved; imports updated in `engine.js` and `tests/test_runner.mjs` |
+| Build verified | `dist/engine.js` still 98.5 kb, 20 ms build time |
+| Tests verified | 183/183 pass |
 
-| File | What was added |
-|------|---------------|
-| `engine/core/state.js` | 6 `@typedef` definitions (canonical type source), `@type` on all exports, `@param/@returns` on all functions |
-| `engine/core/parser.js` | 4 `@typedef` definitions for context/result shapes, imports types from state.js, `@param/@returns` on all 5 functions |
-| `engine/core/interpreter.js` | `@typedef InterpreterCallbacks` (17-property shape of the `cb` object), `@typedef DirectiveHandler`, `@type` on internal registries, `@param/@returns` on all exported functions |
-
-### Type Definitions Created
+### Current Folder Structure
 
 ```
-ParsedLine           { raw, trimmed, indent }
-StatRegistryEntry    { key, label, defaultVal }
-AwaitingChoiceState  { end, choices, _blockEnd?, _savedIp? }
-ChoiceOption         { text, selectable, start, end, statTag }
-StatTag              { label, requirement }
-StartupMeta          { sceneList }
-InterpreterCallbacks { addParagraph, addSystem, clearNarrative, ... (17 props) }
-DirectiveHandler     (t: string, line: ParsedLine) => void|Promise<void>
-ParseChoiceContext   { currentLines, evalValue, showEngineError? }
-ParseChoiceResult    { choices, end }
-ParseSystemBlockContext  { currentLines }
-ParseSystemBlockResult   { text, endIp, ok }
+src/
+  core/       state.js, expression.js, parser.js, interpreter.js
+  systems/    saves.js, inventory.js, skills.js, items.js, journal.js, leveling.js
+  ui/         narrative.js, panels.js, overlays.js
+  tests/      e2e.spec.mjs
+engine.js     (root entry point — imports from ./src/…)
+tsconfig.json
 ```
 
-Bundle size unchanged at 98.5kb — esbuild strips all JSDoc comments.
+---
+
+## History (completed phases)
+
+| Phase | What | Status |
+|-------|------|--------|
+| 1 | Patch-diary comment cleanup (all source files) | Done — `f62ddce` |
+| 1/2 | JSDoc `@typedef`/`@param`/`@returns` on `state.js`, `parser.js`, `interpreter.js` | Done — `4136097` |
+| 3 | TypeScript installed + `tsconfig.json` + `engine/` → `src/` rename | Done — this session |
 
 ---
 
 ## What's Next
 
-### Remaining Phase 1 — JS Cleanup (patch-diary removal)
+### Phase 4 — Convert `.js` → `.ts` (in dependency order)
 
-These files still need patch-diary comment cleanup (same treatment as engine.js, build.js, style.css, expression.js which are already done):
+Rename files one by one; fix any type errors that surface after each rename.
+esbuild handles `.ts` natively — no separate `tsc` compile step.
 
-- `engine/ui/narrative.js`
-- `engine/ui/panels.js`
-- `engine/ui/overlays.js`
-- `engine/systems/saves.js`
-- `engine/systems/inventory.js`
-- `engine/systems/skills.js`
-- `engine/systems/items.js`
-- `engine/systems/journal.js`
-- `engine/systems/leveling.js`
-
-### Phase 3 — Install TypeScript, Loose Config
-
-- `npm install --save-dev typescript`
-- Add `tsconfig.json` with `allowJs: true`, `checkJs: false`, `strict: false`
-- esbuild handles TypeScript natively — no separate `tsc` build step needed
-
-### Phase 4 — File-by-file .js → .ts Conversion
-
-Rename in dependency order:
+Dependency order:
 ```
 state → expression → parser → inventory → journal → leveling →
 skills → items → saves → narrative → panels → overlays →
 interpreter → engine
 ```
 
-### Phase 5 — Strict Mode
+For each file:
+1. `git mv src/…/foo.js src/…/foo.ts`
+2. Update any files that import it to use the new `.ts` extension (or drop the extension — esbuild resolves both)
+3. `npm run build` — confirm still 98.5 kb
+4. `npm test` — confirm 183 pass
 
-Enable `strict: true` once all files are `.ts`, fix remaining type errors.
+### Phase 5 — Enable `strict: true`
+
+After all files are `.ts`, flip `"strict": false` → `"strict": true` in `tsconfig.json`
+and fix the type errors that surface (likely: implicit `any` on callbacks, missing return
+types, undefined checks).
 
 ---
 
-## Folder Structure (current)
+## Notes
 
-```
-engine/
-  core/       state.js, expression.js, parser.js, interpreter.js
-  systems/    saves.js, inventory.js, skills.js, items.js, journal.js, leveling.js
-  ui/         narrative.js, panels.js, overlays.js
-```
-
-The handoff doc mentions a planned `src/` prefix — the files currently live under `engine/`. Decide whether to keep `engine/` or rename to `src/` before starting Phase 4.
+- esbuild strips all JSDoc/type annotations — bundle size is unaffected by annotation density.
+- `tsconfig.json` is for editor intelligence and `tsc --noEmit` checks only; esbuild is still the actual bundler.
+- `checkJs: false` keeps existing `.js` files silent during Phase 4 while files are being converted incrementally.

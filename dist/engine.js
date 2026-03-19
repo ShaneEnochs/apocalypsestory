@@ -1,4 +1,4 @@
-// engine/core/state.js
+// src/core/state.js
 var playerState = {};
 var tempState = {};
 var statRegistry = [];
@@ -159,7 +159,7 @@ async function parseStartup(fetchTextFileFn, evalValueFn) {
   }
 }
 
-// engine/core/expression.js
+// src/core/expression.js
 var TT = {
   NUM: "NUM",
   STR: "STR",
@@ -491,7 +491,7 @@ function evalValue(expr) {
   }
 }
 
-// engine/core/parser.js
+// src/core/parser.js
 function parseLines(text) {
   return text.split(/\r?\n/).map((raw) => {
     const indentMatch = raw.match(/^\s*/)?.[0] || "";
@@ -578,7 +578,7 @@ function findBlockEnd(fromIndex, parentIndent, currentLines2) {
   return i;
 }
 
-// engine/systems/inventory.js
+// src/systems/inventory.js
 function extractStackCount(itemStr) {
   const m = String(itemStr).match(/\((\d+)\)$/);
   return m ? Number(m[1]) : 1;
@@ -615,7 +615,7 @@ function removeInventoryItem(item) {
   return true;
 }
 
-// engine/systems/saves.js
+// src/systems/saves.js
 var SAVE_VERSION = 9;
 var SAVE_KEY_AUTO = "sa_save_auto";
 var SAVE_KEY_SLOTS = { 1: "sa_save_slot_1", 2: "sa_save_slot_2", 3: "sa_save_slot_3" };
@@ -867,7 +867,7 @@ async function restoreFromSave(save, {
   }
 }
 
-// engine/systems/skills.js
+// src/systems/skills.js
 var skillRegistry = [];
 async function parseSkills(fetchTextFileFn) {
   let text;
@@ -953,7 +953,7 @@ function purchaseSkill(key) {
   return true;
 }
 
-// engine/systems/journal.js
+// src/systems/journal.js
 function addJournalEntry(text, type = "entry", unique = false) {
   if (!Array.isArray(playerState.journal)) playerState.journal = [];
   const normalised = text.trim();
@@ -970,7 +970,7 @@ function getAchievements() {
   return getJournalEntries().filter((e) => e.type === "achievement");
 }
 
-// engine/core/interpreter.js
+// src/core/interpreter.js
 var cb = {};
 function registerCallbacks(callbacks) {
   Object.assign(cb, callbacks);
@@ -1452,7 +1452,7 @@ registerCommand("*finish", async () => {
   await gotoScene(list[nextIdx]);
 });
 
-// engine/systems/items.js
+// src/systems/items.js
 var itemRegistry = [];
 async function parseItems(fetchTextFileFn) {
   let text;
@@ -1513,7 +1513,7 @@ function purchaseItem(key) {
   return true;
 }
 
-// engine/ui/narrative.js
+// src/ui/narrative.js
 function escapeHtml(val) {
   return String(val ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -1764,7 +1764,7 @@ function renderFromLog(log, { skipAnimations = true } = {}) {
   _narrativeLog = [...log];
 }
 
-// engine/ui/panels.js
+// src/ui/panels.js
 var _statusPanel = null;
 var _endingOverlay = null;
 var _endingTitle = null;
@@ -2185,7 +2185,7 @@ function showEndingScreen(title, content) {
   }, { once: true });
 }
 
-// engine/ui/overlays.js
+// src/ui/overlays.js
 var _splashOverlay = null;
 var _splashSlots = null;
 var _saveOverlay = null;
