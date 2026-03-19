@@ -194,10 +194,19 @@ export function clearNarrative(): void {
 }
 
 // ---------------------------------------------------------------------------
-// applyTransition — no-op. Kept so all call sites remain valid.
+// applyTransition — triggers a brief CSS fade on the narrative panel.
+// Purely cosmetic; synchronous and non-blocking — the interpreter does not
+// wait for the animation to complete.
 // ---------------------------------------------------------------------------
 export function applyTransition(): void {
-  // intentionally empty
+  if (!_narrativePanel) return;
+  // Remove first so re-adding restarts the animation even if still running.
+  _narrativePanel.classList.remove('scene-fade');
+  void _narrativePanel.offsetWidth; // force reflow
+  _narrativePanel.classList.add('scene-fade');
+  _narrativePanel.addEventListener('animationend', () => {
+    _narrativePanel.classList.remove('scene-fade');
+  }, { once: true });
 }
 
 // ---------------------------------------------------------------------------
