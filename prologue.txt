@@ -146,7 +146,7 @@ You knew her when she was *just* the most frighteningly capable person you'd eve
 
 She makes her HUD visible to you, and a blue screen appears in the air between you, displaying a series of readouts and graphs that you don't understand but you have to admit look very impressive. You have no doubt that they are accurate, and that they are the result of Callie's genius, but most of it might as well be hieroglyphics to you.
 
-Well, that's not true. Thanks to a [Skill] you picked up in the early days, you can understand most written and spoken languages, including Egyption hieroglyphics.
+Well, that's not true. Thanks to a [Skill] you picked up in the early days, you can understand most written and spoken languages, including Egyptian hieroglyphics.
 
 "What am I looking at?"
 
