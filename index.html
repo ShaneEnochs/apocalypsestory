@@ -225,6 +225,60 @@
      ═══════════════════════════════════════════════════ -->
 <div id="char-creation-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="char-creation-heading">
   <div class="overlay-box char-box">
+    <!-- 9A — HUD silhouette portrait frame -->
+    <div class="char-portrait-frame" aria-hidden="true">
+      <svg viewBox="0 0 160 192" xmlns="http://www.w3.org/2000/svg" focusable="false">
+        <defs>
+          <!-- Scan-line pattern: faint horizontal bands every 4 px -->
+          <pattern id="cp-scan" x="0" y="0" width="160" height="4" patternUnits="userSpaceOnUse">
+            <rect x="0" y="0" width="160" height="2" fill="rgba(0,0,0,0.1)"/>
+          </pattern>
+        </defs>
+
+        <!-- Dark background -->
+        <rect width="160" height="192" fill="#000c10"/>
+
+        <!-- Hood outer arc (wide arch over head to shoulders) -->
+        <path d="M 26,104 Q 28,36 80,24 Q 132,36 134,104"
+              fill="#000c10" stroke="#00d4f5" stroke-width="1.5" stroke-opacity="0.45"/>
+
+        <!-- Hood inner arc (depth / shadow layer) -->
+        <path d="M 40,104 Q 42,52 80,42 Q 118,52 120,104"
+              fill="#030f14" stroke="#00d4f5" stroke-width="1" stroke-opacity="0.18"/>
+
+        <!-- Head oval -->
+        <ellipse cx="80" cy="80" rx="20" ry="22"
+                 fill="#030f14" stroke="#00d4f5" stroke-width="1.5" stroke-opacity="0.5"/>
+
+        <!-- Body / shoulder silhouette -->
+        <path d="M 54,100 Q 42,120 34,158 L 126,158 Q 118,120 106,100 Q 93,91 80,93 Q 67,91 54,100 Z"
+              fill="#000c10" stroke="#00d4f5" stroke-width="1.5" stroke-opacity="0.45"/>
+
+        <!-- Center seam line on cloak -->
+        <line x1="80" y1="110" x2="80" y2="148"
+              stroke="#00d4f5" stroke-width="0.5" stroke-opacity="0.18"/>
+
+        <!-- Data-readout tick lines flanking the figure -->
+        <line x1="12" y1="104" x2="42" y2="104" stroke="#00d4f5" stroke-width="0.5" stroke-opacity="0.25"/>
+        <line x1="118" y1="104" x2="148" y2="104" stroke="#00d4f5" stroke-width="0.5" stroke-opacity="0.25"/>
+
+        <!-- HUD corner brackets -->
+        <polyline points="8,22 8,8 22,8"     fill="none" stroke="#00d4f5" stroke-width="1.5" stroke-opacity="0.7"/>
+        <polyline points="138,8 152,8 152,22" fill="none" stroke="#00d4f5" stroke-width="1.5" stroke-opacity="0.7"/>
+        <polyline points="8,170 8,184 22,184"  fill="none" stroke="#00d4f5" stroke-width="1.5" stroke-opacity="0.7"/>
+        <polyline points="138,184 152,184 152,170" fill="none" stroke="#00d4f5" stroke-width="1.5" stroke-opacity="0.7"/>
+
+        <!-- Scan-line overlay -->
+        <rect width="160" height="192" fill="url(#cp-scan)"/>
+
+        <!-- Status text -->
+        <text x="80" y="172" text-anchor="middle"
+              font-family="monospace" font-size="7" fill="#00d4f5" fill-opacity="0.4" letter-spacing="2.5">CHARACTER</text>
+        <text x="80" y="182" text-anchor="middle"
+              font-family="monospace" font-size="7" fill="#00d4f5" fill-opacity="0.4" letter-spacing="4">DORMANT</text>
+      </svg>
+    </div>
+
     <div class="char-header">
       <span class="system-block-label" id="char-creation-heading">[ NEW SURVIVOR ]</span>
     </div>

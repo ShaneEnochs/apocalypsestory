@@ -1265,6 +1265,22 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 .char-box > :nth-child(6) { animation-delay: 560ms; }
 .char-box > :nth-child(7) { animation-delay: 640ms; }
 
+/* 9A — character portrait / HUD silhouette frame */
+.char-portrait-frame {
+  position: relative;
+  width: 160px;
+  height: 192px;
+  margin: 0 auto 20px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 212, 245, 0.2);
+}
+
+.char-portrait-frame svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .char-header      { margin-bottom: 28px; text-align: center; }
 .char-header .system-block-label { display: inline-block; font-size: var(--text-sm); letter-spacing: 0.22em; color: var(--cyan-dim); opacity: 1; margin-bottom: 0; }
 .char-field-group { margin-bottom: 20px; }
