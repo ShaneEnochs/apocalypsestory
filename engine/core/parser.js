@@ -4,22 +4,50 @@
 // data structures the interpreter operates on. Zero DOM, zero side-effects —
 // pure text-in / data-out.
 //
-// Exports:
-//   parseLines(text)                          → line[]
-//   indexLabels(sceneName, lines, labelsCache) → void  (populates provided map)
-//   parseChoice(startIndex, indent, ctx)       → { choices, end }
-//   parseSystemBlock(startIndex, ctx)          → { text, endIp, ok }
-//
 // The ctx (context) parameter passed to parseChoice and parseSystemBlock is an
 // object with the shape:
 //   { currentLines, evalValue, showEngineError? }
 // This keeps parser.js free of direct state imports — the interpreter injects
 // the live currentLines array and evaluator at call time.
 
+/**
+ * @typedef {import('./state.js').ParsedLine} ParsedLine
+ * @typedef {import('./state.js').ChoiceOption} ChoiceOption
+ * @typedef {import('./state.js').StatTag} StatTag
+ */
+
+/**
+ * @typedef {Object} ParseChoiceContext
+ * @property {ParsedLine[]}                currentLines    — live line array from interpreter
+ * @property {(expr: string) => any}       evalValue       — expression evaluator
+ * @property {((msg: string) => void)|undefined} showEngineError — optional in-game error display
+ */
+
+/**
+ * @typedef {Object} ParseChoiceResult
+ * @property {ChoiceOption[]} choices — collected choice options
+ * @property {number}         end     — line index past the entire *choice block
+ */
+
+/**
+ * @typedef {Object} ParseSystemBlockContext
+ * @property {ParsedLine[]} currentLines — live line array from interpreter
+ */
+
+/**
+ * @typedef {Object} ParseSystemBlockResult
+ * @property {string}  text  — collected system block content
+ * @property {number}  endIp — line index to resume at after the block
+ * @property {boolean} ok    — false if *end_system was never found
+ */
+
 // ---------------------------------------------------------------------------
 // parseLines — splits raw scene text into line objects.
-// Each line object: { raw, trimmed, indent }
 // ---------------------------------------------------------------------------
+/**
+ * @param {string} text — raw scene file content
+ * @returns {ParsedLine[]}
+ */
 export function parseLines(text) {
   return text.split(/\r?\n/).map(raw => {
     const indentMatch = raw.match(/^\s*/)?.[0] || '';
@@ -31,6 +59,11 @@ export function parseLines(text) {
 // indexLabels — builds a label→lineIndex map for a scene and stores it in
 // the provided labelsCache Map keyed by sceneName.
 // ---------------------------------------------------------------------------
+/**
+ * @param {string}                       sceneName   — scene identifier
+ * @param {ParsedLine[]}                 lines       — parsed lines for the scene
+ * @param {Map<string, Record<string, number>>} labelsCache — shared label cache
+ */
 export function indexLabels(sceneName, lines, labelsCache) {
   const map = {};
   lines.forEach((line, idx) => {
@@ -46,14 +79,13 @@ export function indexLabels(sceneName, lines, labelsCache) {
 // Each option is either a plain `#text` line or a `*selectable_if (cond) #text`
 // line. For each option, finds the block end so the interpreter knows the
 // exact line range to execute when the option is selected.
-//
-// ctx.currentLines   — the live line array (injected by interpreter)
-// ctx.evalValue      — expression evaluator (injected by interpreter)
-// ctx.showEngineError — optional; malformed lines call it in addition to
-//                       console.warn so authors see errors in-game.
-//
-// Returns { choices: [{ text, selectable, start, end, statTag }], end }
 // ---------------------------------------------------------------------------
+/**
+ * @param {number}            startIndex — line index of the *choice directive
+ * @param {number}            indent     — indent level of the *choice line
+ * @param {ParseChoiceContext} ctx       — injected dependencies
+ * @returns {ParseChoiceResult}
+ */
 export function parseChoice(startIndex, indent, ctx) {
   const { currentLines, evalValue, showEngineError } = ctx;
   const choices = [];
@@ -84,6 +116,7 @@ export function parseChoice(startIndex, indent, ctx) {
 
     if (optionText) {
       // Extract optional inline stat requirement tag: "Option text [StatLabel N]"
+      /** @type {StatTag|null} */
       let statTag = null;
       const tagMatch = optionText.match(/^(.*?)\s*\[([A-Za-z][^[\]]*?)\s+(\d+)\]\s*$/);
       if (tagMatch) {
@@ -106,9 +139,12 @@ export function parseChoice(startIndex, indent, ctx) {
 // ---------------------------------------------------------------------------
 // parseSystemBlock — collects lines between *system and *end_system into a
 // single string, preserving relative indentation of the inner content.
-//
-// Returns { text, endIp, ok }
 // ---------------------------------------------------------------------------
+/**
+ * @param {number}                  startIndex — line index of the *system directive
+ * @param {ParseSystemBlockContext} ctx        — injected dependencies
+ * @returns {ParseSystemBlockResult}
+ */
 export function parseSystemBlock(startIndex, ctx) {
   const { currentLines } = ctx;
   const parts = [];
@@ -136,6 +172,12 @@ export function parseSystemBlock(startIndex, ctx) {
 // is <= parentIndent, starting from fromIndex. Local helper for parseChoice;
 // the interpreter has its own copy for the live execution pass.
 // ---------------------------------------------------------------------------
+/**
+ * @param {number}       fromIndex    — line index to start scanning from
+ * @param {number}       parentIndent — indent level of the parent block
+ * @param {ParsedLine[]} currentLines — line array to scan
+ * @returns {number} line index of the first line outside the block
+ */
 function findBlockEnd(fromIndex, parentIndent, currentLines) {
   let i = fromIndex;
   while (i < currentLines.length) {
