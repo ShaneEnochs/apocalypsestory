@@ -1,10 +1,8 @@
-// ---------------------------------------------------------------------------
 // core/interpreter.js — Scene interpreter, flow helpers, and directive registry
 //
 // Owns the core execution loop and all directive handlers. Uses a command
 // registry (Map) rather than a monolithic if-chain — each directive is a
-// small named function registered at module load. This makes the interpreter
-// a dispatcher and keeps each directive's logic self-contained.
+// small named function registered at module load.
 //
 // Callback pattern — to avoid circular imports with the UI layer, functions
 // that need to call narrative / UI code do so via a registered callback set
@@ -19,7 +17,6 @@
 //     → saves.js        (saveGameToSlot)
 //     → skills.js       (grantSkill, revokeSkill, playerHasSkill)
 //     ← engine.js       (injects UI callbacks at boot via registerCallbacks)
-// ---------------------------------------------------------------------------
 
 import {
   playerState, tempState, currentLines, ip, currentScene,
@@ -40,12 +37,6 @@ import { addJournalEntry }                                         from '../syst
 
 // ---------------------------------------------------------------------------
 // Callback registry — UI functions injected by engine.js at boot.
-//
-// The interpreter needs to call addParagraph, addSystem, clearNarrative,
-// applyTransition, formatText, renderChoices,
-// showEndingScreen, showEngineError, scheduleStatsRender, and access
-// dom.chapterTitle. None of those live here. At boot, engine.js calls
-// registerCallbacks({ ... }) to wire them up.
 // ---------------------------------------------------------------------------
 const cb = {};
 
@@ -53,8 +44,8 @@ export function registerCallbacks(callbacks) {
   Object.assign(cb, callbacks);
 }
 
-// Passed in from engine.js so the same Map instance is used everywhere.
-// ---------------------------------------------------------------------------
+// Scene and label caches — passed in from engine.js so the same Map instance
+// is used everywhere.
 let _sceneCache  = null;
 let _labelsCache = null;
 
@@ -118,7 +109,6 @@ export function evaluateCondition(raw) {
 // ---------------------------------------------------------------------------
 // executeBlock — runs lines [start, end) then sets ip to resumeAfter.
 // Returns a reason string: 'choice', 'goto', or 'normal'.
-// 'goto' is detected by ip being relocated outside the block range.
 // ---------------------------------------------------------------------------
 export async function executeBlock(start, end, resumeAfter = end) {
   setIp(start);
@@ -131,7 +121,6 @@ export async function executeBlock(start, end, resumeAfter = end) {
       setAwaitingChoice(ac);
       return 'choice';
     }
-    // If *goto relocated ip outside this block, honour it
     if (ip < start || ip >= end) {
       return 'goto';
     }
@@ -143,23 +132,12 @@ export async function executeBlock(start, end, resumeAfter = end) {
 // ---------------------------------------------------------------------------
 // gotoScene — cross-scene navigation.
 //
-// BUG-02 fix: the auto-save is now ONLY written when runInterpreter actually
-// halts (at a *choice or end-of-scene). If gotoScene is called recursively
-// via *goto_scene inside a running scene, the inner call's runInterpreter
-// will handle the save when it stops. The outer gotoScene call must NOT
-// also write an auto-save, because:
-//   1. The outer save fires after the inner one (wrong scene content).
-//   2. It causes two consecutive localStorage writes for a single navigation.
+// Auto-save is written by runInterpreter when it halts, not by gotoScene,
+// so recursive *goto_scene calls don't produce duplicate saves.
 //
-// Implementation: runInterpreter now writes the auto-save after it stops.
-// gotoScene no longer calls saveGameToSlot directly.
-//
-// FIX #S2: gotoScene no longer calls cb.setChapterTitle() with the raw
-// uppercased filename before the scene executes. The *title directive in
-// the scene file sets the title. After runInterpreter() finishes, if no
-// *title ran (i.e. chapterTitle is still the scene name or is blank), a
-// fallback sets the uppercased scene name — but only then, avoiding the
-// flash of an unpolished filename at scene load time.
+// The *title directive in the scene file sets the chapter title. After
+// runInterpreter finishes, if no *title ran, a fallback sets the uppercased
+// scene name.
 // ---------------------------------------------------------------------------
 export async function gotoScene(name, label = null) {
   let text;
@@ -203,7 +181,6 @@ export async function runInterpreter({ suppressAutoSave = false } = {}) {
   }
   cb.runStatsScene();
 
-  // BUG-B fix: don't auto-save when called from a save-restore callback.
   if (!suppressAutoSave && cb.getNarrativeLog) {
     saveGameToSlot('auto', null, cb.getNarrativeLog());
   }
@@ -214,9 +191,7 @@ export async function runInterpreter({ suppressAutoSave = false } = {}) {
 //
 // Handlers receive (t, line) where t = line.trimmed, line = full line object.
 // Registration order matters for prefix overlaps — Map iterates in insertion
-// order and the first match wins. isDirective() does exact-word matching so
-// *goto won't match *goto_scene, but register longer variants first anyway
-// for clarity (see *goto_scene before *goto below).
+// order and the first match wins.
 // ---------------------------------------------------------------------------
 const commands = new Map();
 
@@ -228,7 +203,6 @@ function registerCommand(directive, handler) {
 // executeCurrentLine — dispatcher.
 // Skips empty / comment lines. Plain text lines become paragraphs.
 // Directive lines are dispatched through the command registry.
-// Unknown directives are skipped with a warning.
 // ---------------------------------------------------------------------------
 export async function executeCurrentLine() {
   const line = currentLines[ip];
@@ -237,10 +211,8 @@ export async function executeCurrentLine() {
 
   const t = line.trimmed;
 
-  // Plain narrative text
   if (!t.startsWith('*')) { cb.addParagraph(t); advanceIp(); return; }
 
-  // Directive dispatch
   for (const [directive, handler] of commands) {
     if (isDirective(t, directive)) {
       await handler(t, line);
@@ -248,13 +220,12 @@ export async function executeCurrentLine() {
     }
   }
 
-  // Unknown directive — skip and warn
   console.warn(`[interpreter] Unknown directive "${t.split(/\s/)[0]}" in "${currentScene}" at line ${ip} — skipping.`);
   advanceIp();
 }
 
 // ---------------------------------------------------------------------------
-// Directive handlers — registered below
+// Directive handlers
 // ---------------------------------------------------------------------------
 
 // *title text
@@ -263,8 +234,7 @@ registerCommand('*title', (t) => {
   advanceIp();
 });
 
-// *set_game_title "New Title" — changes the game title in the header and
-// stores it in playerState.game_title so it persists across saves.
+// *set_game_title "New Title"
 registerCommand('*set_game_title', (t) => {
   const m = t.match(/^\*set_game_title\s+"([^"]+)"$/);
   const title = m ? m[1] : t.replace(/^\*set_game_title\s*/, '').trim();
@@ -274,8 +244,8 @@ registerCommand('*set_game_title', (t) => {
   }
   advanceIp();
 });
-// *set_game_byline "New Byline" — changes the splash screen byline and
-// stores it in playerState.game_byline so it persists across saves.
+
+// *set_game_byline "New Byline"
 registerCommand('*set_game_byline', (t) => {
   const m = t.match(/^\*set_game_byline\s+"([^"]+)"$/);
   const byline = m ? m[1] : t.replace(/^\*set_game_byline\s*/, '').trim();
@@ -307,7 +277,6 @@ registerCommand('*goto', (t) => {
     return;
   }
   setIp(labels[label]);
-  // executeBlock detects ip relocation via range check — no flag needed
 });
 
 // *system [text] / *system … *end_system
@@ -350,13 +319,7 @@ registerCommand('*create', (t) => {
 });
 
 // *create_stat key "Label" defaultValue
-//
-// FIX #S1: Previously used a dynamic import('../core/state.js').then(...) to
-// update statRegistry. This created an async microtask that raced with the
-// synchronous advanceIp() call that followed — statRegistry could be stale
-// when getAllocatableStatKeys() ran during level-up. Since state.js is already
-// statically imported at the top of this file, we use those imports directly,
-// making registration fully synchronous.
+// Uses static imports from state.js for synchronous registration.
 registerCommand('*create_stat', (t) => {
   const m = t.match(/^\*create_stat\s+([a-zA-Z_][\w]*)\s+"([^"]+)"\s+(.+)$/);
   if (!m) { advanceIp(); return; }
@@ -364,7 +327,6 @@ registerCommand('*create_stat', (t) => {
   const key      = normalizeKey(rawKey);
   const defaultVal = evalValue(rhs);
   playerState[key] = defaultVal;
-  // FIX #S1: synchronous registration via static import — no race condition.
   if (!statRegistry.find(e => e.key === key)) {
     setStatRegistry([...statRegistry, { key, label, defaultVal }]);
   }
@@ -377,7 +339,7 @@ registerCommand('*temp', (t) => {
   advanceIp();
 });
 
-// *award_essence N  /  *add_essence N  — Essence-granting directives.
+// *award_essence N  /  *add_essence N
 function _handleAddEssence(n) {
   if (n > 0) {
     playerState.essence = Number(playerState.essence || 0) + n;
@@ -393,8 +355,6 @@ registerCommand('*add_essence', (t) => {
 });
 
 // stripItemName — strips surrounding quotes from item name arguments.
-// Handles: *add_item "Sword"  →  Sword
-//          *add_item Sword    →  Sword  (no quotes, passthrough)
 function stripItemName(raw) {
   const s = raw.trim();
   if ((s.startsWith('"') && s.endsWith('"')) ||
@@ -411,7 +371,7 @@ registerCommand('*add_item', (t) => {
   advanceIp();
 });
 
-// *grant_item "itemName" — convenience alias for *add_item (Phase 3)
+// *grant_item "itemName" — alias for *add_item
 registerCommand('*grant_item', (t) => {
   addInventoryItem(stripItemName(t.replace(/^\*grant_item\s*/, '')));
   cb.scheduleStatsRender();
@@ -426,7 +386,6 @@ registerCommand('*remove_item', (t) => {
 });
 
 // *check_item "itemName" variableName
-// Stores true/false in variableName depending on whether item is in inventory.
 registerCommand('*check_item', (t) => {
   const m = t.match(/^\*check_item\s+"([^"]+)"\s+([\w_]+)/);
   if (!m) {
@@ -440,7 +399,7 @@ registerCommand('*check_item', (t) => {
 
   const store = resolveStore(varName);
   if (store) store[varName] = has;
-  else       tempState[varName] = has;   // auto-create as temp if undeclared
+  else       tempState[varName] = has;
   advanceIp();
 });
 
@@ -479,10 +438,7 @@ registerCommand('*journal', (t) => {
 });
 
 // *notify "Message" [duration]
-// Shows a center-screen toast notification, queued behind any existing toasts.
-// Duration is optional and in milliseconds (default 2000).
-// Supports ${variable} interpolation via cb.formatText.
-// Example: *notify "Class registered: ${class_name}" 2000
+// Shows a toast notification. Supports ${variable} interpolation via formatText.
 registerCommand('*notify', (t) => {
   const m = t.match(/^\*notify\s+"([^"]+)"(?:\s+(\d+))?/);
   if (m) {
@@ -513,7 +469,6 @@ registerCommand('*page_break', (t) => {
   const btnText  = t.replace(/^\*page_break\s*/, '').trim() || 'Continue';
   const resumeIp = ip + 1;
 
-  // Halt the interpreter — callback resumes execution.
   setIp(currentLines.length);
 
   cb.showPageBreak(btnText, () => {
@@ -536,7 +491,6 @@ registerCommand('*input', (t) => {
   const prompt   = m[2];
   const resumeIp = ip + 1;
 
-  // Halt the interpreter — callback resumes execution.
   setIp(currentLines.length);
 
   cb.showInputPrompt(varName, prompt, (value) => {
@@ -554,15 +508,13 @@ registerCommand('*input', (t) => {
 });
 
 // *choice
-// FIX #1: parseChoice now receives cb.showEngineError via the ctx object so
-//   malformed *selectable_if lines surface in-game, not just in the console.
-//   Previously the BUG-06 fix in parser.js was dead code at runtime because
-//   the *choice handler never passed the callback.
+// parseChoice receives cb.showEngineError via the ctx object so malformed
+// *selectable_if lines surface in-game, not just in the console.
 registerCommand('*choice', (t, line) => {
   const parsed = parseChoice(ip, line.indent, {
     currentLines,
     evalValue,
-    showEngineError: cb.showEngineError,  // FIX #1: wire up the BUG-06 callback
+    showEngineError: cb.showEngineError,
   });
   if (parsed.choices.length === 0) {
     cb.showEngineError(`*choice at line ${ip} in "${currentScene}" produced no options. Check for missing or malformed # lines.`);
@@ -574,19 +526,12 @@ registerCommand('*choice', (t, line) => {
 });
 
 // *ending ["Title"] ["Body text"]
-//
-// FIX #S3: Previously always showed hardcoded "The End" / "Your path is
-// complete." regardless of what was written after *ending in the scene file.
-// Now parses up to two quoted string arguments:
-//   *ending                           → defaults
-//   *ending "A Bitter Conclusion"     → custom title, default body
-//   *ending "Title" "Body text here"  → both custom
+// Parses up to two quoted string arguments for custom title/body.
 registerCommand('*ending', (t) => {
   const args    = [...t.matchAll(/"([^"]+)"/g)].map(m => m[1]);
   const title   = args[0] ?? 'The End';
   const content = args[1] ?? 'Your path is complete.';
   cb.showEndingScreen(title, content);
-  // Jump past end of scene to stop the interpreter loop — the game is over.
   setIp(currentLines.length);
 });
 
@@ -620,18 +565,9 @@ registerCommand('*if', async (t, line) => {
 });
 
 // *loop condition
-// BUG-04 fix: guard trip now calls cb.showEngineError so the author sees it
-// in-game rather than only in the browser console.
-// FIX #10: guard raised from 100 → 10,000 so legitimate high-count loops
-//   (procedural generation, countdown timers) don't hit the limit.
-// BUG-F fix: if a *choice is encountered inside the loop body, awaitingChoice
-//   will be set by executeBlock. We must stamp awaitingChoice._savedIp with
-//   blockEnd before returning so the post-choice runInterpreter resumes AFTER
-//   the loop, not by re-entering it from the *loop line.
-// BUG-2 fix (code review): The previous code mutated awaitingChoice._savedIp
-//   directly on the imported binding, which bypasses the state setter and
-//   writes to a potentially stale object reference. Now uses setAwaitingChoice
-//   with a spread copy so the state module's canonical reference is updated.
+// Guard trips at 10,000 iterations and displays an in-game error.
+// If a *choice is found inside the loop body, awaitingChoice._savedIp is
+// set to blockEnd via the setter so the post-choice resume skips past the loop.
 registerCommand('*loop', async (t, line) => {
   const LOOP_GUARD = 10_000;
   const blockStart = ip + 1, blockEnd = findBlockEnd(blockStart, line.indent);
@@ -639,9 +575,6 @@ registerCommand('*loop', async (t, line) => {
   while (evaluateCondition(t) && guard < LOOP_GUARD) {
     const reason = await executeBlock(blockStart, blockEnd);
     if (reason === 'choice') {
-      // BUG-2 fix: read the live awaitingChoice value then replace it via the
-      // setter so _savedIp is stored on the canonical state object, not on a
-      // stale imported binding reference.
       const ac = awaitingChoice;
       if (ac) setAwaitingChoice({ ...ac, _savedIp: blockEnd });
       return;
@@ -655,7 +588,7 @@ registerCommand('*loop', async (t, line) => {
   setIp(blockEnd);
 });
 
-// *patch_state key value  (runtime patchPlayerState)
+// *patch_state key value
 registerCommand('*patch_state', (t) => {
   const m = t.match(/^\*patch_state\s+([a-zA-Z_][\w]*)\s+(.+)$/);
   if (!m) { advanceIp(); return; }
@@ -663,8 +596,7 @@ registerCommand('*patch_state', (t) => {
   advanceIp();
 });
 
-// *gosub label — call a subroutine within the current scene, push return address
-// *gosub must be registered before *goto_scene and *goto to avoid prefix issues
+// *gosub label — call a subroutine, push return address
 registerCommand('*gosub', (t) => {
   const label  = t.replace(/^\*gosub\s*/, '').trim();
   const labels = _labelsCache.get(currentScene) || {};
@@ -673,7 +605,6 @@ registerCommand('*gosub', (t) => {
     setIp(currentLines.length);
     return;
   }
-  // Push the return address (the line after *gosub)
   _gosubStack.push(ip + 1);
   setIp(labels[label]);
 });

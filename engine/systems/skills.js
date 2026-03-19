@@ -1,16 +1,10 @@
-// ---------------------------------------------------------------------------
 // systems/skills.js — Skill registry and management
 //
 // Owns the skill data model: parsing skills.txt into a registry, checking
 // ownership, granting/revoking skills, and purchasing with Essence.
 //
 // playerState.skills is an array of skill key strings.
-// Skills are purchased with Essence (playerState.essence).
 // skillRegistry is the ordered list of all defined skills parsed from skills.txt.
-//
-// Dependency graph (one-directional):
-//   skills.js → state.js  (playerState, normalizeKey)
-// ---------------------------------------------------------------------------
 
 import { playerState, normalizeKey } from '../core/state.js';
 
@@ -21,19 +15,17 @@ import { playerState, normalizeKey } from '../core/state.js';
 export let skillRegistry = [];
 
 // ---------------------------------------------------------------------------
-// parseSkills — reads skills.txt via the injected fetch function and
-// populates skillRegistry.
+// parseSkills — reads skills.txt and populates skillRegistry.
 //
-// Format in skills.txt:
-//   *skill key "Label" cost
-//     Description text (indented lines, can span multiple lines).
+// Format:  *skill key "Label" cost [rarity]
+//            Description text (indented).
+//          *require expression  (optional — hides until true)
 // ---------------------------------------------------------------------------
 export async function parseSkills(fetchTextFileFn) {
   let text;
   try {
     text = await fetchTextFileFn('skills');
   } catch (err) {
-    // skills.txt is optional — if missing, the skill system is simply empty
     console.warn('[skills] skills.txt not found — skill system disabled.', err.message);
     skillRegistry = [];
     return;
@@ -46,13 +38,10 @@ export async function parseSkills(fetchTextFileFn) {
   for (const raw of lines) {
     const trimmed = raw.trim();
 
-    // Skip empty lines and comments
     if (!trimmed || trimmed.startsWith('//')) continue;
 
-    // New skill directive — supports optional rarity: *skill key "Label" cost [rarity]
     const m = trimmed.match(/^\*skill\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?\s*$/i);
     if (m) {
-      // Finalise previous skill if any
       if (current) parsed.push(current);
       current = {
         key:          normalizeKey(m[1]),
@@ -60,24 +49,21 @@ export async function parseSkills(fetchTextFileFn) {
         essenceCost:  Number(m[3]),
         rarity:       m[4] ? m[4].toLowerCase() : 'common',
         description:  '',
-        condition:    null,   // set by *require line
+        condition:    null,
       };
       continue;
     }
 
-    // *require expression — store visibility condition on current skill
     if (current && trimmed.startsWith('*require ')) {
       current.condition = trimmed.replace(/^\*require\s+/, '').trim();
       continue;
     }
 
-    // Indented description line (belongs to current skill)
     if (current && raw.match(/^\s+/) && trimmed) {
       current.description += (current.description ? ' ' : '') + trimmed;
     }
   }
 
-  // Finalise last skill
   if (current) parsed.push(current);
 
   skillRegistry = parsed;
@@ -96,8 +82,7 @@ export function playerHasSkill(key) {
 }
 
 // ---------------------------------------------------------------------------
-// grantSkill — adds a skill to playerState.skills without spending Essence.
-// No-op if already owned. Initialises the array if needed.
+// grantSkill — adds a skill without spending Essence. No-op if already owned.
 // ---------------------------------------------------------------------------
 export function grantSkill(key) {
   const k = normalizeKey(key);
@@ -108,8 +93,7 @@ export function grantSkill(key) {
 }
 
 // ---------------------------------------------------------------------------
-// revokeSkill — removes a skill from playerState.skills.
-// Warns if not owned. No-op if the array doesn't exist.
+// revokeSkill — removes a skill. Warns if not owned.
 // ---------------------------------------------------------------------------
 export function revokeSkill(key) {
   const k = normalizeKey(key);
@@ -123,8 +107,8 @@ export function revokeSkill(key) {
 }
 
 // ---------------------------------------------------------------------------
-// purchaseSkill — deducts Essence from playerState.essence, then grants the
-// skill. Returns true on success, false if already owned or can't afford.
+// purchaseSkill — deducts Essence, then grants the skill.
+// Returns true on success, false if already owned or can't afford.
 // ---------------------------------------------------------------------------
 export function purchaseSkill(key) {
   const k    = normalizeKey(key);

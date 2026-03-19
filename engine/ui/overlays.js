@@ -1,26 +1,11 @@
-// ---------------------------------------------------------------------------
 // ui/overlays.js — Splash, save menu, character creation, toast, focus trap
 //
 // Owns every overlay and modal flow:
-//   trapFocus              — keyboard focus containment for overlays
-//   showToast              — transient notification banner
-//   populateSlotCard /
-//   refreshAllSlotCards    — save slot card DOM sync
-//   showSplash / hideSplash
-//   showSaveMenu / hideSaveMenu
-//   validateName /
-//   wireCharCreation /
-//   showCharacterCreation
-//   loadAndResume          — shared helper used by both splash and in-game load
+//   trapFocus, showToast, populateSlotCard, refreshAllSlotCards,
+//   showSplash / hideSplash, showSaveMenu / hideSaveMenu,
+//   wireCharCreation / showCharacterCreation, loadAndResume
 //
 // DOM nodes and cross-module callbacks are injected at boot via init().
-//
-// Dependency graph:
-//   overlays.js
-//     → saves.js   (loadSaveFromSlot, restoreFromSave,
-//                   _staleSaveFound, clearStaleSaveFound)
-//     ← main.js    (injects dom slice + callbacks via init())
-// ---------------------------------------------------------------------------
 
 import {
   loadSaveFromSlot, restoreFromSave,
@@ -37,7 +22,7 @@ let _splashSlots    = null;
 
 // Save menu
 let _saveOverlay    = null;
-let _saveBtn        = null;   // trigger element — focus returns here on close; also unhidden on load
+let _saveBtn        = null;
 
 // Char creation
 let _charOverlay    = null;
@@ -52,22 +37,20 @@ let _charBeginBtn   = null;
 // Toast
 let _toast          = null;
 
-// Callbacks injected by main.js
-let _runStatsScene       = null;   // async () → void
-let _fetchTextFile       = null;   // async (name) → string
-let _evalValue           = null;   // (expr) → value
-
-// Phase 3 — new callbacks for the no-replay restoreFromSave
-let _renderFromLog       = null;   // (log, opts) → void
-let _renderChoices       = null;   // (choices) → void
-let _runInterpreter      = null;   // async () → void
-let _clearNarrative      = null;   // () → void
-let _applyTransition     = null;   // () → void
-let _setChapterTitle     = null;   // (t: string) → void
-let _parseAndCacheScene  = null;   // async (name: string) → void
-let _clearUndoStack      = null;   // () → void — clears undo history on load
-let _setChoiceArea       = null;   // BUG-05 — (el) → void
-let _setGameTitle        = null;   // (t: string) → void
+// Callbacks injected by engine.js
+let _runStatsScene       = null;
+let _fetchTextFile       = null;
+let _evalValue           = null;
+let _renderFromLog       = null;
+let _renderChoices       = null;
+let _runInterpreter      = null;
+let _clearNarrative      = null;
+let _applyTransition     = null;
+let _setChapterTitle     = null;
+let _parseAndCacheScene  = null;
+let _clearUndoStack      = null;
+let _setChoiceArea       = null;
+let _setGameTitle        = null;
 
 export function init({
   splashOverlay, splashSlots,
@@ -76,7 +59,6 @@ export function init({
   counterFirst, counterLast, errorFirstName, errorLastName, charBeginBtn,
   toast,
   runStatsScene, fetchTextFile, evalValue,
-  // Callbacks needed by restoreFromSave:
   renderFromLog, renderChoices,
   runInterpreter,
   clearNarrative, applyTransition, setChapterTitle,
@@ -164,13 +146,7 @@ export function trapFocus(overlayEl, triggerEl = null) {
 }
 
 // ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
 // Toast queue — messages are displayed one at a time.
-// ---------------------------------------------------------------------------
-// showToast — transient notification banner.
-// Toasts queue in call order. Processing is deferred by one setTimeout(0)
-// tick so toasts queued synchronously in the same interpreter pass
-// accumulate before the first one starts displaying.
 // ---------------------------------------------------------------------------
 const _toastQueue = [];
 let   _toastActive = false;
@@ -194,7 +170,7 @@ function _processToastQueue() {
     setTimeout(() => {
       _toast.classList.add('hidden');
       _toastActive = false;
-      _processToastQueue();   // show next in queue
+      _processToastQueue();
     }, 300);
   }, durationMs);
 }
@@ -210,13 +186,9 @@ export function showToast(message, durationMs = 4000) {
 export function populateSlotCard({ nameEl, metaEl, loadBtn, deleteBtn, cardEl, save }) {
   if (save) {
     const d = new Date(save.timestamp);
-    // BUG-L fix: strip any .txt extension from the scene name before
-    // uppercasing it. If a *goto_scene directive ever passes "scene.txt"
-    // instead of "scene", currentScene would contain the extension and the
-    // slot card would display "PROLOGUE.TXT" instead of "PROLOGUE".
     const sceneDisplay = save.label
       ? save.label
-      : save.scene.replace(/\.txt$/i, '').toUpperCase();  // ENH-06
+      : save.scene.replace(/\.txt$/i, '').toUpperCase();
     metaEl.textContent  = `${sceneDisplay} · ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
     nameEl.textContent  = save.characterName || 'Unknown';
     loadBtn.disabled    = false;
@@ -237,7 +209,6 @@ export function refreshAllSlotCards() {
     const save = loadSaveFromSlot(slot);
     const s    = String(slot);
 
-    // Splash screen slot cards
     const sCard = document.getElementById(`slot-card-${s}`);
     if (sCard) populateSlotCard({
       nameEl:    document.getElementById(`slot-name-${s}`),
@@ -248,8 +219,6 @@ export function refreshAllSlotCards() {
       save,
     });
 
-    // In-game save menu slot cards (save-card-* prefix)
-    // populateSlotCard sets loadBtn.disabled correctly — no second pass needed.
     const iCard = document.getElementById(`save-card-${s}`);
     if (iCard) populateSlotCard({
       nameEl:    document.getElementById(`save-slot-name-${s}`),
@@ -264,14 +233,11 @@ export function refreshAllSlotCards() {
 
 // ---------------------------------------------------------------------------
 // loadAndResume — shared helper used by splash load and in-game load flows.
-// Shows the save button, calls restoreFromSave with all injected dependencies.
 // ---------------------------------------------------------------------------
 export async function loadAndResume(save) {
   _saveBtn.classList.remove('hidden');
   const undoBtn = document.getElementById('undo-btn');
   if (undoBtn) undoBtn.classList.remove('hidden');
-  // Clear undo history — snapshots from a previous session must not survive
-  // a load, or the player could undo back into the wrong game state.
   if (_clearUndoStack) _clearUndoStack();
   await restoreFromSave(save, {
     runStatsScene:      _runStatsScene,
@@ -287,7 +253,6 @@ export async function loadAndResume(save) {
     evalValueFn:        _evalValue,
   });
 
-  // Restore game title from playerState after save restore
   if (_setGameTitle) {
     const ps = save.playerState || {};
     const title = ps.game_title || 'System Awakening';
@@ -299,11 +264,9 @@ export async function loadAndResume(save) {
 // Splash screen
 // ---------------------------------------------------------------------------
 export function showSplash() {
-  // Pre-load all slots so card states are current before display
   ['auto', 1, 2, 3].forEach(loadSaveFromSlot);
   refreshAllSlotCards();
 
-  // Stale-save notice: shown once on boot if a version-mismatched save exists
   const notice = document.getElementById('splash-stale-notice');
   if (notice) {
     if (_staleSaveFound) {
@@ -357,8 +320,6 @@ export function validateName(value, label) {
   return null;
 }
 
-// wireCharCreation — attaches all input/keyboard/click handlers to the
-// character creation overlay. Called once from main.js wireUI().
 export function wireCharCreation() {
   function handleInput(inputEl, counterEl, errorEl, fieldLabel) {
     const cleaned = inputEl.value.replace(/[^\p{L}\p{M}'\- ]/gu, '');
@@ -368,9 +329,7 @@ export function wireCharCreation() {
       try { inputEl.setSelectionRange(pos, pos); } catch (_) {}
     }
     counterEl.textContent = NAME_MAX - inputEl.value.length;
-    // BUG-7 fix: validate against the trimmed value so that a name with only
-    // leading/trailing spaces shows an "empty" error in real-time, matching
-    // what the submit handler stores after trimming.
+    // Validate against trimmed value so whitespace-only names show an error.
     const err = validateName(inputEl.value.trim() === '' ? '' : inputEl.value, fieldLabel);
     inputEl.classList.toggle('char-input--error', !!err);
     errorEl.textContent = err || '';
@@ -448,7 +407,7 @@ export function wireCharCreation() {
 }
 
 // showCharacterCreation — resets and shows the overlay; returns a Promise
-// that resolves with { firstName, lastName, pronouns } when the user submits.
+// that resolves with character data when the user submits.
 export function showCharacterCreation() {
   _inputFirstName.value = '';
   _inputLastName.value  = '';
@@ -472,8 +431,6 @@ export function showCharacterCreation() {
   requestAnimationFrame(() => {
     const release = trapFocus(_charOverlay, null);
     _charOverlay._trapRelease = release;
-    // Focus the first name input inside the same rAF that wires the focus
-    // trap, so tab order is established before the field is focused.
     try { _inputFirstName.focus(); } catch (_) {}
   });
 

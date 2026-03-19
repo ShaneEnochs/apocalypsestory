@@ -1,4 +1,3 @@
-// ---------------------------------------------------------------------------
 // core/state.js — Engine state and variable management
 //
 // All mutable engine state lives here as named exports. Modules that need to
@@ -10,7 +9,6 @@
 //   playerState  — persistent across scenes, saved to localStorage
 //   tempState    — scene-scoped, cleared by clearTempState() on *goto_scene
 //   statRegistry — ordered list of allocatable stats declared via *create_stat
-// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Core game state
@@ -30,11 +28,6 @@ export let ip            = 0;
 // Choice state
 // ---------------------------------------------------------------------------
 export let awaitingChoice = null;
-
-// ---------------------------------------------------------------------------
-// Rendering
-// ---------------------------------------------------------------------------
-// (delayIndex removed — staggered animation-delay system eliminated)
 
 // ---------------------------------------------------------------------------
 // Startup metadata
@@ -64,8 +57,6 @@ export function advanceIp()                 { ip += 1; }
 
 export function setAwaitingChoice(c)        { awaitingChoice = c; }
 
-// setDelayIndex / advanceDelayIndex removed — animation stagger system eliminated
-
 // ---------------------------------------------------------------------------
 // clearTempState — called by gotoScene on cross-scene navigation
 // ---------------------------------------------------------------------------
@@ -83,7 +74,6 @@ export function normalizeKey(k) {
 // ---------------------------------------------------------------------------
 // resolveStore — returns the store object (tempState or playerState) that
 // owns the given key, or null if the key is undeclared in both.
-//
 // This is the single source of truth for variable lookup order: temp → player.
 // ---------------------------------------------------------------------------
 export function resolveStore(key) {
@@ -122,10 +112,9 @@ export function setVar(command, evalValueFn) {
 
   if (!store) {
     console.warn(`[state] *set on undeclared variable "${key}" — did you mean *create or *temp?`);
-    return; // Don't silently create garbage keys in persistent state
+    return;
   }
 
-  // Arithmetic shorthand — validate result is finite before committing.
   if (/^[+\-*/]\s*/.test(rhs) && typeof store[key] === 'number') {
     const result = evalValueFn(`${store[key]} ${rhs}`);
     const coerced = Number.isFinite(result) ? result : evalValueFn(rhs);
@@ -136,7 +125,7 @@ export function setVar(command, evalValueFn) {
 }
 
 // ---------------------------------------------------------------------------
-// setStatClamped — handles the *set_stat directive (ENH-03)
+// setStatClamped — handles the *set_stat directive
 //
 // Syntax: *set_stat key rhs [min:N] [max:N]
 // Applies rhs using the same arithmetic-shorthand logic as setVar, then clamps
@@ -154,7 +143,6 @@ export function setStatClamped(command, evalValueFn) {
     return;
   }
 
-  // Extract optional min:/max: bounds, then strip them from the RHS expression
   const minMatch = rest.match(/\bmin:\s*(-?[\d.]+)/i);
   const maxMatch = rest.match(/\bmax:\s*(-?[\d.]+)/i);
   const rhs = rest
@@ -165,7 +153,6 @@ export function setStatClamped(command, evalValueFn) {
   const minVal = minMatch ? Number(minMatch[1]) : -Infinity;
   const maxVal = maxMatch ? Number(maxMatch[1]) :  Infinity;
 
-  // Apply arithmetic shorthand if applicable, same as setVar
   let newVal;
   if (/^[+\-*/]\s*/.test(rhs) && typeof store[key] === 'number') {
     const result = evalValueFn(`${store[key]} ${rhs}`);
@@ -197,8 +184,6 @@ export function declareTemp(command, evalValueFn) {
 // Accepts fetchTextFileFn and evalValueFn as injected dependencies so this
 // module remains pure (no direct fetch calls, no Function() evaluator import).
 // ---------------------------------------------------------------------------
-// _statRegistryWarningFired: module-level so it only fires once per page load,
-// not on every parseStartup call (boot + each restoreFromSave).
 let _statRegistryWarningFired = false;
 
 export async function parseStartup(fetchTextFileFn, evalValueFn) {
@@ -209,8 +194,6 @@ export async function parseStartup(fetchTextFileFn, evalValueFn) {
     indent:  (raw.match(/^\s*/)?.[0] || '').length,
   }));
 
-  // Reset all state before repopulating — ensures a clean slate on New Game
-  // as well as when called from boot().
   playerState  = {};
   tempState    = {};
   statRegistry = [];
