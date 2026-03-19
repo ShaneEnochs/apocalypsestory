@@ -1,15 +1,7 @@
-
-// ---------------------------------------------------------------------------
-// engine.js — System Awakening coordinator (Phase 4 complete)
+// engine.js — System Awakening coordinator
 //
-// FIX #S6 (sweep 5): popUndo no longer calls runInterpreter(). Previously
-//   it re-ran the interpreter from the snapshot ip, which caused:
-//   - BUG 2: a duplicate auto-save overwriting the player's actual progress
-//   - BUG 3: potential duplicate paragraphs if lines existed between ip and *choice
-//   Now popUndo restores awaitingChoice from the snapshot and calls
-//   renderChoices directly to re-create buttons with live click handlers.
-//   pushUndoSnapshot now captures awaitingChoice in the snapshot.
-// ---------------------------------------------------------------------------
+// Boots the engine, wires all UI modules together, and owns the undo system.
+// Serves as the single entry point bundled by esbuild into dist/engine.js.
 
 import {
   playerState, tempState, statRegistry, startup,
@@ -22,7 +14,7 @@ import {
   setChapterTitleState,
 } from './engine/core/state.js';
 
-import { evalValue }       from './engine/core/expression.js';
+import { evalValue } from './engine/core/expression.js';
 
 import {
   registerCallbacks, registerCaches,
@@ -64,48 +56,71 @@ import {
   loadAndResume,
 } from './engine/ui/overlays.js';
 
+// ---------------------------------------------------------------------------
+// DOM references
+// ---------------------------------------------------------------------------
 const dom = {
-  narrativeContent:   document.getElementById('narrative-content'),
-  choiceArea:         document.getElementById('choice-area'),
-  chapterTitle:       document.getElementById('chapter-title'),
-  narrativePanel:     document.getElementById('narrative-panel'),
-  statusPanel:        document.getElementById('status-panel'),
-  statusToggle:       document.getElementById('status-toggle'),
-  saveBtn:            document.getElementById('save-btn'),
-  gameTitle:          document.getElementById('game-title'),
-  splashTitle:        document.querySelector('.splash-title'),
-  splashTagline: document.getElementById('splash-tagline'),
-  splashOverlay:      document.getElementById('splash-overlay'),
-  splashNewBtn:       document.getElementById('splash-new-btn'),
-  splashLoadBtn:      document.getElementById('splash-load-btn'),
-  splashSlots:        document.getElementById('splash-slots'),
-  splashSlotsBack:    document.getElementById('splash-slots-back'),
-  saveOverlay:        document.getElementById('save-overlay'),
-  saveMenuClose:      document.getElementById('save-menu-close'),
-  charOverlay:        document.getElementById('char-creation-overlay'),
-  inputFirstName:     document.getElementById('input-first-name'),
-  inputLastName:      document.getElementById('input-last-name'),
-  counterFirst:       document.getElementById('counter-first'),
-  counterLast:        document.getElementById('counter-last'),
-  errorFirstName:     document.getElementById('error-first-name'),
-  errorLastName:      document.getElementById('error-last-name'),
-  charBeginBtn:       document.getElementById('char-begin-btn'),
-  endingOverlay:      document.getElementById('ending-overlay'),
-  endingTitle:        document.getElementById('ending-title'),
-  endingContent:      document.getElementById('ending-content'),
-  endingStats:        document.getElementById('ending-stats'),
-  endingActionBtn:    document.getElementById('ending-action-btn'),
-  storeOverlay:       document.getElementById('store-overlay'),
-  toast:              document.getElementById('toast'),
+  narrativeContent: document.getElementById('narrative-content'),
+  choiceArea:       document.getElementById('choice-area'),
+  chapterTitle:     document.getElementById('chapter-title'),
+  narrativePanel:   document.getElementById('narrative-panel'),
+  statusPanel:      document.getElementById('status-panel'),
+  statusToggle:     document.getElementById('status-toggle'),
+  saveBtn:          document.getElementById('save-btn'),
+  gameTitle:        document.getElementById('game-title'),
+  splashTitle:      document.querySelector('.splash-title'),
+  splashTagline:    document.getElementById('splash-tagline'),
+  splashOverlay:    document.getElementById('splash-overlay'),
+  splashNewBtn:     document.getElementById('splash-new-btn'),
+  splashLoadBtn:    document.getElementById('splash-load-btn'),
+  splashSlots:      document.getElementById('splash-slots'),
+  splashSlotsBack:  document.getElementById('splash-slots-back'),
+  saveOverlay:      document.getElementById('save-overlay'),
+  saveMenuClose:    document.getElementById('save-menu-close'),
+  charOverlay:      document.getElementById('char-creation-overlay'),
+  inputFirstName:   document.getElementById('input-first-name'),
+  inputLastName:    document.getElementById('input-last-name'),
+  counterFirst:     document.getElementById('counter-first'),
+  counterLast:      document.getElementById('counter-last'),
+  errorFirstName:   document.getElementById('error-first-name'),
+  errorLastName:    document.getElementById('error-last-name'),
+  charBeginBtn:     document.getElementById('char-begin-btn'),
+  endingOverlay:    document.getElementById('ending-overlay'),
+  endingTitle:      document.getElementById('ending-title'),
+  endingContent:    document.getElementById('ending-content'),
+  endingStats:      document.getElementById('ending-stats'),
+  endingActionBtn:  document.getElementById('ending-action-btn'),
+  storeOverlay:     document.getElementById('store-overlay'),
+  toast:            document.getElementById('toast'),
 };
 
 Object.entries(dom).forEach(([key, el]) => {
   if (!el) console.warn(`[engine] DOM element missing: "${key}" — check index.html IDs`);
 });
 
+// ---------------------------------------------------------------------------
+// Scene and label caches
+// ---------------------------------------------------------------------------
 const sceneCache  = new Map();
 const labelsCache = new Map();
 
+// ---------------------------------------------------------------------------
+// Shared title setters — used by both initOverlays and registerCallbacks
+// ---------------------------------------------------------------------------
+function setChapterTitle(t) {
+  dom.chapterTitle.textContent = t;
+  setChapterTitleState(t);
+}
+
+function setGameTitle(t) {
+  if (dom.gameTitle)   dom.gameTitle.textContent = t;
+  if (dom.splashTitle) dom.splashTitle.textContent = t;
+  document.title = t;
+}
+
+// ---------------------------------------------------------------------------
+// Stats render scheduling — batches rapid consecutive calls into one rAF
+// ---------------------------------------------------------------------------
 let _statsRenderPending = false;
 
 function scheduleStatsRender() {
@@ -118,6 +133,9 @@ function scheduleStatsRender() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Text file fetching with cache
+// ---------------------------------------------------------------------------
 async function fetchTextFile(name) {
   const key = name.endsWith('.txt') ? name : `${name}.txt`;
   if (sceneCache.has(key)) return sceneCache.get(key);
@@ -128,18 +146,24 @@ async function fetchTextFile(name) {
   return text;
 }
 
+// ---------------------------------------------------------------------------
+// Engine error display
+// ---------------------------------------------------------------------------
 function showEngineError(message) {
   clearNarrative();
-  const div = document.createElement('div');
+  const div   = document.createElement('div');
   div.className = 'system-block';
   div.style.borderLeftColor = 'var(--red)';
-  div.style.color = 'var(--red)';
+  div.style.color           = 'var(--red)';
+
   const label = document.createElement('span');
-  label.className = 'system-block-label';
+  label.className   = 'system-block-label';
   label.textContent = '[ ENGINE ERROR ]';
+
   const text = document.createElement('span');
-  text.className = 'system-block-text';
+  text.className   = 'system-block-text';
   text.textContent = `${message}\n\nUse the Restart button to reload.`;
+
   div.appendChild(label);
   div.appendChild(text);
   dom.narrativeContent.insertBefore(div, dom.choiceArea);
@@ -150,19 +174,17 @@ function showEngineError(message) {
 // Undo system
 // ---------------------------------------------------------------------------
 const _undoStack = [];
-const UNDO_MAX = 10;
+const UNDO_MAX   = 10;
 
 function pushUndoSnapshot() {
   _undoStack.push({
-    playerState:      JSON.parse(JSON.stringify(playerState)),
-    tempState:        JSON.parse(JSON.stringify(tempState)),
-    scene:            currentScene,
+    playerState:    JSON.parse(JSON.stringify(playerState)),
+    tempState:      JSON.parse(JSON.stringify(tempState)),
+    scene:          currentScene,
     ip,
-    narrativeLog:     JSON.parse(JSON.stringify(getNarrativeLog())),
-    chapterTitle:     dom.chapterTitle.textContent,
-    awaitingChoice:   awaitingChoice
-      ? JSON.parse(JSON.stringify(awaitingChoice))
-      : null,
+    narrativeLog:   JSON.parse(JSON.stringify(getNarrativeLog())),
+    chapterTitle:   dom.chapterTitle.textContent,
+    awaitingChoice: awaitingChoice ? JSON.parse(JSON.stringify(awaitingChoice)) : null,
   });
   if (_undoStack.length > UNDO_MAX) _undoStack.shift();
   updateUndoBtn();
@@ -189,16 +211,9 @@ async function popUndo() {
 
   renderFromLog(snap.narrativeLog, { skipAnimations: true });
 
-  // FIX #S6 (BUG 2 + BUG 3): Restore choices directly from the snapshot
-  // instead of calling runInterpreter(). This avoids:
-  //   - BUG 2: runInterpreter writes an auto-save, overwriting the player's
-  //     actual progress with the undo'd state.
-  //   - BUG 3: runInterpreter re-executes lines between ip and *choice,
-  //     potentially duplicating paragraphs already painted by renderFromLog.
-  // BUG-6 fix (code review): Removed the setChoiceArea re-point that was here.
-  //   clearNarrative() only empties #choice-area's innerHTML — it never removes
-  //   or recreates the node itself — so _choiceArea in narrative.js never goes
-  //   stale and the re-point was dead code.
+  // Restore choices directly from the snapshot rather than re-running the
+  // interpreter, which would write a spurious auto-save and could duplicate
+  // paragraphs already painted by renderFromLog.
   if (snap.awaitingChoice) {
     setAwaitingChoice(snap.awaitingChoice);
     renderChoices(snap.awaitingChoice.choices);
@@ -215,28 +230,35 @@ function updateUndoBtn() {
 }
 
 // ---------------------------------------------------------------------------
-// wireUI
+// UI wiring
 // ---------------------------------------------------------------------------
 function wireUI() {
+  // Status panel toggle
   dom.statusToggle.addEventListener('click', () => {
     const visible = dom.statusPanel.classList.toggle('status-visible');
     dom.statusPanel.classList.toggle('status-hidden', !visible);
     runStatsScene();
   });
 
+  // Close status panel on outside click
   document.addEventListener('click', e => {
-    if (!dom.statusPanel.contains(e.target) &&
-        e.target !== dom.statusToggle &&
-        !dom.storeOverlay?.contains(e.target)) {
+    if (
+      !dom.statusPanel.contains(e.target) &&
+      e.target !== dom.statusToggle &&
+      !dom.storeOverlay?.contains(e.target)
+    ) {
       dom.statusPanel.classList.remove('status-visible');
       dom.statusPanel.classList.add('status-hidden');
     }
   });
 
-  dom.saveBtn.addEventListener('click', () => {
-    showSaveMenu();
-  });
+  // Save menu
+  dom.saveBtn.addEventListener('click', showSaveMenu);
+  dom.saveMenuClose.addEventListener('click', hideSaveMenu);
+  dom.saveOverlay.addEventListener('click', e => { if (e.target === dom.saveOverlay) hideSaveMenu(); });
+  dom.saveOverlay.addEventListener('keydown', e => { if (e.key === 'Escape') hideSaveMenu(); });
 
+  // Save to slot
   [1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`save-to-${slot}`);
     if (!btn) return;
@@ -250,10 +272,7 @@ function wireUI() {
     });
   });
 
-  dom.saveMenuClose.addEventListener('click', hideSaveMenu);
-  dom.saveOverlay.addEventListener('click', e => { if (e.target === dom.saveOverlay) hideSaveMenu(); });
-  dom.saveOverlay.addEventListener('keydown', e => { if (e.key === 'Escape') hideSaveMenu(); });
-
+  // Delete save slot (in-game menu)
   [1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`save-delete-${slot}`);
     if (!btn) return;
@@ -265,6 +284,7 @@ function wireUI() {
     });
   });
 
+  // Load save slot (in-game menu)
   ['auto', 1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`ingame-load-${slot}`);
     if (!btn) return;
@@ -276,6 +296,7 @@ function wireUI() {
     });
   });
 
+  // Restart
   const ingameRestartBtn = document.getElementById('ingame-restart-btn');
   if (ingameRestartBtn) {
     ingameRestartBtn.addEventListener('click', () => {
@@ -287,6 +308,7 @@ function wireUI() {
     });
   }
 
+  // New game
   dom.splashNewBtn.addEventListener('click', async () => {
     hideSplash();
     const charData = await showCharacterCreation();
@@ -308,6 +330,7 @@ function wireUI() {
     await gotoScene(startup.sceneList[0] || 'prologue');
   });
 
+  // Continue (splash load)
   dom.splashLoadBtn.addEventListener('click', () => {
     dom.splashOverlay.querySelector('.splash-btn-col')?.classList.add('hidden');
     dom.splashSlots.classList.remove('hidden');
@@ -319,6 +342,7 @@ function wireUI() {
     dom.splashOverlay.querySelector('.splash-btn-col')?.classList.remove('hidden');
   });
 
+  // Load from splash slots
   ['auto', 1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`slot-load-${slot}`);
     if (!btn) return;
@@ -330,6 +354,7 @@ function wireUI() {
     });
   });
 
+  // Delete from splash slots
   ['auto', 1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`slot-delete-${slot}`);
     if (!btn) return;
@@ -344,9 +369,11 @@ function wireUI() {
 
   wireCharCreation();
 
+  // Undo
   const undoBtn = document.getElementById('undo-btn');
   if (undoBtn) undoBtn.addEventListener('click', popUndo);
 
+  // Export save slots
   [1, 2, 3].forEach(slot => {
     const btn = document.getElementById(`save-export-${slot}`);
     if (!btn) return;
@@ -356,6 +383,7 @@ function wireUI() {
     });
   });
 
+  // Import save file
   const importInput = document.getElementById('save-import-file');
   if (importInput) {
     importInput.addEventListener('change', async () => {
@@ -363,8 +391,8 @@ function wireUI() {
       if (!file) return;
       const targetSlot = Number(document.getElementById('save-import-slot')?.value || 1);
       try {
-        const text = await file.text();
-        const json = JSON.parse(text);
+        const text   = await file.text();
+        const json   = JSON.parse(text);
         const result = importSaveFromJSON(json, targetSlot);
         if (result.ok) {
           showToast(`Imported to Slot ${targetSlot}.`);
@@ -379,20 +407,22 @@ function wireUI() {
     });
   }
 
-  // Save code system — Copy Code / Load Code
+  // Save code — copy
   const codeCopyBtn = document.getElementById('save-code-copy');
   if (codeCopyBtn) {
     codeCopyBtn.addEventListener('click', () => {
-      const code = encodeSaveCode(getNarrativeLog());
+      const code  = encodeSaveCode(getNarrativeLog());
       const field = document.getElementById('save-code-field');
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(code).then(() => {
-          showToast('Save code copied to clipboard.');
-          if (field) field.value = code;
-        }).catch(() => {
-          if (field) { field.value = code; field.select(); }
-          showToast('Code generated — copy it from the text box.');
-        });
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(code)
+          .then(() => {
+            showToast('Save code copied to clipboard.');
+            if (field) field.value = code;
+          })
+          .catch(() => {
+            if (field) { field.value = code; field.select(); }
+            showToast('Code generated — copy it from the text box.');
+          });
       } else {
         if (field) { field.value = code; field.select(); }
         showToast('Code generated — copy it from the text box.');
@@ -400,11 +430,12 @@ function wireUI() {
     });
   }
 
+  // Save code — load
   const codeLoadBtn = document.getElementById('save-code-load');
   if (codeLoadBtn) {
     codeLoadBtn.addEventListener('click', async () => {
-      const field = document.getElementById('save-code-field');
-      const code = field?.value?.trim();
+      const field  = document.getElementById('save-code-field');
+      const code   = field?.value?.trim();
       if (!code) { showToast('Paste a save code first.'); return; }
 
       const result = decodeSaveCode(code);
@@ -418,7 +449,7 @@ function wireUI() {
 }
 
 // ---------------------------------------------------------------------------
-// boot
+// Boot
 // ---------------------------------------------------------------------------
 async function boot() {
   registerCaches(sceneCache, labelsCache);
@@ -434,13 +465,13 @@ async function boot() {
   });
 
   initPanels({
-    statusPanel:      dom.statusPanel,
-    endingOverlay:    dom.endingOverlay,
-    endingTitle:      dom.endingTitle,
-    endingContent:    dom.endingContent,
-    endingStats:      dom.endingStats,
-    endingActionBtn:  dom.endingActionBtn,
-    storeOverlay:     dom.storeOverlay,
+    statusPanel:     dom.statusPanel,
+    endingOverlay:   dom.endingOverlay,
+    endingTitle:     dom.endingTitle,
+    endingContent:   dom.endingContent,
+    endingStats:     dom.endingStats,
+    endingActionBtn: dom.endingActionBtn,
+    storeOverlay:    dom.storeOverlay,
     fetchTextFile,
     scheduleStatsRender,
     trapFocus,
@@ -469,7 +500,7 @@ async function boot() {
     runInterpreter,
     clearNarrative,
     applyTransition,
-    setChapterTitle: (t) => { dom.chapterTitle.textContent = t; setChapterTitleState(t); },
+    setChapterTitle,
     parseAndCacheScene: async (name) => {
       const text = await fetchTextFile(name);
       setCurrentLines(parseLines(text));
@@ -483,11 +514,7 @@ async function boot() {
       _undoStack.splice(0);
       updateUndoBtn();
     },
-    setGameTitle: (t) => {
-      if (dom.gameTitle)   dom.gameTitle.textContent = t;
-      if (dom.splashTitle) dom.splashTitle.textContent = t;
-      document.title = t;
-    },
+    setGameTitle,
   });
 
   registerCallbacks({
@@ -503,12 +530,8 @@ async function boot() {
     scheduleStatsRender,
     showToast,
     formatText,
-    setChapterTitle: (t) => { dom.chapterTitle.textContent = t; setChapterTitleState(t); },
-    setGameTitle: (t) => {
-      if (dom.gameTitle)   dom.gameTitle.textContent = t;
-      if (dom.splashTitle) dom.splashTitle.textContent = t;
-      document.title = t;
-    },
+    setChapterTitle,
+    setGameTitle,
     setGameByline: (t) => {
       if (dom.splashTagline) dom.splashTagline.innerHTML = t;
     },
@@ -525,13 +548,11 @@ async function boot() {
     await parseSkills(fetchTextFile);
     await parseItems(fetchTextFile);
 
-    const title = playerState.game_title || '';
-    if (dom.gameTitle) dom.gameTitle.textContent = title;
-    if (dom.splashTitle) dom.splashTitle.textContent = title;
-    document.title = title;
-
+    const title  = playerState.game_title  || '';
     const byline = playerState.game_byline || '';
+    setGameTitle(title);
     if (dom.splashTagline && byline) dom.splashTagline.innerHTML = byline;
+
     showSplash();
   } catch (err) {
     showEngineError(`Boot failed: ${err.message}`);
