@@ -20,7 +20,7 @@
      15. Ending Screens (overlay + inline)
      16. Level-Up / Stat Allocation
      17. Skill System (merged from skill_styles.css)
-     17b. Store System (Phase 3)
+     18. Store System
      18. Input Prompt
      19. Journal / Achievements
      20. Toast Notification
@@ -143,9 +143,6 @@ body {
    ============================================================ */
 
 /* --- System box: mono-font panel with left accent border --- */
-/* BUG-CSS-1 fix: added missing semicolon after border-left. Without it the
-   CSS parser treated "padding: 12px 16px" as a continuation of the border-left
-   value and silently discarded the padding declaration entirely. */
 .system-box {
   font-family: var(--font-mono);
   font-size: var(--text-base);
@@ -377,10 +374,8 @@ body {
 .system-block        .inline-accent-faint em,
 .system-block        .inline-accent-faint strong     { color: var(--text-faint)       !important; }
 
-/* BUG-1 fix: .status-value is defined later in the sheet and wins the
-   source-order battle against the global utilities above, making *stat_color
-   entries invisible in the sidebar. These scoped overrides re-establish the
-   correct color when both classes appear on the same element. */
+/* Scoped overrides so *stat_color entries render correctly when both
+   .status-value and an .accent-* class appear on the same element. */
 .status-value.accent-cyan  { color: var(--cyan); }
 .status-value.accent-green { color: var(--green); }
 .status-value.accent-amber { color: var(--amber); }
@@ -587,11 +582,7 @@ body {
   border: 1px solid var(--cyan);
   border-left: 2px solid var(--cyan);
   padding: 12px 16px;
-  margin: 1.4em 0;
-  position: relative;
-}
-
-.system-block-label {
+  margin: 0 0 1.2em 0;
   display: block;
   font-size: var(--text-sm);
   letter-spacing: var(--ls-normal);
@@ -668,12 +659,7 @@ body {
 .choice-btn:hover::after   { width: 100%; }
 .choice-btn:active          { transform: translateX(2px) scale(0.99); }
 
-/* ============================================================
-   BUG B fix: .choice-btn--disabled — disabled choice button styles.
-   Previously missing entirely, so disabled buttons inherited the full
-   hover glow, pointer cursor, and translateX from .choice-btn:hover,
-   making them look interactive when they were not.
-   ============================================================ */
+/* Disabled choice button — prevents hover styles appearing on unselectable options. */
 
 .choice-btn--disabled,
 .choice-btn:disabled {
@@ -1041,8 +1027,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 .slot-load-btn--load:hover:not(:disabled)  { background: var(--cyan-glow); color: var(--cyan); border-color: var(--cyan); }
 .slot-load-btn--load:disabled              { background: transparent; color: var(--text-faint); border-color: var(--border-dim); cursor: not-allowed; opacity: 0.4; }
 
-/* Save variant — amber/gold tint so Save buttons are visually distinct from Load */
-/* BUG-4 fix: this class was referenced in index.html but never defined. */
+/* Save variant — amber tint so Save buttons are visually distinct from Load. */
 .slot-load-btn--save                       { background: var(--amber); color: var(--bg-deep); border: none; }
 .slot-load-btn--save:hover:not(:disabled)  { background: #ffc533; }
 .slot-load-btn--save:disabled              { background: var(--border-dim); color: var(--text-faint); cursor: not-allowed; opacity: 0.5; }
@@ -1408,9 +1393,6 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 }
 
 .levelup-modal-title {
-  /* BUG-CSS-2 fix: replaced var(--font-heading) which was never defined in
-     :root tokens, causing the browser to silently fall back to the inherited
-     body font. var(--font-display) is the correct Cinzel display token. */
   font-family: var(--font-display);
   font-size: var(--text-lg);
   color: var(--cyan);
@@ -1724,7 +1706,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 
 /* ============================================================
-   17b. STORE SYSTEM (Phase 3)
+   18. STORE SYSTEM
    ============================================================ */
 
 /* --- Status panel Store button --- */
@@ -2198,7 +2180,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 
 /* ============================================================
-   25. RESPONSIVE — tablet (max-width: 768px)
+   23. RESPONSIVE — tablet (max-width: 768px)
    ============================================================ */
 
 @media (max-width: 768px) {
@@ -2271,16 +2253,13 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
   /* Pronoun cards */
   .pronoun-card { min-width: calc(50% - 10px); }
-
-  /* Debug overlay */
-  #debug-overlay { width: calc(100vw - 24px); right: 12px; bottom: 12px; max-height: 40vh; }
 }
 
 /* Status panel is always a drawer — no desktop override needed */
 
 
 /* ============================================================
-   26. RESPONSIVE — small phone (max-width: 400px)
+   24. RESPONSIVE — small phone (max-width: 400px)
    ============================================================ */
 
 @media (max-width: 400px) {
