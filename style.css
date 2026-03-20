@@ -2746,3 +2746,40 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 [data-theme="light"] .store-card:hover:not(.store-card--owned):not(.store-card--unaffordable) {
   background: rgba(0, 122, 138, 0.06);
 }
+
+/* ---------------------------------------------------------------------------
+   Light mode button hover/active text-visibility fixes (Phase 9 follow-up)
+   All these hover states set a light or white background, but the default
+   text color (var(--bg-deep) = #f0ece4 in light mode) becomes invisible.
+   Override to a dark readable color.
+   --------------------------------------------------------------------------- */
+[data-theme="light"] .overlay-btn:hover {
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .btn-primary:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+/* Choice buttons: hardcoded color:#fff on hover is invisible on light bg */
+[data-theme="light"] .choice-btn:hover {
+  color: var(--text-primary);
+}
+
+/* Slot buttons: base Save variant uses color:var(--bg-deep) which is near-white */
+[data-theme="light"] .slot-load-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .slot-load-btn--save {
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .slot-load-btn--save:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+/* Level-up confirmation buttons */
+[data-theme="light"] .levelup-again-btn--yes:hover {
+  color: var(--text-primary);
+}
