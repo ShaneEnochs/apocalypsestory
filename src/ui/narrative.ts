@@ -16,6 +16,7 @@ import {
   awaitingChoice, setAwaitingChoice,
 } from '../core/state.js';
 import type { ChoiceOption } from '../core/state.js';
+import { glossaryRegistry } from '../systems/glossary.js';
 
 export interface NarrativeLogEntry {
   type:     string;
@@ -23,6 +24,9 @@ export interface NarrativeLogEntry {
   varName?: string;
   prompt?:  string;
   value?:   string | null;
+  // image-specific fields
+  alt?:     string;
+  width?:   number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -48,6 +52,9 @@ let _onBeforeChoice!:   () => void;
 // Interpreter functions injected via init() to avoid circular import.
 let _executeBlock!:   (start: number, end: number, resumeAfter?: number) => Promise<string>;
 let _runInterpreter!: (opts?: { suppressAutoSave?: boolean }) => Promise<void>;
+
+// Arrow-key navigation handler for the choice area — registered once.
+let _choiceAreaArrowHandler: ((e: KeyboardEvent) => void) | null = null;
 
 export function init({ narrativeContent, choiceArea, narrativePanel,
                        scheduleStatsRender, onBeforeChoice,
@@ -111,6 +118,24 @@ export function formatText(text: unknown): string {
   if (!text) return '';
   let result = String(text);
 
+  // 0. Glossary term wrapping — runs FIRST on raw text, using placeholder tokens
+  // that survive all subsequent processing steps (variables, markdown, colors).
+  // Tokens are restored to <span> elements at the very end.
+  const _glossaryTokens: string[] = [];
+  if (glossaryRegistry.length > 0) {
+    for (const entry of glossaryRegistry) {
+      const escaped = entry.term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex   = new RegExp(`\\b(${escaped})\\b`, 'gi');
+      result = result.replace(regex, (match) => {
+        const idx = _glossaryTokens.length;
+        _glossaryTokens.push(
+          `<span class="lore-term" tabindex="0" data-tooltip="${escapeHtml(entry.description)}">${match}</span>`
+        );
+        return `\x00LTERM${idx}\x00`;
+      });
+    }
+  }
+
   // 1. Variable interpolation: ${varName}
   // Substituted values are HTML-escaped, and asterisks are escaped to &#42;
   // so player-controlled strings can't trigger **bold** / *italic* markdown.
@@ -150,7 +175,31 @@ export function formatText(text: unknown): string {
       .replace(close, '</span>');
   }
 
+  // 5. Restore glossary placeholder tokens to lore-term spans.
+  if (_glossaryTokens.length > 0) {
+    result = result.replace(/\x00LTERM(\d+)\x00/g, (_, i) => _glossaryTokens[Number(i)] ?? '');
+  }
+
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// addImage — inserts an inline image into the narrative flow.
+// ---------------------------------------------------------------------------
+export function addImage(filename: string, alt: string, width: number | null): void {
+  const img = document.createElement('img');
+  img.src       = `media/${filename}`;
+  img.alt       = alt;
+  img.className = 'narrative-image';
+  img.loading   = 'lazy';
+  if (width) img.style.maxWidth = `${width}px`;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'narrative-image-wrapper';
+  wrapper.appendChild(img);
+  _narrativeContent.insertBefore(wrapper, _choiceArea);
+
+  _narrativeLog.push({ type: 'image', text: filename, alt, width });
 }
 
 // ---------------------------------------------------------------------------
@@ -221,10 +270,13 @@ export function renderChoices(choices: ChoiceOption[]): void {
   // Single-fire guard prevents double-click / rapid-tap race.
   let choiceMade = false;
 
-  choices.forEach((choice) => {
+  choices.forEach((choice, index) => {
     const btn = document.createElement('button');
     btn.className = 'choice-btn';
     btn.innerHTML = `<span>${formatText(choice.text)}</span>`;
+    // Accessible label: strip HTML from choice text for the aria-label
+    const plainText = choice.text.replace(/<[^>]+>/g, '');
+    btn.setAttribute('aria-label', `Choice ${index + 1} of ${choices.length}: ${plainText}`);
 
     // Render inline stat requirement badge if present.
     if (choice.statTag) {
@@ -272,6 +324,25 @@ export function renderChoices(choices: ChoiceOption[]): void {
     const firstEnabled = _choiceArea.querySelector<HTMLElement>('.choice-btn:not(:disabled)');
     if (firstEnabled) firstEnabled.focus({ preventScroll: true });
   });
+
+  // Arrow-key navigation within the choice group.
+  // Re-register each time renderChoices is called (listener is idempotent
+  // since _choiceArea is replaced with new buttons on each render).
+  if (!_choiceAreaArrowHandler) {
+    _choiceAreaArrowHandler = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      e.preventDefault();
+      const btns = [..._choiceArea.querySelectorAll<HTMLButtonElement>('.choice-btn:not(:disabled)')];
+      const current = document.activeElement as HTMLElement;
+      const idx = btns.indexOf(current as HTMLButtonElement);
+      if (idx === -1) return;
+      const next = e.key === 'ArrowDown'
+        ? (idx + 1) % btns.length
+        : (idx - 1 + btns.length) % btns.length;
+      btns[next].focus();
+    };
+    _choiceArea.addEventListener('keydown', _choiceAreaArrowHandler);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -379,6 +450,37 @@ export function renderFromLog(log: NarrativeLogEntry[], { skipAnimations = true 
           <span class="system-block-label">[ INPUT ]</span>
           <span class="input-prompt-label">${formatText(entry.prompt)}</span>
           <span class="input-prompt-submitted-value">${safe}</span>`;
+        _narrativeContent.insertBefore(wrapper, _choiceArea);
+        break;
+      }
+
+      case 'chapter-card': {
+        const card = document.createElement('div');
+        card.className = 'chapter-card';
+        card.style.opacity = '1';
+        card.style.animation = 'none';
+        const lbl = document.createElement('span');
+        lbl.className = 'chapter-card-label';
+        lbl.textContent = 'Chapter';
+        const ttl = document.createElement('span');
+        ttl.className = 'chapter-card-title';
+        ttl.textContent = entry.text ?? '';
+        card.appendChild(lbl);
+        card.appendChild(ttl);
+        _narrativeContent.insertBefore(card, _choiceArea);
+        break;
+      }
+
+      case 'image': {
+        const img = document.createElement('img');
+        img.src       = `media/${entry.text ?? ''}`;
+        img.alt       = entry.alt ?? '';
+        img.className = 'narrative-image';
+        img.loading   = 'lazy';
+        if (entry.width) img.style.maxWidth = `${entry.width}px`;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'narrative-image-wrapper';
+        wrapper.appendChild(img);
         _narrativeContent.insertBefore(wrapper, _choiceArea);
         break;
       }

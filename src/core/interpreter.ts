@@ -39,6 +39,7 @@ export interface InterpreterCallbacks {
   runStatsScene:      () => Promise<void>;
   fetchTextFile:      (name: string) => Promise<string>;
   getNarrativeLog:    () => any[];
+  addImage?:          (filename: string, alt: string, width: number | null) => void;
 }
 
 import {
@@ -53,12 +54,13 @@ import {
 } from './state.js';
 
 import { evalValue }            from './expression.js';
-import { parseLines, indexLabels, parseChoice, parseSystemBlock } from './parser.js';
+import { parseLines, indexLabels, parseChoice, parseSystemBlock, parseRandomChoice } from './parser.js';
 import { addInventoryItem, removeInventoryItem, itemBaseName }     from '../systems/inventory.js';
-import { saveGameToSlot }                                          from '../systems/saves.js';
+import { saveGameToSlot, saveCheckpoint }                          from '../systems/saves.js';
 import { grantSkill, revokeSkill, playerHasSkill }                 from '../systems/skills.js';
 import { addJournalEntry }                                         from '../systems/journal.js';
 import { getProcedure }                                            from '../systems/procedures.js';
+import { addGlossaryTerm }                                         from '../systems/glossary.js';
 
 // ---------------------------------------------------------------------------
 // Callback registry — UI functions injected by engine.js at boot.
@@ -360,6 +362,25 @@ registerCommand('*system', (t) => {
   }
 });
 
+// *image "filename.ext" [alt:"Alt text"] [width:N]
+registerCommand('*image', (t) => {
+  const fileMatch = t.match(/^\*image\s+"([^"]+)"/);
+  if (!fileMatch) {
+    cb.showEngineError(`*image requires: *image "filename.ext"\nGot: ${t}`);
+    advanceIp();
+    return;
+  }
+
+  const filename   = fileMatch[1];
+  const altMatch   = t.match(/alt:"([^"]+)"/);
+  const widthMatch = t.match(/width:(\d+)/);
+  const alt   = altMatch  ? altMatch[1]          : '';
+  const width = widthMatch ? Number(widthMatch[1]) : null;
+
+  if (cb.addImage) cb.addImage(filename, alt, width);
+  advanceIp();
+});
+
 // *set varName value
 registerCommand('*set', (t) => {
   setVar(t, evalValue);
@@ -602,6 +623,32 @@ registerCommand('*choice', (t, line) => {
   cb.renderChoices(parsed.choices);
 });
 
+// *random_choice
+// Picks one branch at random (weighted) and executes it without showing any
+// choice buttons to the player. Weights do not need to sum to 100.
+registerCommand('*random_choice', async (_, line) => {
+  const parsed = parseRandomChoice(ip, line.indent, { currentLines });
+
+  if (parsed.choices.length === 0) {
+    cb.showEngineError(`*random_choice at line ${ip} in "${currentScene}" produced no options. Check for missing N #Label lines.`);
+    setIp(currentLines.length);
+    return;
+  }
+
+  // Weighted random selection
+  const totalWeight = parsed.choices.reduce((sum, c) => sum + c.weight, 0);
+  let roll    = Math.random() * totalWeight;
+  let selected = parsed.choices[0];
+  for (const choice of parsed.choices) {
+    roll -= choice.weight;
+    if (roll <= 0) { selected = choice; break; }
+  }
+
+  const reason = await executeBlock(selected.start, selected.end, parsed.end);
+  if (reason === 'choice' || reason === 'goto') return;
+  // 'normal' — setIp(parsed.end) was already done by executeBlock; continue
+});
+
 // *ending ["Title"] ["Body text"]
 // Parses up to two quoted string arguments for custom title/body.
 registerCommand('*ending', (t) => {
@@ -750,6 +797,27 @@ registerCommand('*return', () => {
     return;
   }
   setIp(_gosubStack.pop()!);
+});
+
+// *define_term "Term" "Description" — adds a glossary term at runtime.
+registerCommand('*define_term', (t) => {
+  const m = t.match(/^\*define_term\s+"([^"]+)"\s+"([^"]+)"$/);
+  if (m) {
+    addGlossaryTerm(m[1], m[2]);
+    cb.scheduleStatsRender();
+  } else {
+    console.warn(`[interpreter] *define_term: expected *define_term "Term" "Description"\nGot: ${t}`);
+  }
+  advanceIp();
+});
+
+// *checkpoint ["Label"] — creates a named auto-bookmark restore point.
+// Up to 5 are kept in localStorage, rotating out the oldest.
+registerCommand('*checkpoint', (t) => {
+  const labelMatch = t.match(/^\*checkpoint\s+"([^"]+)"/);
+  const label      = labelMatch ? labelMatch[1] : (chapterTitle || null);
+  if (cb.getNarrativeLog) saveCheckpoint(label, cb.getNarrativeLog() as any);
+  advanceIp();
 });
 
 // *finish — advance to the next scene in scene_list

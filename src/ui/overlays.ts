@@ -10,6 +10,7 @@
 import {
   loadSaveFromSlot, restoreFromSave,
   _staleSaveFound, clearStaleSaveFound,
+  getCheckpoints, CHECKPOINT_PREFIX, decodeSaveCode,
 } from '../systems/saves.js';
 
 export interface CharacterData {
@@ -339,8 +340,66 @@ export function hideSplash(): void {
 // ---------------------------------------------------------------------------
 let _saveTrapRelease: (() => void) | null = null;
 
+function refreshCheckpoints(): void {
+  const list   = document.getElementById('checkpoint-list');
+  const toggle = document.getElementById('checkpoint-toggle');
+  if (!list || !toggle) return;
+
+  const checkpoints = getCheckpoints().filter((cp): cp is NonNullable<typeof cp> => cp !== null);
+
+  if (checkpoints.length === 0) {
+    list.innerHTML = '<div class="checkpoint-empty">No checkpoints yet.</div>';
+  } else {
+    const fmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    list.innerHTML = checkpoints.map(cp => `
+      <div class="checkpoint-card" data-slot="${cp.slot}">
+        <span class="checkpoint-label">${escapeHtml(cp.label)}</span>
+        <span class="checkpoint-time">${fmt.format(new Date(cp.timestamp))}</span>
+        <button class="slot-load-btn slot-load-btn--load checkpoint-load-btn" data-checkpoint="${cp.slot}">Load</button>
+      </div>`).join('');
+  }
+
+  // Collapse by default each time the menu opens
+  list.classList.add('hidden');
+  toggle.textContent = '▸ Checkpoints';
+
+  // Toggle expand/collapse
+  const newToggle = toggle.cloneNode(true) as HTMLElement;
+  toggle.replaceWith(newToggle);
+  newToggle.addEventListener('click', () => {
+    const isHidden = list.classList.toggle('hidden');
+    newToggle.textContent = isHidden ? '▸ Checkpoints' : '▾ Checkpoints';
+  });
+
+  // Wire load buttons
+  list.querySelectorAll<HTMLElement>('.checkpoint-load-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const slot = Number(btn.dataset.checkpoint);
+      const raw  = localStorage.getItem(`${CHECKPOINT_PREFIX}${slot}`);
+      if (!raw) return;
+      const result = decodeSaveCode(raw);
+      if (!result.ok) {
+        showToast(`Checkpoint load failed: ${(result as { ok: false; reason: string }).reason}`);
+        return;
+      }
+      hideSaveMenu();
+      await loadAndResume((result as { ok: true; save: unknown }).save);
+      showToast('Checkpoint loaded.');
+    });
+  });
+}
+
+function escapeHtml(val: unknown): string {
+  return String(val ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export function showSaveMenu(): void {
   refreshAllSlotCards();
+  refreshCheckpoints();
   _saveOverlay.classList.remove('hidden');
   _saveOverlay.style.opacity = '1';
   _saveTrapRelease = trapFocus(_saveOverlay, _saveBtn);

@@ -1,0 +1,20 @@
+*term "Essence"
+  A universal energy currency extracted from defeated monsters. Used to purchase skills and items from the System Store.
+
+*term "System"
+  The mysterious supernatural framework that appeared during the Awakening, granting humanity Classes, Skills, and stat points. Its origin and purpose remain unknown.
+
+*term "Mana"
+  The internal energy reserve used to power skills and magical abilities. Regenerates slowly over time.
+
+*term "Class"
+  A role or archetype assigned by the System based on a person's actions and potential. Classes determine which skills are available and how stats grow.
+
+*term "Solace"
+  The last underground city, built by a coalition of surviving nations beneath a mountain range. One of the few places left where ordinary people can live safely.
+
+*term "Malphas"
+  A Tier-10 Demon Lord, one of the Seven Highest. Summoned during the Fall and believed to be responsible for the collapse of surface civilization.
+
+*term "Awakening"
+  The event approximately eight years ago when the System suddenly appeared across the entire planet, granting humans their first stat points and Classes overnight.

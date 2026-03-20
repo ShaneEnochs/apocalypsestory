@@ -1,5 +1,7 @@
 *title The End of the World
 
+*checkpoint "Prologue — The End of the World"
+
 *label opening
 
 *temp checked_matt false

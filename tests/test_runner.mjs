@@ -95,7 +95,7 @@ import {
 } from '../src/core/state.ts';
 
 import { evalValue } from '../src/core/expression.ts';
-import { parseLines, indexLabels, parseChoice, parseSystemBlock } from '../src/core/parser.ts';
+import { parseLines, indexLabels, parseChoice, parseSystemBlock, parseRandomChoice } from '../src/core/parser.ts';
 import { addInventoryItem, removeInventoryItem, itemBaseName, parseInventoryUpdateText } from '../src/systems/inventory.ts';
 import { getAllocatableStatKeys } from '../src/systems/leveling.ts';
 import { importSaveFromJSON, SAVE_VERSION, encodeSaveCode, loadSaveFromSlot } from '../src/systems/saves.ts';
@@ -907,6 +907,109 @@ playerState.essence = 0;
 const out6 = await runScene('*call add_essence\n*call add_essence\n*call add_essence');
 assertEq(playerState.essence, 30, 'three sequential *call: 0 → 30');
 assert(!out6.some(o => o.k === 'err'), 'sequential *calls: no engine errors');
+
+// ===========================================================================
+// *random_choice parser tests
+// ===========================================================================
+group('Parser — *random_choice');
+
+{
+  // Test: 3-option weighted random choice block
+  const sceneText = `*random_choice
+  40 #Path A
+    You found a grove.
+  40 #Path B
+    A merchant appears.
+  20 #Path C
+    Nothing happens.`;
+  const lines = parseLines(sceneText);
+  // Find the *random_choice line
+  const rcIdx = lines.findIndex(l => l.trimmed === '*random_choice');
+  const rc = parseRandomChoice(rcIdx, lines[rcIdx].indent, { currentLines: lines });
+
+  assertEq(rc.choices.length, 3, 'parseRandomChoice: 3 options parsed');
+  assertEq(rc.choices[0].weight, 40, 'parseRandomChoice: option A weight 40');
+  assertEq(rc.choices[1].weight, 40, 'parseRandomChoice: option B weight 40');
+  assertEq(rc.choices[2].weight, 20, 'parseRandomChoice: option C weight 20');
+  assertEq(rc.choices[0].text, 'Path A', 'parseRandomChoice: option A text');
+  assertEq(rc.choices[1].text, 'Path B', 'parseRandomChoice: option B text');
+  assertEq(rc.choices[2].text, 'Path C', 'parseRandomChoice: option C text');
+  assert(rc.choices[0].start > rcIdx, 'parseRandomChoice: option A start > header');
+  assert(rc.choices[0].end > rc.choices[0].start, 'parseRandomChoice: option A end > start');
+}
+
+{
+  // Test: empty block returns no choices
+  const lines = parseLines('*random_choice');
+  const rcIdx = lines.findIndex(l => l.trimmed === '*random_choice');
+  const rc = parseRandomChoice(rcIdx, 0, { currentLines: lines });
+  assertEq(rc.choices.length, 0, 'parseRandomChoice: empty block returns 0 choices');
+}
+
+{
+  // Test: weighted random selection distribution (probabilistic)
+  // Run 1000 times — each of 3 options must appear at least once
+  const sceneText = `*random_choice
+  50 #Option A
+    *set debug_result "A"
+  30 #Option B
+    *set debug_result "B"
+  20 #Option C
+    *set debug_result "C"`;
+  const lines = parseLines(sceneText);
+  const rcIdx = lines.findIndex(l => l.trimmed === '*random_choice');
+  const rc    = parseRandomChoice(rcIdx, lines[rcIdx].indent, { currentLines: lines });
+
+  const totalWeight = rc.choices.reduce((sum, c) => sum + c.weight, 0);
+  const counts = { 0: 0, 1: 0, 2: 0 };
+  for (let i = 0; i < 1000; i++) {
+    let roll = Math.random() * totalWeight;
+    let sel  = 0;
+    for (let j = 0; j < rc.choices.length; j++) {
+      roll -= rc.choices[j].weight;
+      if (roll <= 0) { sel = j; break; }
+    }
+    counts[sel]++;
+  }
+  assert(counts[0] > 0, 'weighted random: option A (50%) selected at least once in 1000 trials');
+  assert(counts[1] > 0, 'weighted random: option B (30%) selected at least once in 1000 trials');
+  assert(counts[2] > 0, 'weighted random: option C (20%) selected at least once in 1000 trials');
+}
+
+// ===========================================================================
+// *random_choice interpreter integration tests
+// ===========================================================================
+group('Interpreter — *random_choice');
+
+{
+  // Test: *random_choice selects a branch and sets a variable
+  resetState();
+  playerState.debug_result = '';
+  const out = await runScene(`*create debug_result ""
+*random_choice
+  50 #Option A
+    *set debug_result "A"
+  50 #Option B
+    *set debug_result "B"`);
+  assert(
+    playerState.debug_result === 'A' || playerState.debug_result === 'B',
+    '*random_choice: one branch was executed (result is A or B)'
+  );
+  assert(!out.some(o => o.k === 'err'), '*random_choice: no engine errors');
+}
+
+{
+  // Test: *random_choice followed by normal text — execution continues
+  resetState();
+  playerState.test_var = 0;
+  const out = await runScene(`*create test_var 0
+*random_choice
+  100 #Always
+    *set test_var 42
+after random choice`);
+  assertEq(playerState.test_var, 42, '*random_choice (100% weight): branch executed');
+  assert(out.some(o => o.k === 'p' && o.t === 'after random choice'), '*random_choice: execution continues after block');
+}
 
 // ===========================================================================
 // Summary
