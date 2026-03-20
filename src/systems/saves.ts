@@ -11,6 +11,7 @@ import {
   playerState, tempState, currentScene, ip,
   chapterTitle, statRegistry,
   awaitingChoice,
+  pageBreakIp, setPageBreakIp,
   setPlayerState,
   setStatRegistry,
   setCurrentScene, setCurrentLines, setIp,
@@ -69,7 +70,7 @@ function buildSaveCodePayload(label: string | null, narrativeLog: unknown[]): Re
   const payload: Record<string, any> = {
     v:  SAVE_VERSION,
     s:  currentScene,
-    ip,
+    ip: pageBreakIp ?? ip,
     ct: chapterTitle,
     ps,
     nl: narrativeLog || [],
@@ -326,6 +327,7 @@ export async function restoreFromSave(save: any, {
   setCurrentScene(save.scene);
   setIp(save.ip ?? 0);
   setAwaitingChoice(null);
+  setPageBreakIp(null);
 
   if (save.chapterTitle) {
     setChapterTitle(save.chapterTitle);

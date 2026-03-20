@@ -49,6 +49,7 @@ import {
   setAwaitingChoice, clearTempState,
   normalizeKey, resolveStore, setVar, setStatClamped, declareTemp, patchPlayerState,
   chapterTitle, setChapterTitleState,
+  pageBreakIp, setPageBreakIp,
 } from './state.js';
 
 import { evalValue }            from './expression.js';
@@ -110,10 +111,10 @@ function returnFromProcedure(): void {
   frame.onReturn();
 }
 
-// True while the interpreter is halted at a *page_break waiting for the user
-// to click Continue. Suppresses the trailing auto-save in runInterpreter so
-// it doesn't overwrite the correct save made inside the *page_break handler.
-let _atPageBreak = false;
+// Page break halting is tracked by pageBreakIp in state.ts. When non-null the
+// interpreter is halted at a *page_break and the trailing auto-save in
+// runInterpreter is suppressed so it can't overwrite the correct save made
+// inside the *page_break handler.
 
 // ---------------------------------------------------------------------------
 // isDirective — exact prefix match that prevents *goto matching *goto_scene.
@@ -224,6 +225,7 @@ export async function gotoScene(name: string, label: string|null = null): Promis
   }
 
   setAwaitingChoice(null);
+  setPageBreakIp(null);
 
   await runInterpreter();
 
@@ -240,7 +242,7 @@ export async function runInterpreter({ suppressAutoSave = false }: { suppressAut
   }
   cb.runStatsScene();
 
-  if (!suppressAutoSave && !_atPageBreak && cb.getNarrativeLog) {
+  if (!suppressAutoSave && pageBreakIp === null && cb.getNarrativeLog) {
     saveGameToSlot('auto', null, cb.getNarrativeLog() as any);
   }
 }
@@ -533,17 +535,20 @@ registerCommand('*page_break', (t) => {
   const btnText  = t.replace(/^\*page_break\s*/, '').trim() || 'Continue';
   const resumeIp = ip + 1;
 
-  // Auto-save NOW, while ip still points at this *page_break line.
-  // On restore the interpreter will re-execute *page_break and show
-  // the button again. The trailing save in runInterpreter is suppressed
-  // via _atPageBreak so it can't overwrite this with ip = end-of-scene.
+  // Store the real ip BEFORE halting so any save (auto or manual) captures
+  // the correct position. On restore the interpreter will re-execute
+  // *page_break from this ip and show the button again.
+  setPageBreakIp(ip);
+
+  // Auto-save NOW, while pageBreakIp points at this line.
+  // The trailing save in runInterpreter is suppressed while pageBreakIp
+  // is set so it can't overwrite this with ip = end-of-scene.
   if (cb.getNarrativeLog) saveGameToSlot('auto', null, cb.getNarrativeLog() as any);
 
-  _atPageBreak = true;
   setIp(currentLines.length);
 
   cb.showPageBreak(btnText, () => {
-    _atPageBreak = false;
+    setPageBreakIp(null);
     cb.clearNarrative();
     setIp(resumeIp);
     runInterpreter().catch(err => cb.showEngineError(err instanceof Error ? err.message : String(err)));

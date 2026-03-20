@@ -6,6 +6,10 @@ var currentScene = null;
 var currentLines = [];
 var ip = 0;
 var awaitingChoice = null;
+var pageBreakIp = null;
+function setPageBreakIp(n) {
+  pageBreakIp = n;
+}
 var startup = { sceneList: [] };
 var chapterTitle = "\u2014";
 function setChapterTitleState(t) {
@@ -650,7 +654,7 @@ function buildSaveCodePayload(label, narrativeLog) {
   const payload = {
     v: SAVE_VERSION,
     s: currentScene,
-    ip,
+    ip: pageBreakIp ?? ip,
     ct: chapterTitle,
     ps,
     nl: narrativeLog || [],
@@ -844,6 +848,7 @@ async function restoreFromSave(save, {
   setCurrentScene(save.scene);
   setIp(save.ip ?? 0);
   setAwaitingChoice(null);
+  setPageBreakIp(null);
   if (save.chapterTitle) {
     setChapterTitle2(save.chapterTitle);
   }
@@ -965,6 +970,45 @@ function getAchievements() {
   return getJournalEntries().filter((e) => e.type === "achievement");
 }
 
+// src/systems/procedures.ts
+var procedureRegistry = /* @__PURE__ */ new Map();
+async function parseProcedures(fetchTextFileFn) {
+  let text;
+  try {
+    text = await fetchTextFileFn("procedures");
+  } catch {
+    console.warn("[procedures] procedures.txt not found \u2014 procedure system disabled.");
+    return;
+  }
+  const rawLines = text.split(/\r?\n/);
+  let currentName = null;
+  let currentBlock = [];
+  function saveProc() {
+    if (!currentName || currentBlock.length === 0) return;
+    procedureRegistry.set(currentName, {
+      name: currentName,
+      lines: parseLines(currentBlock.join("\n"))
+    });
+  }
+  for (const raw of rawLines) {
+    const trimmed = raw.trim();
+    if (!currentName && (!trimmed || trimmed.startsWith("//"))) continue;
+    const m = trimmed.match(/^\*procedure\s+([\w]+)\s*$/);
+    if (m) {
+      saveProc();
+      currentName = m[1].toLowerCase();
+      currentBlock = [];
+      continue;
+    }
+    if (currentName) currentBlock.push(raw);
+  }
+  saveProc();
+  console.log(`[procedures] Loaded ${procedureRegistry.size} procedure(s).`);
+}
+function getProcedure(name) {
+  return procedureRegistry.get(name.toLowerCase()) ?? null;
+}
+
 // src/core/interpreter.ts
 var cb = {};
 function registerCallbacks(callbacks) {
@@ -977,6 +1021,16 @@ function registerCaches(sceneCache2, labelsCache2) {
   _labelsCache = labelsCache2;
 }
 var _gosubStack = [];
+var _callStack = [];
+function returnFromProcedure() {
+  if (_callStack.length === 0) return;
+  const frame = _callStack.pop();
+  setCurrentScene(frame.scene);
+  setCurrentLines(frame.lines);
+  setIp(frame.ip);
+  _gosubStack.length = frame.gosubStackLength;
+  frame.onReturn();
+}
 function isDirective(trimmed, directive) {
   if (!trimmed.startsWith(directive)) return false;
   const rest = trimmed.slice(directive.length);
@@ -1049,6 +1103,7 @@ ${err.message}`);
   const prevChapterTitle = chapterTitle;
   clearTempState();
   _gosubStack.length = 0;
+  _callStack.length = 0;
   setCurrentScene(name);
   setCurrentLines(parseLines(text));
   indexLabels(name, currentLines, _labelsCache);
@@ -1060,6 +1115,7 @@ ${err.message}`);
     setIp(labels[label] ?? 0);
   }
   setAwaitingChoice(null);
+  setPageBreakIp(null);
   await runInterpreter();
   if (chapterTitle === prevChapterTitle) {
     const fallback = name.replace(/\.txt$/i, "").toUpperCase();
@@ -1072,7 +1128,7 @@ async function runInterpreter({ suppressAutoSave = false } = {}) {
     if (awaitingChoice) break;
   }
   cb.runStatsScene();
-  if (!suppressAutoSave && cb.getNarrativeLog) {
+  if (!suppressAutoSave && pageBreakIp === null && cb.getNarrativeLog) {
     saveGameToSlot("auto", null, cb.getNarrativeLog());
   }
 }
@@ -1303,11 +1359,14 @@ registerCommand("*save_point", (t) => {
 registerCommand("*page_break", (t) => {
   const btnText = t.replace(/^\*page_break\s*/, "").trim() || "Continue";
   const resumeIp = ip + 1;
+  setPageBreakIp(ip);
+  if (cb.getNarrativeLog) saveGameToSlot("auto", null, cb.getNarrativeLog());
   setIp(currentLines.length);
   cb.showPageBreak(btnText, () => {
+    setPageBreakIp(null);
     cb.clearNarrative();
     setIp(resumeIp);
-    runInterpreter().catch((err) => cb.showEngineError(err.message));
+    runInterpreter().catch((err) => cb.showEngineError(err instanceof Error ? err.message : String(err)));
   });
 });
 registerCommand("*input", (t) => {
@@ -1327,12 +1386,12 @@ Got: ${t}`);
     if (!store) {
       cb.showEngineError(`*input: variable "${varName}" is not declared. Add *create ${varName} or *temp ${varName} before using *input.`);
       setIp(resumeIp);
-      runInterpreter().catch((err) => cb.showEngineError(err.message));
+      runInterpreter().catch((err) => cb.showEngineError(err instanceof Error ? err.message : String(err)));
       return;
     }
     store[varName] = value;
     setIp(resumeIp);
-    runInterpreter().catch((err) => cb.showEngineError(err.message));
+    runInterpreter().catch((err) => cb.showEngineError(err instanceof Error ? err.message : String(err)));
   });
 });
 registerCommand("*choice", (t, line) => {
@@ -1416,6 +1475,36 @@ registerCommand("*patch_state", (t) => {
   patchPlayerState({ [normalizeKey(m[1])]: evalValue(m[2]) });
   advanceIp();
 });
+registerCommand("*call", async (t) => {
+  const name = t.replace(/^\*call\s*/, "").trim().toLowerCase();
+  const proc = getProcedure(name);
+  if (!proc) {
+    cb.showEngineError(`*call: Unknown procedure "${name}". Check procedures.txt.`);
+    advanceIp();
+    return;
+  }
+  let _returned = false;
+  _callStack.push({
+    scene: currentScene,
+    lines: currentLines,
+    // exact reference restored on return
+    ip: ip + 1,
+    // resume AFTER the *call line
+    gosubStackLength: _gosubStack.length,
+    onReturn: () => {
+      _returned = true;
+    }
+  });
+  setCurrentLines(proc.lines);
+  setIp(0);
+  while (ip < currentLines.length && !_returned) {
+    await executeCurrentLine();
+    if (awaitingChoice) return;
+  }
+  if (!_returned) {
+    returnFromProcedure();
+  }
+});
 registerCommand("*gosub", (t) => {
   const label = t.replace(/^\*gosub\s*/, "").trim();
   const labels = _labelsCache.get(currentScene) || {};
@@ -1428,8 +1517,12 @@ registerCommand("*gosub", (t) => {
   setIp(labels[label]);
 });
 registerCommand("*return", () => {
+  if (_callStack.length > 0) {
+    returnFromProcedure();
+    return;
+  }
   if (_gosubStack.length === 0) {
-    cb.showEngineError(`*return without matching *gosub in scene "${currentScene}".`);
+    cb.showEngineError(`*return without matching *gosub or *call in scene "${currentScene}".`);
     setIp(currentLines.length);
     return;
   }
@@ -1624,6 +1717,13 @@ function clearNarrative() {
   _narrativeLog = [];
 }
 function applyTransition() {
+  if (!_narrativePanel) return;
+  _narrativePanel.classList.remove("scene-fade");
+  void _narrativePanel.offsetWidth;
+  _narrativePanel.classList.add("scene-fade");
+  _narrativePanel.addEventListener("animationend", () => {
+    _narrativePanel.classList.remove("scene-fade");
+  }, { once: true });
 }
 function renderChoices(choices) {
   _choiceArea.innerHTML = "";
@@ -1799,6 +1899,30 @@ function init2({
 }
 var styleState = { colors: {}, icons: {} };
 var _activeStatusTab = "stats";
+var EMPTY_SKILLS_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <polygon points="24,3 42,13.5 42,34.5 24,45 6,34.5 6,13.5" stroke="var(--cyan)" stroke-width="1.5"/>
+  <circle cx="24" cy="24" r="9" stroke="var(--cyan)" stroke-width="1.2" opacity="0.5"/>
+  <line x1="24" y1="15" x2="24" y2="33" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <line x1="15.2" y1="19.5" x2="32.8" y2="28.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <line x1="32.8" y1="19.5" x2="15.2" y2="28.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+</svg>`;
+var EMPTY_INV_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M17 19 C14 23 12 29 12 35 C12 41 17 45 24 45 C31 45 36 41 36 35 C36 29 34 23 31 19 Z" stroke="var(--cyan)" stroke-width="1.5"/>
+  <path d="M19 19 C19 14 21 11 24 11 C27 11 29 14 29 19" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M21 13 C22 10 26 10 27 13" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="24" y1="29" x2="24" y2="38" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <line x1="19.5" y1="33.5" x2="28.5" y2="33.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+</svg>`;
+var EMPTY_LOG_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="8" y="6" width="30" height="37" rx="2" stroke="var(--cyan)" stroke-width="1.5"/>
+  <line x1="15" y1="6" x2="15" y2="43" stroke="var(--cyan)" stroke-width="1.5"/>
+  <line x1="20" y1="17" x2="33" y2="17" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
+  <line x1="20" y1="23" x2="33" y2="23" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
+  <line x1="20" y1="29" x2="33" y2="29" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
+  <line x1="20" y1="35" x2="28" y2="35" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <path d="M35 30 Q39 33 35 36" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+</svg>`;
+var _prevStatValues = /* @__PURE__ */ new Map();
 async function runStatsScene() {
   const text = await _fetchTextFile("stats");
   const lines = text.split(/\r?\n/).map((raw) => ({ raw, trimmed: raw.trim() }));
@@ -1844,7 +1968,7 @@ async function runStatsScene() {
       const cc = styleState.colors[e.key] || "";
       const ic = styleState.icons[e.key] ?? "";
       const rawVal = playerState[e.key] ?? "\u2014";
-      statsHtml += `<div class="status-row"><span class="status-label">${ic ? ic + " " : ""}${escapeHtml(e.label)}</span><span class="status-value ${cc}">${formatText(String(rawVal))}</span></div>`;
+      statsHtml += `<div class="status-row" data-stat-key="${e.key}"><span class="status-label">${ic ? ic + " " : ""}${escapeHtml(e.label)}</span><span class="status-value ${cc}">${formatText(String(rawVal))}</span></div>`;
     }
   });
   if (inGroup) statsHtml += `</div>`;
@@ -1856,7 +1980,7 @@ async function runStatsScene() {
       const body = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : "";
       return `<li class="skill-accordion skill-accordion--achievement">
         <button class="skill-accordion-btn">
-          <span class="skill-accordion-name"><span class="journal-achievement-icon">\u25C6</span> ${title}</span>
+          <span class="skill-accordion-name"><span class="journal-achievement-icon"></span>${title}</span>
           ${body ? `<span class="skill-accordion-chevron">\u25BE</span>` : ""}
         </button>
         ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ""}
@@ -1865,10 +1989,10 @@ async function runStatsScene() {
     statsHtml += `<div class="status-section"><div class="status-label status-section-header">Achievements</div><ul class="skill-accordion-list">${achvAccordions}</ul></div>`;
   }
   const hasSkillStore = skillRegistry.length > 0;
-  let skillsHtml = hasSkillStore ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-skills" data-store-tab="skills">\u25C8 Skill Store</button></div>` : "";
+  let skillsHtml = hasSkillStore ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-skills" data-store-tab="skills">Skill Store</button></div>` : "";
   const ownedSkills = Array.isArray(playerState.skills) ? playerState.skills : [];
   if (ownedSkills.length === 0) {
-    skillsHtml += `<p class="tag-empty" style="padding:0;border:none;background:none;margin-top:8px;">No skills learned yet.</p>`;
+    skillsHtml += `<div class="empty-state">${EMPTY_SKILLS_SVG}<p class="empty-state-text">No skills learned yet.</p></div>`;
   } else {
     const skillItems = ownedSkills.map((k) => {
       const entry = skillRegistry.find((s) => s.key === k);
@@ -1876,15 +2000,15 @@ async function runStatsScene() {
       const desc = escapeHtml(entry ? entry.description : "");
       const rarity = entry?.rarity || "common";
       const rarCls = ` skill-rarity--${rarity}`;
-      return `<li class="skill-accordion"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name${rarCls}">${label}</span><span class="skill-accordion-chevron">\u25BE</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
+      return `<li class="skill-accordion skill-accordion--rarity-${rarity}"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name${rarCls}">${label}</span><span class="skill-accordion-chevron">\u25BE</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
     }).join("");
     skillsHtml += `<ul class="skill-accordion-list">${skillItems}</ul>`;
   }
   const hasItemStore = itemRegistry.length > 0;
-  let inventoryHtml = hasItemStore ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-inv" data-store-tab="items">\u25C8 Item Store</button></div>` : "";
+  let inventoryHtml = hasItemStore ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-inv" data-store-tab="items">Item Store</button></div>` : "";
   const invItems = Array.isArray(playerState.inventory) ? playerState.inventory : [];
   if (invItems.length === 0) {
-    inventoryHtml += `<p class="tag-empty" style="padding:0;border:none;background:none;margin-top:8px;">Nothing here yet.</p>`;
+    inventoryHtml += `<div class="empty-state">${EMPTY_INV_SVG}<p class="empty-state-text">Nothing here yet.</p></div>`;
   } else {
     const invAccordions = invItems.map((invEntry) => {
       const baseName = itemBaseName(invEntry);
@@ -1893,7 +2017,7 @@ async function runStatsScene() {
       const desc = escapeHtml(regEntry ? regEntry.description : "");
       const rarity = regEntry?.rarity || "common";
       const rarCls = ` skill-rarity--${rarity}`;
-      return `<li class="skill-accordion">
+      return `<li class="skill-accordion skill-accordion--rarity-${rarity}">
         <button class="skill-accordion-btn">
           <span class="skill-accordion-name${rarCls}">${label}</span>
           <span class="skill-accordion-chevron">\u25BE</span>
@@ -1907,7 +2031,7 @@ async function runStatsScene() {
   const achvs = getAchievements();
   const jentries = getJournalEntries().filter((j) => j.type !== "achievement");
   if (achvs.length === 0 && jentries.length === 0) {
-    achievementsHtml = `<p class="tag-empty" style="padding:0;border:none;background:none;">Nothing recorded yet.</p>`;
+    achievementsHtml = `<div class="empty-state">${EMPTY_LOG_SVG}<p class="empty-state-text">Nothing recorded yet.</p></div>`;
   } else {
     if (achvs.length > 0) {
       const achvAccordionItems = achvs.map((a) => {
@@ -1916,7 +2040,7 @@ async function runStatsScene() {
         const body = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : "";
         return `<li class="skill-accordion skill-accordion--achievement">
           <button class="skill-accordion-btn">
-            <span class="skill-accordion-name"><span class="journal-achievement-icon">\u25C6</span> ${title}</span>
+            <span class="skill-accordion-name"><span class="journal-achievement-icon"></span>${title}</span>
             ${body ? `<span class="skill-accordion-chevron">\u25BE</span>` : ""}
           </button>
           ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ""}
@@ -1960,6 +2084,22 @@ async function runStatsScene() {
     });
   });
   wireTabContent();
+  entries.forEach((e) => {
+    if (e.type !== "stat" || !e.key) return;
+    const rawVal = parseFloat(String(playerState[e.key] ?? ""));
+    if (isNaN(rawVal)) return;
+    const prev = _prevStatValues.get(e.key);
+    _prevStatValues.set(e.key, rawVal);
+    if (prev !== void 0 && prev !== rawVal && _activeStatusTab === "stats") {
+      const row = _statusPanel.querySelector(`.status-row[data-stat-key="${e.key}"]`);
+      const valEl = row?.querySelector(".status-value");
+      if (valEl) {
+        const cls = rawVal > prev ? "stat-flash--up" : "stat-flash--down";
+        valEl.classList.add(cls);
+        valEl.addEventListener("animationend", () => valEl.classList.remove(cls), { once: true });
+      }
+    }
+  });
   function wireTabContent() {
     const skillsStoreBtn = _statusPanel.querySelector("#status-store-btn-skills");
     if (skillsStoreBtn) skillsStoreBtn.addEventListener("click", () => showStore("skills"));
@@ -2073,7 +2213,7 @@ function renderSkillsTab(container, essence) {
       const rarity = skill.rarity || "common";
       const rarCls = ` skill-rarity--${rarity}`;
       html += `
-        <div class="store-card ${cardCls}" data-key="${escapeHtml(skill.key)}" data-type="skill">
+        <div class="store-card store-card--rarity-${rarity} ${cardCls}" data-key="${escapeHtml(skill.key)}" data-type="skill">
           <div class="store-card-top">
             <span class="store-card-name${rarCls}">${escapeHtml(skill.label)}</span>
             <div class="store-card-actions">
@@ -2091,7 +2231,7 @@ function renderSkillsTab(container, essence) {
       const rarity = skill.rarity || "common";
       const rarCls = ` skill-rarity--${rarity}`;
       html += `
-        <div class="store-card store-card--owned" data-key="${escapeHtml(skill.key)}">
+        <div class="store-card store-card--rarity-${rarity} store-card--owned" data-key="${escapeHtml(skill.key)}">
           <div class="store-card-top">
             <span class="store-card-name${rarCls}">${escapeHtml(skill.label)}</span>
             <div class="store-card-actions">
@@ -2110,7 +2250,8 @@ function renderSkillsTab(container, essence) {
     btn.addEventListener("click", () => {
       const key = btn.dataset.key ?? "";
       if (purchaseSkill(key)) {
-        _showToast(`Skill unlocked: ${skillRegistry.find((s) => s.key === key)?.label || key}`);
+        const entry = skillRegistry.find((s) => s.key === key);
+        _showToast(`Skill unlocked: ${entry?.label || key}`, 2500, entry?.rarity);
         renderStore();
       }
     });
@@ -2141,7 +2282,7 @@ function renderItemsTab(container, essence) {
     const rarity = item.rarity || "common";
     const rarCls = ` skill-rarity--${rarity}`;
     html += `
-      <div class="store-card ${cardCls}" data-key="${escapeHtml(item.key)}" data-type="item">
+      <div class="store-card store-card--rarity-${rarity} ${cardCls}" data-key="${escapeHtml(item.key)}" data-type="item">
         <div class="store-card-top">
           <span class="store-card-name${rarCls}">${escapeHtml(item.label)}</span>
           <div class="store-card-actions">
@@ -2157,7 +2298,8 @@ function renderItemsTab(container, essence) {
     btn.addEventListener("click", () => {
       const key = btn.dataset.key ?? "";
       if (purchaseItem(key)) {
-        _showToast(`Purchased: ${itemRegistry.find((i) => i.key === key)?.label || key}`);
+        const entry = itemRegistry.find((i) => i.key === key);
+        _showToast(`Purchased: ${entry?.label || key}`, 2500, entry?.rarity);
         renderStore();
       }
     });
@@ -2328,9 +2470,10 @@ var _toastActive = false;
 function _processToastQueue() {
   if (_toastActive || _toastQueue.length === 0) return;
   _toastActive = true;
-  const { message, durationMs } = _toastQueue.shift();
+  const { message, durationMs, rarity } = _toastQueue.shift();
   _toast.textContent = message;
   _toast.className = _toast.className.split(" ").filter((c) => c === "toast" || c === "hidden").join(" ");
+  if (rarity && rarity !== "common") _toast.classList.add(`toast--rarity-${rarity}`);
   _toast.classList.remove("hidden", "toast-hide");
   _toast.classList.add("toast-show");
   setTimeout(() => {
@@ -2342,8 +2485,8 @@ function _processToastQueue() {
     }, 300);
   }, durationMs);
 }
-function showToast(message, durationMs = 4e3) {
-  _toastQueue.push({ message, durationMs });
+function showToast(message, durationMs = 4e3, rarity) {
+  _toastQueue.push({ message, durationMs, rarity });
   setTimeout(_processToastQueue, 0);
 }
 function populateSlotCard({ nameEl, metaEl, loadBtn, deleteBtn, cardEl, save }) {
@@ -2461,7 +2604,7 @@ function wireCharCreation() {
   function handleInput(inputEl, counterEl, errorEl, fieldLabel) {
     const cleaned = inputEl.value.replace(/[^\p{L}\p{M}'\- ]/gu, "");
     if (cleaned !== inputEl.value) {
-      const pos = (inputEl.selectionStart ?? 0) - (inputEl.value.length - cleaned.length);
+      const pos = Math.max(0, (inputEl.selectionStart ?? 0) - (inputEl.value.length - cleaned.length));
       inputEl.value = cleaned;
       try {
         inputEl.setSelectionRange(pos, pos);
@@ -2609,8 +2752,27 @@ Object.entries(dom).forEach(([key, el]) => {
 var sceneCache = /* @__PURE__ */ new Map();
 var labelsCache = /* @__PURE__ */ new Map();
 function setChapterTitle(t) {
+  const prev = dom.chapterTitle?.textContent ?? "";
   if (dom.chapterTitle) dom.chapterTitle.textContent = t;
   setChapterTitleState(t);
+  if (t && t !== prev && t !== "\u2014") showChapterCard(t);
+}
+function showChapterCard(title) {
+  document.querySelector(".chapter-card")?.remove();
+  const card = document.createElement("div");
+  card.className = "chapter-card";
+  const lbl = document.createElement("span");
+  lbl.className = "chapter-card-label";
+  lbl.textContent = "Chapter";
+  const ttl = document.createElement("span");
+  ttl.className = "chapter-card-title";
+  ttl.textContent = title;
+  card.appendChild(lbl);
+  card.appendChild(ttl);
+  if (dom.narrativePanel) {
+    dom.narrativePanel.insertBefore(card, dom.narrativePanel.firstChild);
+  }
+  card.addEventListener("animationend", () => card.remove(), { once: true });
 }
 function setGameTitle(t) {
   if (dom.gameTitle) dom.gameTitle.textContent = t;
@@ -2662,7 +2824,7 @@ function pushUndoSnapshot() {
     playerState: JSON.parse(JSON.stringify(playerState)),
     tempState: JSON.parse(JSON.stringify(tempState)),
     scene: currentScene,
-    ip,
+    ip: pageBreakIp ?? ip,
     narrativeLog: JSON.parse(JSON.stringify(getNarrativeLog())),
     chapterTitle: dom.chapterTitle?.textContent ?? null,
     awaitingChoice: awaitingChoice ? JSON.parse(JSON.stringify(awaitingChoice)) : null
@@ -2685,6 +2847,7 @@ async function popUndo() {
   }
   setIp(snap.ip);
   setAwaitingChoice(null);
+  setPageBreakIp(null);
   if (dom.chapterTitle) dom.chapterTitle.textContent = snap.chapterTitle;
   setChapterTitleState(snap.chapterTitle ?? "");
   renderFromLog(snap.narrativeLog, { skipAnimations: true });
@@ -2969,7 +3132,7 @@ async function boot() {
     setChapterTitle,
     setGameTitle,
     setGameByline: (t) => {
-      if (dom.splashTagline) dom.splashTagline.innerHTML = t;
+      if (dom.splashTagline) dom.splashTagline.textContent = t;
     },
     runStatsScene,
     fetchTextFile,
@@ -2981,14 +3144,14 @@ async function boot() {
     captureStartupDefaults();
     await parseSkills(fetchTextFile);
     await parseItems(fetchTextFile);
+    await parseProcedures(fetchTextFile);
     const title = playerState.game_title || "";
     const byline = playerState.game_byline || "";
     setGameTitle(title);
-    if (dom.splashTagline && byline) dom.splashTagline.innerHTML = byline;
+    if (dom.splashTagline && byline) dom.splashTagline.textContent = byline;
     showSplash();
   } catch (err) {
     showEngineError(`Boot failed: ${err.message}`);
   }
 }
 document.addEventListener("DOMContentLoaded", boot);
-//# sourceMappingURL=engine.js.map
