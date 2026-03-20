@@ -17,6 +17,9 @@ import { itemRegistry, purchaseItem } from '../systems/items.js';
 import { itemBaseName } from '../systems/inventory.js';
 import { getJournalEntries, getAchievements } from '../systems/journal.js';
 import { escapeHtml, formatText } from './narrative.js';
+
+/** Escape for HTML and convert newlines to <br> (for multi-line skill/item descriptions). */
+const escapeDesc = (s: string): string => escapeHtml(s).replace(/\n/g, '<br>');
 import { glossaryRegistry } from '../systems/glossary.js';
 import { evalValue } from '../core/expression.js';
 import type { SkillEntry } from '../systems/skills.js';
@@ -183,15 +186,36 @@ function buildSkillsTabHtml(): string {
   if (ownedSkills.length === 0) {
     html += `<div class="empty-state">${EMPTY_SKILLS_SVG}<p class="empty-state-text">No skills learned yet.</p></div>`;
   } else {
-    const skillItems = ownedSkills.map((k: string) => {
-      const entry   = skillRegistry.find(s => s.key === k);
-      const label   = escapeHtml(entry ? entry.label : k);
-      const desc    = escapeHtml(entry ? entry.description : '');
-      const rarity  = entry?.rarity || 'common';
-      const rarCls  = ` skill-rarity--${rarity}`;
+    const CATEGORY_ORDER  = ['core', 'active', 'passive'] as const;
+    const CATEGORY_LABELS: Record<string, string> = {
+      core:    'Core Class Skills',
+      active:  'Active Skills',
+      passive: 'Passives',
+    };
+
+    const grouped: Record<string, string[]> = { core: [], active: [], passive: [] };
+    for (const k of ownedSkills) {
+      const entry = skillRegistry.find(s => s.key === k);
+      const cat   = entry?.category || 'active';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(k);
+    }
+
+    const buildItem = (k: string) => {
+      const entry  = skillRegistry.find(s => s.key === k);
+      const label  = escapeHtml(entry ? entry.label : k);
+      const desc   = escapeDesc(entry ? entry.description : '');
+      const rarity = entry?.rarity || 'common';
+      const rarCls = ` skill-rarity--${rarity}`;
       return `<li class="skill-accordion skill-accordion--rarity-${rarity}"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name${rarCls}">${label}</span><span class="skill-accordion-chevron">▾</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
-    }).join('');
-    html += `<ul class="skill-accordion-list">${skillItems}</ul>`;
+    };
+
+    for (const cat of CATEGORY_ORDER) {
+      const keys = grouped[cat];
+      if (!keys || keys.length === 0) continue;
+      html += `<div class="skill-category-header">${CATEGORY_LABELS[cat]}</div>`;
+      html += `<ul class="skill-accordion-list">${keys.map(buildItem).join('')}</ul>`;
+    }
   }
   return html;
 }
@@ -210,7 +234,7 @@ function buildInventoryTabHtml(): string {
       const baseName = itemBaseName(invEntry);
       const regEntry = itemRegistry.find(r => r.label === baseName);
       const label    = escapeHtml(invEntry);
-      const desc     = escapeHtml(regEntry ? regEntry.description : '');
+      const desc     = escapeDesc(regEntry ? regEntry.description : '');
       const rarity   = regEntry?.rarity || 'common';
       const rarCls   = ` skill-rarity--${rarity}`;
       return `<li class="skill-accordion skill-accordion--rarity-${rarity}">
@@ -262,7 +286,7 @@ function buildLogTabHtml(): string {
           <span class="skill-accordion-name">${escapeHtml(entry.term)}</span>
           <span class="skill-accordion-chevron">▾</span>
         </button>
-        <div class="skill-accordion-desc" style="display:none;">${escapeHtml(entry.description)}</div>
+        <div class="skill-accordion-desc" style="display:none;">${escapeDesc(entry.description)}</div>
       </li>`
     ).join('');
     achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;margin-top:14px;">Glossary</div><ul class="skill-accordion-list">${glossaryItems}</ul>`;
@@ -515,7 +539,7 @@ function renderSkillsTab(container: Element, essence: number): void {
               <button class="store-purchase-btn" ${canAfford ? '' : 'disabled'} data-key="${escapeHtml(skill.key)}" data-type="skill">Unlock</button>
             </div>
           </div>
-          <div class="store-card-desc">${escapeHtml(skill.description)}</div>
+          <div class="store-card-desc">${escapeDesc(skill.description)}</div>
         </div>`;
     });
   }
@@ -533,7 +557,7 @@ function renderSkillsTab(container: Element, essence: number): void {
               <span class="store-owned-badge">Owned</span>
             </div>
           </div>
-          <div class="store-card-desc">${escapeHtml(skill.description)}</div>
+          <div class="store-card-desc">${escapeDesc(skill.description)}</div>
         </div>`;
     });
   }
@@ -588,7 +612,7 @@ function renderItemsTab(container: Element, essence: number): void {
             <button class="store-purchase-btn" ${canAfford ? '' : 'disabled'} data-key="${escapeHtml(item.key)}" data-type="item">Buy</button>
           </div>
         </div>
-        <div class="store-card-desc">${escapeHtml(item.description)}</div>
+        <div class="store-card-desc">${escapeDesc(item.description)}</div>
       </div>`;
   });
 

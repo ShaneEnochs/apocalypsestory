@@ -700,9 +700,15 @@ async function parseSkills(fetchTextFileFn) {
   const lines = text.split(/\r?\n/);
   const parsed = [];
   let current = null;
+  let currentCategory = "active";
   for (const raw of lines) {
     const trimmed = raw.trim();
     if (!trimmed || trimmed.startsWith("//")) continue;
+    const mCat = trimmed.match(/^\*category\s+(core|active|passive)\s*$/i);
+    if (mCat) {
+      currentCategory = mCat[1].toLowerCase();
+      continue;
+    }
     const mA = trimmed.match(/^\*skill\s+([\w]+)\s+\[([^\]]+)\]\s+"([^"]+)"\s+(\d+)\s*$/i);
     const mB = !mA && trimmed.match(/^\*skill\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?\s*$/i);
     if (mA || mB) {
@@ -714,7 +720,8 @@ async function parseSkills(fetchTextFileFn) {
           essenceCost: Number(mA[4]),
           rarity: mA[2].toLowerCase(),
           description: "",
-          condition: null
+          condition: null,
+          category: currentCategory
         };
       } else {
         current = {
@@ -723,7 +730,8 @@ async function parseSkills(fetchTextFileFn) {
           essenceCost: Number(mB[3]),
           rarity: mB[4] ? mB[4].toLowerCase() : "common",
           description: "",
-          condition: null
+          condition: null,
+          category: currentCategory
         };
       }
       continue;
@@ -733,7 +741,7 @@ async function parseSkills(fetchTextFileFn) {
       continue;
     }
     if (current && raw.match(/^\s+/) && trimmed) {
-      current.description += (current.description ? " " : "") + trimmed;
+      current.description += (current.description ? "\n" : "") + trimmed;
     }
   }
   if (current) parsed.push(current);
@@ -1346,15 +1354,33 @@ function buildSkillsTabHtml() {
   if (ownedSkills.length === 0) {
     html += `<div class="empty-state">${EMPTY_SKILLS_SVG}<p class="empty-state-text">No skills learned yet.</p></div>`;
   } else {
-    const skillItems = ownedSkills.map((k) => {
+    const CATEGORY_ORDER = ["core", "active", "passive"];
+    const CATEGORY_LABELS = {
+      core: "Core Class Skills",
+      active: "Active Skills",
+      passive: "Passives"
+    };
+    const grouped = { core: [], active: [], passive: [] };
+    for (const k of ownedSkills) {
+      const entry = skillRegistry.find((s) => s.key === k);
+      const cat = entry?.category || "active";
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(k);
+    }
+    const buildItem = (k) => {
       const entry = skillRegistry.find((s) => s.key === k);
       const label = escapeHtml(entry ? entry.label : k);
-      const desc = escapeHtml(entry ? entry.description : "");
+      const desc = escapeDesc(entry ? entry.description : "");
       const rarity = entry?.rarity || "common";
       const rarCls = ` skill-rarity--${rarity}`;
       return `<li class="skill-accordion skill-accordion--rarity-${rarity}"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name${rarCls}">${label}</span><span class="skill-accordion-chevron">\u25BE</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
-    }).join("");
-    html += `<ul class="skill-accordion-list">${skillItems}</ul>`;
+    };
+    for (const cat of CATEGORY_ORDER) {
+      const keys = grouped[cat];
+      if (!keys || keys.length === 0) continue;
+      html += `<div class="skill-category-header">${CATEGORY_LABELS[cat]}</div>`;
+      html += `<ul class="skill-accordion-list">${keys.map(buildItem).join("")}</ul>`;
+    }
   }
   return html;
 }
@@ -1369,7 +1395,7 @@ function buildInventoryTabHtml() {
       const baseName = itemBaseName(invEntry);
       const regEntry = itemRegistry.find((r) => r.label === baseName);
       const label = escapeHtml(invEntry);
-      const desc = escapeHtml(regEntry ? regEntry.description : "");
+      const desc = escapeDesc(regEntry ? regEntry.description : "");
       const rarity = regEntry?.rarity || "common";
       const rarCls = ` skill-rarity--${rarity}`;
       return `<li class="skill-accordion skill-accordion--rarity-${rarity}">
@@ -1419,7 +1445,7 @@ function buildLogTabHtml() {
           <span class="skill-accordion-name">${escapeHtml(entry.term)}</span>
           <span class="skill-accordion-chevron">\u25BE</span>
         </button>
-        <div class="skill-accordion-desc" style="display:none;">${escapeHtml(entry.description)}</div>
+        <div class="skill-accordion-desc" style="display:none;">${escapeDesc(entry.description)}</div>
       </li>`
     ).join("");
     achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;margin-top:14px;">Glossary</div><ul class="skill-accordion-list">${glossaryItems}</ul>`;
@@ -1639,7 +1665,7 @@ function renderSkillsTab(container, essence) {
               <button class="store-purchase-btn" ${canAfford ? "" : "disabled"} data-key="${escapeHtml(skill.key)}" data-type="skill">Unlock</button>
             </div>
           </div>
-          <div class="store-card-desc">${escapeHtml(skill.description)}</div>
+          <div class="store-card-desc">${escapeDesc(skill.description)}</div>
         </div>`;
     });
   }
@@ -1656,7 +1682,7 @@ function renderSkillsTab(container, essence) {
               <span class="store-owned-badge">Owned</span>
             </div>
           </div>
-          <div class="store-card-desc">${escapeHtml(skill.description)}</div>
+          <div class="store-card-desc">${escapeDesc(skill.description)}</div>
         </div>`;
     });
   }
@@ -1708,7 +1734,7 @@ function renderItemsTab(container, essence) {
             <button class="store-purchase-btn" ${canAfford ? "" : "disabled"} data-key="${escapeHtml(item.key)}" data-type="item">Buy</button>
           </div>
         </div>
-        <div class="store-card-desc">${escapeHtml(item.description)}</div>
+        <div class="store-card-desc">${escapeDesc(item.description)}</div>
       </div>`;
   });
   container.innerHTML = html;
@@ -1742,7 +1768,7 @@ function showEndingScreen(title, content) {
     window.location.reload();
   }, { once: true });
 }
-var _statusPanel, _endingOverlay, _endingTitle, _endingContent, _endingStats, _endingActionBtn, _storeOverlay, _fetchTextFile, _scheduleStats2, _trapFocus, _showToast, styleState, _activeStatusTab, EMPTY_SKILLS_SVG, EMPTY_INV_SVG, EMPTY_LOG_SVG, _prevStatValues, _statChanges, _dirtyTabs, _lastEntries, _storeTrapRelease, _storeActiveTab, _preStoreTab;
+var escapeDesc, _statusPanel, _endingOverlay, _endingTitle, _endingContent, _endingStats, _endingActionBtn, _storeOverlay, _fetchTextFile, _scheduleStats2, _trapFocus, _showToast, styleState, _activeStatusTab, EMPTY_SKILLS_SVG, EMPTY_INV_SVG, EMPTY_LOG_SVG, _prevStatValues, _statChanges, _dirtyTabs, _lastEntries, _storeTrapRelease, _storeActiveTab, _preStoreTab;
 var init_panels = __esm({
   "src/ui/panels.ts"() {
     "use strict";
@@ -1754,6 +1780,7 @@ var init_panels = __esm({
     init_narrative();
     init_glossary();
     init_expression();
+    escapeDesc = (s) => escapeHtml(s).replace(/\n/g, "<br>");
     _endingOverlay = null;
     _endingTitle = null;
     _endingContent = null;

@@ -1,60 +1,107 @@
 // skills.txt — Skill Registry for System Awakening
 //
 // Format:
+//   *category core|active|passive  (applies to all skills below it)
 //   *skill key [rarity] "Label" essence_cost
-//     Description text. Can span multiple lines.
-//     All indented lines become one description string.
+//     Description text. Each new indented line is a separate paragraph.
 //
 // Rarities:
-//   • [Rare]     — Common, foundational skills
-//   • [Epic]     — Advanced, powerful skills
+//   • [Rare]      — Foundational skills
+//   • [Epic]      — Advanced, powerful skills
 //   • [Legendary] — Class-defining, ultimate skills
 //
 // Rules:
 //   • key must be a single word (letters, numbers, underscores)
-//   • essence_cost is the amount of Essence required to purchase (0 is valid for free skills)
-//   • Essence is a unified currency earned from gameplay. Players can spend it on
-//     leveling up, purchasing skills, or purchasing items.
+//   • essence_cost is the amount of Essence required to purchase (0 = free)
 //   • description lines must be indented at least one space
 //   • a new *skill directive or end of file terminates the previous description
 //   • check ownership in scene files with: *check_skill "key" dest_var
 //   • grant without Essence cost via:      *grant_skill "key"
 //   • remove a skill via:                  *revoke_skill "key"
 
-// SHIELD OF HUMANITY CLASS SKILLS
-// Central (Class-Defining) Skills
+// ─────────────────────────────────────────────────────────────
+// SHIELD OF HUMANITY — CORE CLASS SKILLS
+// Class-defining abilities that form the heart of who you are.
+// ─────────────────────────────────────────────────────────────
+
+*category core
 
 *skill last_shield_standing [Legendary] "Last Shield Standing" 0
-  You are the final guardian, the ultimate defense against extinction. You may designate yourself as the unbreakable shield against a specific threat. Once designated, that threat cannot advance past you. Attacks directed at anyone behind you are reduced in effectiveness by 50%—the threat may still damage those you protect, but the burden falls on you, not them. You gain the ability to intercept any attack directed at a protected ally and take it instead, instantly teleporting to the source if necessary. As long as you stand, the threat you've designated cannot reach those behind you. This is absolute. Every time you block an attack intended for another, you gain one "Shield Mark." At 100 Shield Marks, you reach Critical Protection—your defensive capabilities quintuple but your offensive power is reduced to 10%. At 200 Shield Marks, you enter a state of pure defense, unable to attack but literally immovable. At 300 Shield Marks, you achieve perfect sacrifice: you become immortal and invulnerable, but your time is measured in minutes. Shield Marks decrease at 1 per minute of rest.
+  You are the final guardian — the wall between those you love and the abyss. Where others retreat, you remain.
+  Designate yourself as the unbreakable shield against a specific threat (a creature, a force, an entire army). While designated, that threat cannot advance past you. All attacks directed at allies behind you are reduced in effectiveness by 50%; the burden shifts from them to you. You may instantly teleport to the source of any attack aimed at a protected ally and take the hit in their place. This is absolute — the threat will batter at you endlessly, but they cannot pass.
+  Every intercepted attack earns one Shield Mark, representing the accumulated weight of what you carry. At 100 Marks, your defensive capabilities quintuple — but offensive power drops to 10%. At 200 Marks, you become immovable and cannot attack. At 300 Marks, you achieve perfect sacrifice: immortal and invulnerable, but your time as a shield is measured in minutes. Shield Marks decrease at 1 per minute of rest.
+  Mana Cost: 500 mana to designate a threat. 50 mana per minute while active.
+  Cooldown: None. The shield does not rest while threats remain.
 
 *skill last_bastion [Legendary] "Last Bastion" 0
-  When all other defenses fail and the darkness closes in, you have one final refuge. You cast Last Bastion to create an underground bunker—a true stronghold designed to survive a siege. The [System] instantly locates the safest possible location within 1 mile of your current position. You and up to 10 × this skill's level can teleport to the bunker when activated. Only designated initial entrants may come and go freely. The entrance is a subway-like stairwell with a 15-foot diameter circle, automatically placed where monsters are least likely to find it. The stairwell contains runes that destroy any monster that enters. Below is a 20-foot tunnel with offensive and defensive enchantments, ending in a reinforced blast door. The main chamber is 10 feet tall with 1,000 square feet per person brought with you. Fully stocked with food, water, recycled air, and supplies for up to six months. Costs 2,000,000 mana from a separate pool that fills at 5% of your max mana per hour when your mana is full. Others can contribute mana or use mana stones to accelerate charging. Cooldown: One year after casting.
+  When all other defenses fail and the darkness closes in, you have one final refuge. Not a victory — survival. The difference matters.
+  The [System] instantly locates the safest position within 1 mile and manifests an underground bunker there. A subway-style stairwell entrance — 15 feet in diameter, placed where monsters are least likely to find it — descends into a rune-lined gauntlet that automatically destroys any non-human intruder that crosses the threshold. Beyond a reinforced blast door lies the main chamber: 10 feet tall, 1,000 square feet per person brought with you. Fully stocked with food, clean water, recycled air, and medical supplies sufficient for six months.
+  You and up to 10 × this skill's level may teleport to the bunker on activation. Only those you designate at casting may come and go freely; all others require you to mentally lower the wards.
+  The mana cost is extraordinary and draws from a separate reserve that charges independently — filling at 5% of your maximum mana pool per hour, but only when your personal mana is at full capacity. Allies may contribute their own mana to the reserve. Mana stones can be slotted directly into the bunker's systems, each providing 1,000,000 mana instantly.
+  Mana Cost: 2,000,000 mana (drawn from a dedicated reserve; cannot be paid from your personal pool directly).
+  Cooldown: 1 year. The old bunker remains physically intact but becomes inaccessible through your power.
 
-// Standard Skills
+// ─────────────────────────────────────────────────────────────
+// SHIELD OF HUMANITY — ACTIVE SKILLS
+// Skills you consciously deploy. The hammer of your defense.
+// ─────────────────────────────────────────────────────────────
+
+*category active
 
 *skill interpenetration [Epic] "Interpenetration" 0
-  You move faster toward those in danger. Whenever an ally is threatened or about to take damage, gain +100% movement speed toward them and may instantly move to intercept the threat, teleporting if necessary. Once you reach the threatened ally, gain +50% damage reduction for 5 seconds. This skill has no cooldown—use it as many times as threats emerge. You cannot be slowed or hindered while moving to protect an ally, and you automatically path around obstacles. The [System] itself bends slightly to get you where you need to be.
-
-*skill unbreakable [Legendary] "Unbreakable" 0
-  A passive skill representing your supernatural durability. Gain +1% physical defense for every ally currently within 50 meters of you. Also gain bonus health equal to 50% of your Fortitude stat for every person who depends on you (tracked by your class, up to 100 people). Take 20% reduced damage from all sources while allies are alive and behind you. If an ally dies while you were nearby, gain temporary +30% damage and defense for the next 60 seconds as grief transforms into wrath.
-
-*skill absorbent [Epic] "Absorbent" 0
-  You absorb incoming damage and convert it into protection. Every point of damage you take heals you for 5% of that damage as the [System] recognizes your sacrifice. After taking 1,000 cumulative damage, gain a temporary shield equal to 25% of that damage, which persists until broken. Any status effects, curses, or debuffs applied to nearby allies can be transferred to you instead. You take the injury in their place. Gain immunity to most negative effects (diseases, poisons, curses) as your body hardens from accumulated suffering.
+  The moment a threat reaches for those you protect, the distance between you collapses.
+  When an ally is threatened or about to take damage, gain +100% movement speed toward them. If necessary, you teleport — the [System] bends slightly to get you where you need to be, routing you automatically around any obstacle. Once you reach the threatened ally, gain +50% damage reduction for 5 seconds. You cannot be slowed or obstructed while moving to protect someone.
+  Mana Cost: 100 mana per activation.
+  Cooldown: None. Use it as many times as threats emerge.
 
 *skill defiant_stand [Rare] "Defiant Stand" 0
-  You plant yourself and refuse to move. For up to 60 seconds, gain +80% damage reduction and cannot be displaced, knocked back, or moved by any force except death itself. While in this stance, allies behind you gain +40% damage reduction as well. At the end of the stance, you may release all absorbed damage as a shockwave that pushes back all threats 30 meters. 45-second cooldown after releasing the stance.
+  You drive your feet into the ground and refuse. No force — mundane or supernatural — moves you.
+  For up to 60 seconds, gain +80% damage reduction and become immune to displacement, knockback, and repositioning by any means short of death itself. Allies standing directly behind you gain +40% damage reduction for the full duration.
+  When the stance ends, release all absorbed damage as a shockwave that hurls every nearby threat back 30 meters.
+  Mana Cost: 200 mana to activate. Holding the stance past 10 seconds costs an additional 20 mana per second.
+  Cooldown: 45 seconds after releasing the stance.
+
+// ─────────────────────────────────────────────────────────────
+// SHIELD OF HUMANITY — PASSIVES
+// Always-on abilities. You don't activate them. You just are them.
+// ─────────────────────────────────────────────────────────────
+
+*category passive
+
+*skill unbreakable [Legendary] "Unbreakable" 0
+  Your body becomes more resilient the more people stand behind you. Their survival is your armor.
+  Gain +1% physical defense for every ally within 50 meters. Gain bonus health equal to 50% of your Fortitude stat for every person who depends on you, as tracked by your class (up to 100 people). Take 20% reduced damage from all sources while allies are alive behind you. If an ally falls while you were nearby, grief fuels you — gain +30% damage and defense for 60 seconds as loss transforms into resolve.
+  Mana Cost: None. Always active.
+
+*skill absorbent [Epic] "Absorbent" 0
+  You have absorbed so much that your body has learned to convert suffering into strength.
+  Every point of damage you receive heals you for 5% of that amount. After absorbing 1,000 cumulative damage, gain a temporary shield equal to 25% of that total, which persists until broken. Status effects, curses, and debuffs applied to nearby allies may be transferred to you instead — you take the wound so they don't have to. Through years of accumulated exposure, you are now effectively immune to diseases, poisons, and most curses.
+  Mana Cost: None. Always active.
 
 *skill intervention [Epic] "Intervention" 0
-  Passive skill representing your supernatural awareness of danger. Sense threats to nearby allies 3 seconds before they strike. You automatically move to intercept lethal attacks directed at allies. Once per combat, if an ally would be killed by an attack, you can instantly appear between them and the attack, taking the full damage instead. This skill triggers automatically, requiring no action on your part. The [System] recognizes protection as your fundamental nature and assists you.
+  You sense danger to those you protect before it fully forms — a whisper from the [System] of what is about to happen.
+  You perceive threats to nearby allies approximately 3 seconds before they strike. You automatically move to block lethal attacks aimed at allies. Once per combat, if an ally would be killed by an incoming strike, you instantly appear between them and the attack, absorbing the full damage yourself. This triggers without any conscious action on your part — the [System] recognizes protection as your fundamental nature and assists you accordingly.
+  Mana Cost: None. Always active. The once-per-combat interception recharges at the start of each new encounter.
 
 *skill regeneration_of_purpose [Rare] "Regeneration of Purpose" 0
-  Your healing scales directly with how many people depend on you. Gain health regeneration equal to 5% of your maximum health per minute for every conscious ally within 100 meters, up to 100% (one full health bar per minute with enough allies nearby). If all allies die or become incapacitated, your health regeneration drops to 5% immediately and decreases by 1% every 10 seconds. You may choose to share your regeneration with allies; any health you would regenerate can be redirected to nearby allies instead.
+  Your will to survive is not for yourself. It is for them. And so you heal as long as they need you.
+  Gain health regeneration equal to 5% of your maximum health per minute for every conscious ally within 100 meters — up to 100% per minute with enough allies nearby. If all allies fall or are incapacitated, your regeneration drops immediately to 5% and decreases by 1% every 10 seconds until it reaches near-zero. The [System] does not reward survival without purpose.
+  You may voluntarily redirect your regeneration outward; any health you would recover can instead flow to the allies around you.
+  Mana Cost: None (passive regeneration). Actively redirecting healing to allies costs 10 mana per second.
 
 *skill unwavering_conviction [Epic] "Unwavering Conviction" 0
-  A passive skill making you increasingly difficult to defeat the more allies you protect. For every conscious ally within 100 meters, gain +2% to all stats. Additionally, gain +1% to all stats for every permanent Shield Mark you carry (even after they fade, the scars remain). You cannot be feared or demoralized, especially when allies depend on you. Attempts to break your will or make you abandon those you protect automatically fail.
+  The more people stand with you, the harder you become to destroy. Their need is your anchor.
+  Gain +2% to all stats for every conscious ally within 100 meters. Gain an additional +1% to all stats for every permanent Shield Mark scar you carry — even after the Marks fade, what you endured remains written in your body. Fear, demoralization, and compulsion to abandon those you protect cannot affect you. These effects do not merely fail — they are rejected entirely, without effort or resistance on your part.
+  Mana Cost: None. Always active.
 
 *skill final_moment [Legendary] "Final Moment" 0
-  When you reach critical health (below 25% maximum), this skill automatically activates. You enter a hyper-protective state where you gain triple damage reduction, all damage dealt to you heals nearby allies for 25% of the damage, you move 50% faster toward threatened allies, and any attack that would kill you is blocked once (after which the attacker faces your counterattack at triple damage). When you fall while in this state, there's a final burst of protection: all allies within 50 meters gain +50% to all stats and full health regeneration for 60 seconds after you die.
+  The shield does not break gently. When you are nearly spent, something in you decides it is not finished yet.
+  When your health drops below 25% of maximum, this skill activates automatically. You gain triple damage reduction. Every point of damage dealt to you heals nearby allies for 25% of that amount. You move 50% faster toward threatened allies. Any single attack that would kill you is blocked once — after which the attacker faces a counterattack at triple your normal damage output.
+  This state continues until the threat is eliminated or you reach 0 health. The longer you remain in it, the faster your remaining time burns. When you finally fall in this state, all allies within 50 meters receive +50% to all stats and full health regeneration for 60 seconds — one last gift before you go.
+  Mana Cost: None. Triggers automatically at critical health.
 
 *skill legacy_of_protection [Legendary] "Legacy of Protection" 0
-  Passive skill ensuring your sacrifice matters beyond your own death. Any location where you've successfully protected someone becomes slightly safer permanently. Corruption spreads 50% slower in places you've protected. Creatures born in places you've died from are inherently weaker and less willing to prey on the weak. Anyone who witnesses you protecting others gains inspiration and permanent +5% to all stats as long as they remember you (multiple witnesses stack this bonus). If you die protecting your sanctuary or a large group, that location becomes sacred for one year—anything created there is 200% more effective, and any healing is doubled.
+  The places you have defended remember you. The people you have saved carry something of you forward, whether they know it or not.
+  Any location where you have successfully protected someone becomes permanently safer: corruption spreads 50% slower there, and creatures originating in those places are inherently less predatory. Anyone who witnesses you protect another gains permanent +5% to all stats as long as they hold that memory — and this stacks across every witness.
+  If you die protecting your sanctuary or a significant group, that location becomes sacred for one full year. Anything created there is 200% more effective. All healing performed there is doubled. People will come. They will remember what was held here, and why it mattered.
+  Mana Cost: None. Always active, in life and in memory.
