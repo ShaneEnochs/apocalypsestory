@@ -83,7 +83,7 @@ export async function parseSkills(fetchTextFileFn: (name: string) => Promise<str
     }
 
     if (current && raw.match(/^\s+/) && trimmed) {
-      current.description += (current.description ? ' ' : '') + trimmed;
+      current.description += (current.description ? '\n' : '') + trimmed;
     }
   }
 
