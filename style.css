@@ -2669,8 +2669,6 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   --text-primary:  #1a1e2e;
   --text-dim:      #4a5068;
   --text-faint:    #7a8098;
-
-  color-scheme: light;
 }
 
 /* Hardcoded background overrides for light theme */
