@@ -18,7 +18,8 @@
 
 *comment --- Progress ---
 *create level 94
-*create essence 0
+*create essence 68520
+*create next_lvl 15400000
 *create timeline "original"
 
 *comment --- Skills and journal ---
