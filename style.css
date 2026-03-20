@@ -2733,3 +2733,16 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 [data-theme="light"] .toast--rarity-legendary {
   box-shadow: none;
 }
+
+/* Store header hardcoded cyan overrides for light theme */
+[data-theme="light"] .store-header {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .store-header .system-block-label {
+  color: var(--cyan);
+}
+
+[data-theme="light"] .store-card:hover:not(.store-card--owned):not(.store-card--unaffordable) {
+  background: rgba(0, 122, 138, 0.06);
+}

@@ -383,10 +383,8 @@ export async function runStatsScene(): Promise<void> {
       const pane = _statusPanel.querySelector('#status-tab-pane');
       if (pane) {
         pane.setAttribute('aria-labelledby', `tab-${_activeStatusTab}`);
-        if (_dirtyTabs[_activeStatusTab]) {
-          pane.innerHTML = buildTabHtml(_activeStatusTab, _lastEntries);
-          _dirtyTabs[_activeStatusTab] = false;
-        }
+        pane.innerHTML = buildTabHtml(_activeStatusTab, _lastEntries);
+        _dirtyTabs[_activeStatusTab] = false;
         if (_activeStatusTab === 'stats') applyStatFlashes();
       }
       wireTabContent();
