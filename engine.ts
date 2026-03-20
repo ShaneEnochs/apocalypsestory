@@ -6,7 +6,7 @@
 //   src/systems/undo.ts         — Undo snapshot stack
 //   src/systems/save-manager.ts — Save/load UI wiring
 
-import { buildDom, setChapterTitle, setGameTitle } from './src/core/dom.js';
+import { buildDom, setChapterTitle, setGameTitle, registerChapterCardLog, initThemeToggle } from './src/core/dom.js';
 import {
   playerState, startup,
   setCurrentLines, currentLines,
@@ -28,7 +28,7 @@ import {
   init as initNarrative, addParagraph, addSystem,
   clearNarrative, applyTransition,
   renderChoices, showInputPrompt, showPageBreak, setChoiceArea,
-  getNarrativeLog, renderFromLog, formatText, addImage,
+  getNarrativeLog, renderFromLog, formatText, addImage, pushNarrativeLogEntry,
 } from './src/ui/narrative.js';
 import { init as initPanels, runStatsScene, showEndingScreen } from './src/ui/panels.js';
 import { init as initOverlays, trapFocus, showToast, showSplash } from './src/ui/overlays.js';
@@ -90,8 +90,10 @@ function scheduleStatsRender(): void {
 // boot — initialises every module and shows the splash screen
 // ---------------------------------------------------------------------------
 async function boot(): Promise<void> {
+  initThemeToggle();
   const dom = buildDom();
   registerCaches(sceneCache, labelsCache);
+  registerChapterCardLog(pushNarrativeLogEntry);
   initUndo({ chapterTitleEl: dom.chapterTitle, sceneCache, labelsCache });
 
   initNarrative({

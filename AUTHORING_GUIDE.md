@@ -365,14 +365,23 @@ The label is optional — if omitted, the current chapter title is used.
 
 ## Media
 
+### `media/` directory
+Place all image assets in the `media/` directory at the project root.
+
+### Character portrait (`media/portrait.png`)
+The character creation screen displays an image from `media/portrait.png`.
+Place any `.png`, `.webp`, or `.jpg` file there (update the `src` in `index.html`
+if you use a different extension). If the file is missing, the portrait area
+hides gracefully with no broken-image icon.
+
 ### `*image "filename.ext" [alt:"text"] [width:N]`
-Inserts an inline image from the `media/` directory.
+Inserts an inline image into the narrative flow from the `media/` directory.
 ```
 *image "cave_entrance.webp"
 *image "portrait.png" alt:"A hooded figure in grey armour" width:400
 ```
 - Images are lazy-loaded
-- A missing image shows the browser's broken-image icon without crashing
+- A missing image is hidden gracefully (no broken-image icon)
 
 ---
 
@@ -443,4 +452,25 @@ npm run lint -- --strict
 
 ---
 
-*System Awakening Authoring Guide — v1.0 (2026-03-20)*
+## Theme Toggle
+
+A `☀/☽` button in the game header lets players switch between dark mode (default)
+and light mode. The preference is saved in `localStorage` and also respects the
+OS-level color scheme on first visit.
+
+**No authoring action is needed** — the toggle is automatic and always visible.
+
+---
+
+## Chapter Cards
+
+When `*title` fires in a scene, an animated chapter title card appears at the
+top of the current narrative page. The card persists until the narrative is
+cleared (on choice selection, `*page_break` Continue, or `*goto_scene`).
+
+Chapter cards are included in the narrative log and are correctly restored by
+save/load and undo.
+
+---
+
+*System Awakening Authoring Guide — v1.1 (2026-03-20)*

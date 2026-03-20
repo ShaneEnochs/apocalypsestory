@@ -454,6 +454,23 @@ export function renderFromLog(log: NarrativeLogEntry[], { skipAnimations = true 
         break;
       }
 
+      case 'chapter-card': {
+        const card = document.createElement('div');
+        card.className = 'chapter-card';
+        card.style.opacity = '1';
+        card.style.animation = 'none';
+        const lbl = document.createElement('span');
+        lbl.className = 'chapter-card-label';
+        lbl.textContent = 'Chapter';
+        const ttl = document.createElement('span');
+        ttl.className = 'chapter-card-title';
+        ttl.textContent = entry.text ?? '';
+        card.appendChild(lbl);
+        card.appendChild(ttl);
+        _narrativeContent.insertBefore(card, _choiceArea);
+        break;
+      }
+
       case 'image': {
         const img = document.createElement('img');
         img.src       = `media/${entry.text ?? ''}`;

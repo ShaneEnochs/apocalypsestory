@@ -623,9 +623,7 @@ body {
 
 @keyframes chapterCardReveal {
   0%   { opacity: 0; transform: translateY(-8px); }
-  15%  { opacity: 1; transform: translateY(0); }
-  75%  { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 .chapter-card {
@@ -637,7 +635,7 @@ body {
   padding: 32px 24px;
   margin: 0 0 1.4em;
   text-align: center;
-  animation: chapterCardReveal 2.2s ease forwards;
+  animation: chapterCardReveal 0.6s ease forwards;
   pointer-events: none;
   border-top: 1px solid rgba(0, 212, 245, 0.15);
   border-bottom: 1px solid rgba(0, 212, 245, 0.15);
@@ -1273,12 +1271,21 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   margin: 0 auto 20px;
   overflow: hidden;
   border: 1px solid rgba(0, 212, 245, 0.2);
+  background: #000c10;
 }
 
 .char-portrait-frame svg {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.char-portrait-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
 }
 
 .char-header      { margin-bottom: 28px; text-align: center; }
@@ -2597,4 +2604,132 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 .lore-term:focus {
   outline: 1px dotted var(--accent-cyan, #5eead4);
   outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Theme Toggle Button (Phase 9)
+   --------------------------------------------------------------------------- */
+#theme-toggle-btn {
+  font-size: var(--text-sm);
+  min-width: 32px;
+  text-align: center;
+  padding: 5px 8px;
+}
+
+#theme-toggle-btn:hover {
+  color: var(--cyan);
+  border-color: var(--cyan-dim);
+}
+
+/* ============================================================
+   LIGHT THEME OVERRIDES (Phase 9)
+   ============================================================ */
+[data-theme="light"] {
+  /* --- Backgrounds --- */
+  --bg-deep:       #f0ece4;
+  --bg-panel:      #e8e2d8;
+  --bg-card:       #ffffff;
+  --bg-system:     #e4dfd6;
+
+  /* --- Borders --- */
+  --border-dim:    #c8c0b4;
+  --border-glow:   #a09484;
+
+  /* --- Accent colors (darkened for light-background contrast) --- */
+  --cyan:          #007a8a;
+  --cyan-dim:      #005a66;
+  --cyan-glow:     rgba(0, 122, 138, 0.1);
+  --cyan-glow-md:  rgba(0, 122, 138, 0.2);
+
+  --amber:         #b07800;
+  --amber-dim:     #8a5e00;
+  --amber-glow:    rgba(176, 120, 0, 0.12);
+
+  --green:         #1a8a4a;
+  --green-glow:    rgba(26, 138, 74, 0.1);
+
+  --red:           #c04040;
+  --red-glow:      rgba(192, 64, 64, 0.12);
+
+  /* --- Rarity colors (darker for readability on light) --- */
+  --rarity-common:    #2a2e3e;
+  --rarity-uncommon:  #1a8a4a;
+  --rarity-rare:      #2a6ecc;
+  --rarity-epic:      #7a40cc;
+  --rarity-legendary: #b07800;
+
+  /* --- Named inline colors --- */
+  --white:   #2a2e3e;
+  --blue:    #2a6ecc;
+  --purple:  #7a40cc;
+  --gold:    #b07800;
+  --silver:  #5a6278;
+
+  /* --- Text --- */
+  --text-primary:  #1a1e2e;
+  --text-dim:      #4a5068;
+  --text-faint:    #7a8098;
+
+  color-scheme: light;
+}
+
+/* Hardcoded background overrides for light theme */
+[data-theme="light"] #game-header {
+  background: rgba(240, 236, 228, 0.9);
+}
+
+[data-theme="light"] #chapter-bar {
+  background: rgba(232, 226, 216, 0.6);
+}
+
+[data-theme="light"] .overlay {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] .chapter-card {
+  border-top-color:    rgba(0, 122, 138, 0.2);
+  border-bottom-color: rgba(0, 122, 138, 0.2);
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 122, 138, 0.05) 50%, transparent 100%);
+}
+
+[data-theme="light"] .chapter-card-title {
+  text-shadow: 0 0 16px rgba(0, 122, 138, 0.3);
+}
+
+[data-theme="light"] .char-portrait-frame {
+  background: #e4dfd6;
+  border-color: rgba(0, 122, 138, 0.25);
+}
+
+/* Remove glow text-shadows that look muddy on light backgrounds */
+[data-theme="light"] .inline-accent-epic,
+[data-theme="light"] .skill-rarity--epic {
+  text-shadow: none;
+}
+
+[data-theme="light"] .inline-accent-legendary,
+[data-theme="light"] .skill-rarity--legendary {
+  text-shadow: none;
+}
+
+[data-theme="light"] .stat-val.increased {
+  text-shadow: none;
+}
+
+[data-theme="light"] .store-card--rarity-epic,
+[data-theme="light"] .skill-accordion--rarity-epic {
+  box-shadow: none;
+}
+
+[data-theme="light"] .store-card--rarity-legendary,
+[data-theme="light"] .skill-accordion--rarity-legendary {
+  box-shadow: none;
+}
+
+[data-theme="light"] .toast--rarity-epic {
+  box-shadow: none;
+}
+
+[data-theme="light"] .toast--rarity-legendary {
+  box-shadow: none;
 }

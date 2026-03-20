@@ -46,6 +46,15 @@ export interface Dom {
 import { setChapterTitleState } from './state.js';
 
 // ---------------------------------------------------------------------------
+// Chapter card log callback — injected from engine.ts to avoid core→ui import.
+// ---------------------------------------------------------------------------
+let _pushChapterCardLog: ((entry: { type: string; text: string }) => void) | null = null;
+
+export function registerChapterCardLog(fn: (entry: { type: string; text: string }) => void): void {
+  _pushChapterCardLog = fn;
+}
+
+// ---------------------------------------------------------------------------
 // setChapterTitle — updates the chapter title DOM element and engine state.
 // Shows a brief animated chapter card if the title actually changed.
 // ---------------------------------------------------------------------------
@@ -69,9 +78,47 @@ export function showChapterCard(title: string): void {
   ttl.textContent = title;
   card.appendChild(lbl);
   card.appendChild(ttl);
-  const np = document.getElementById('narrative-panel');
-  if (np) np.insertBefore(card, np.firstChild);
-  card.addEventListener('animationend', () => card.remove(), { once: true });
+  const nc = document.getElementById('narrative-content');
+  const ca = document.getElementById('choice-area');
+  if (nc && ca) nc.insertBefore(card, ca);
+  if (_pushChapterCardLog) _pushChapterCardLog({ type: 'chapter-card', text: title });
+}
+
+// ---------------------------------------------------------------------------
+// initThemeToggle — wires the ☀/☽ button and applies the persisted preference.
+// Must be called early in boot(), before the splash screen paints.
+// ---------------------------------------------------------------------------
+export function initThemeToggle(): void {
+  const btn = document.getElementById('theme-toggle-btn');
+  if (!btn) return;
+
+  const applyTheme = (light: boolean): void => {
+    const metaTheme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (light) {
+      document.documentElement.setAttribute('data-theme', 'light');
+      btn.textContent = '☽';
+      btn.setAttribute('title', 'Switch to dark mode');
+      if (metaTheme) metaTheme.content = '#f0ece4';
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+      btn.textContent = '☀';
+      btn.setAttribute('title', 'Switch to light mode');
+      if (metaTheme) metaTheme.content = '#0d0f1a';
+    }
+  };
+
+  const saved   = localStorage.getItem('sa_theme');
+  const isLight = saved === 'light' ||
+    (!saved && window.matchMedia('(prefers-color-scheme: light)').matches);
+  applyTheme(isLight);
+  if (!saved && isLight) localStorage.setItem('sa_theme', 'light');
+
+  btn.addEventListener('click', () => {
+    const currentlyLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const next = !currentlyLight;
+    applyTheme(next);
+    localStorage.setItem('sa_theme', next ? 'light' : 'dark');
+  });
 }
 
 export function setGameTitle(t: string): void {

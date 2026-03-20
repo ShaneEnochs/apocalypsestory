@@ -7,7 +7,9 @@
 <meta name="theme-color" content="#0d0f1a"/>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◈</text></svg>"/>
 <title></title>
-
+<script>
+  (function(){var t=localStorage.getItem('sa_theme');if(t==='light'||(!t&&window.matchMedia('(prefers-color-scheme: light)').matches)){document.documentElement.setAttribute('data-theme','light');}})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Inconsolata:wght@400;500&display=swap" rel="stylesheet"/>
@@ -15,13 +17,13 @@
 <!-- Single unified stylesheet (skill_styles.css merged in) -->
 <link rel="stylesheet" href="style.css?v=11"/>
 <style>
-  .save-code-section { margin-top: 16px; border-top: 1px solid var(--border, #2a2d3a); padding-top: 14px; }
-  .save-code-label { font-family: var(--font-heading, 'Cinzel', serif); font-size: 0.85rem; color: var(--text-faint, #888); margin-bottom: 8px; text-align: center; letter-spacing: 0.05em; }
+  .save-code-section { margin-top: 16px; border-top: 1px solid var(--border-dim); padding-top: 14px; }
+  .save-code-label { font-family: var(--font-heading, 'Cinzel', serif); font-size: 0.85rem; color: var(--text-faint); margin-bottom: 8px; text-align: center; letter-spacing: 0.05em; }
   .save-code-row { display: flex; gap: 8px; margin-bottom: 8px; }
   .save-code-btn { flex: 1; font-size: 0.8rem; }
-  .save-code-textarea { width: 100%; box-sizing: border-box; background: var(--bg-deeper, #0a0c15); color: var(--text, #ccc); border: 1px solid var(--border, #2a2d3a); border-radius: 6px; padding: 8px; font-family: var(--font-mono, 'Inconsolata', monospace); font-size: 0.75rem; resize: vertical; min-height: 52px; line-height: 1.4; }
-  .save-code-textarea::placeholder { color: var(--text-faint, #555); }
-  .save-code-textarea:focus { outline: 1px solid var(--accent-cyan, #5eead4); border-color: var(--accent-cyan, #5eead4); }
+  .save-code-textarea { width: 100%; box-sizing: border-box; background: var(--bg-system); color: var(--text-primary); border: 1px solid var(--border-dim); border-radius: 6px; padding: 8px; font-family: var(--font-mono, 'Inconsolata', monospace); font-size: 0.75rem; resize: vertical; min-height: 52px; line-height: 1.4; }
+  .save-code-textarea::placeholder { color: var(--text-faint); }
+  .save-code-textarea:focus { outline: 1px solid var(--cyan); border-color: var(--cyan); }
 </style>
 <script type="module" src="dist/engine.js"></script>
 </head>
@@ -32,6 +34,7 @@
   <div id="header-top">
     <div id="game-title"></div>
     <div class="header-actions">
+      <button id="theme-toggle-btn" class="header-btn" title="Switch to light mode" aria-label="Toggle light or dark mode">☀</button>
       <button id="undo-btn" class="header-btn hidden" title="Undo last choice" disabled>↩ Undo</button>
       <button id="save-btn" class="header-btn hidden" title="Save / Load game">Save·Load</button>
       <button id="status-toggle" aria-label="Toggle status panel">Status</button>
@@ -229,58 +232,10 @@
      ═══════════════════════════════════════════════════ -->
 <div id="char-creation-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="char-creation-heading">
   <div class="overlay-box char-box">
-    <!-- 9A — HUD silhouette portrait frame -->
+    <!-- Character portrait — place image at media/portrait.png (or .webp/.jpg) -->
     <div class="char-portrait-frame" aria-hidden="true">
-      <svg viewBox="0 0 160 192" xmlns="http://www.w3.org/2000/svg" focusable="false">
-        <defs>
-          <!-- Scan-line pattern: faint horizontal bands every 4 px -->
-          <pattern id="cp-scan" x="0" y="0" width="160" height="4" patternUnits="userSpaceOnUse">
-            <rect x="0" y="0" width="160" height="2" fill="rgba(0,0,0,0.1)"/>
-          </pattern>
-        </defs>
-
-        <!-- Dark background -->
-        <rect width="160" height="192" fill="#000c10"/>
-
-        <!-- Hood outer arc (wide arch over head to shoulders) -->
-        <path d="M 26,104 Q 28,36 80,24 Q 132,36 134,104"
-              fill="#000c10" stroke="#00d4f5" stroke-width="1.5" stroke-opacity="0.45"/>
-
-        <!-- Hood inner arc (depth / shadow layer) -->
-        <path d="M 40,104 Q 42,52 80,42 Q 118,52 120,104"
-              fill="#030f14" stroke="#00d4f5" stroke-width="1" stroke-opacity="0.18"/>
-
-        <!-- Head oval -->
-        <ellipse cx="80" cy="80" rx="20" ry="22"
-                 fill="#030f14" stroke="#00d4f5" stroke-width="1.5" stroke-opacity="0.5"/>
-
-        <!-- Body / shoulder silhouette -->
-        <path d="M 54,100 Q 42,120 34,158 L 126,158 Q 118,120 106,100 Q 93,91 80,93 Q 67,91 54,100 Z"
-              fill="#000c10" stroke="#00d4f5" stroke-width="1.5" stroke-opacity="0.45"/>
-
-        <!-- Center seam line on cloak -->
-        <line x1="80" y1="110" x2="80" y2="148"
-              stroke="#00d4f5" stroke-width="0.5" stroke-opacity="0.18"/>
-
-        <!-- Data-readout tick lines flanking the figure -->
-        <line x1="12" y1="104" x2="42" y2="104" stroke="#00d4f5" stroke-width="0.5" stroke-opacity="0.25"/>
-        <line x1="118" y1="104" x2="148" y2="104" stroke="#00d4f5" stroke-width="0.5" stroke-opacity="0.25"/>
-
-        <!-- HUD corner brackets -->
-        <polyline points="8,22 8,8 22,8"     fill="none" stroke="#00d4f5" stroke-width="1.5" stroke-opacity="0.7"/>
-        <polyline points="138,8 152,8 152,22" fill="none" stroke="#00d4f5" stroke-width="1.5" stroke-opacity="0.7"/>
-        <polyline points="8,170 8,184 22,184"  fill="none" stroke="#00d4f5" stroke-width="1.5" stroke-opacity="0.7"/>
-        <polyline points="138,184 152,184 152,170" fill="none" stroke="#00d4f5" stroke-width="1.5" stroke-opacity="0.7"/>
-
-        <!-- Scan-line overlay -->
-        <rect width="160" height="192" fill="url(#cp-scan)"/>
-
-        <!-- Status text -->
-        <text x="80" y="172" text-anchor="middle"
-              font-family="monospace" font-size="7" fill="#00d4f5" fill-opacity="0.4" letter-spacing="2.5">CHARACTER</text>
-        <text x="80" y="182" text-anchor="middle"
-              font-family="monospace" font-size="7" fill="#00d4f5" fill-opacity="0.4" letter-spacing="4">DORMANT</text>
-      </svg>
+      <img src="media/portrait.png" alt="" class="char-portrait-img"
+           onerror="this.style.display='none'"/>
     </div>
 
     <div class="char-header">

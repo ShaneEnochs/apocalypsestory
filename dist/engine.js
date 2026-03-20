@@ -941,6 +941,9 @@ function setChoiceArea(el) {
 function getNarrativeLog() {
   return _narrativeLog;
 }
+function pushNarrativeLogEntry(e) {
+  _narrativeLog.push(e);
+}
 function resolvePronoun(lower, isCapital) {
   const map = {
     they: playerState.pronouns_subject || "they",
@@ -1198,6 +1201,22 @@ function renderFromLog(log, { skipAnimations = true } = {}) {
           <span class="input-prompt-label">${formatText(entry.prompt)}</span>
           <span class="input-prompt-submitted-value">${safe}</span>`;
         _narrativeContent.insertBefore(wrapper, _choiceArea);
+        break;
+      }
+      case "chapter-card": {
+        const card = document.createElement("div");
+        card.className = "chapter-card";
+        card.style.opacity = "1";
+        card.style.animation = "none";
+        const lbl = document.createElement("span");
+        lbl.className = "chapter-card-label";
+        lbl.textContent = "Chapter";
+        const ttl = document.createElement("span");
+        ttl.className = "chapter-card-title";
+        ttl.textContent = entry.text ?? "";
+        card.appendChild(lbl);
+        card.appendChild(ttl);
+        _narrativeContent.insertBefore(card, _choiceArea);
         break;
       }
       case "image": {
@@ -1849,6 +1868,10 @@ var init_undo = __esm({
 
 // src/core/dom.ts
 init_state();
+var _pushChapterCardLog = null;
+function registerChapterCardLog(fn) {
+  _pushChapterCardLog = fn;
+}
 function setChapterTitle(t) {
   const el = document.getElementById("chapter-title");
   const prev = el?.textContent ?? "";
@@ -1868,9 +1891,38 @@ function showChapterCard(title) {
   ttl.textContent = title;
   card.appendChild(lbl);
   card.appendChild(ttl);
-  const np = document.getElementById("narrative-panel");
-  if (np) np.insertBefore(card, np.firstChild);
-  card.addEventListener("animationend", () => card.remove(), { once: true });
+  const nc = document.getElementById("narrative-content");
+  const ca = document.getElementById("choice-area");
+  if (nc && ca) nc.insertBefore(card, ca);
+  if (_pushChapterCardLog) _pushChapterCardLog({ type: "chapter-card", text: title });
+}
+function initThemeToggle() {
+  const btn = document.getElementById("theme-toggle-btn");
+  if (!btn) return;
+  const applyTheme = (light) => {
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (light) {
+      document.documentElement.setAttribute("data-theme", "light");
+      btn.textContent = "\u263D";
+      btn.setAttribute("title", "Switch to dark mode");
+      if (metaTheme) metaTheme.content = "#f0ece4";
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+      btn.textContent = "\u2600";
+      btn.setAttribute("title", "Switch to light mode");
+      if (metaTheme) metaTheme.content = "#0d0f1a";
+    }
+  };
+  const saved = localStorage.getItem("sa_theme");
+  const isLight = saved === "light" || !saved && window.matchMedia("(prefers-color-scheme: light)").matches;
+  applyTheme(isLight);
+  if (!saved && isLight) localStorage.setItem("sa_theme", "light");
+  btn.addEventListener("click", () => {
+    const currentlyLight = document.documentElement.getAttribute("data-theme") === "light";
+    const next = !currentlyLight;
+    applyTheme(next);
+    localStorage.setItem("sa_theme", next ? "light" : "dark");
+  });
 }
 function setGameTitle(t) {
   const gt = document.getElementById("game-title");
@@ -3545,8 +3597,10 @@ function scheduleStatsRender() {
   });
 }
 async function boot() {
+  initThemeToggle();
   const dom = buildDom();
   registerCaches(sceneCache, labelsCache);
+  registerChapterCardLog(pushNarrativeLogEntry);
   initUndo({ chapterTitleEl: dom.chapterTitle, sceneCache, labelsCache });
   init({
     narrativeContent: dom.narrativeContent,
