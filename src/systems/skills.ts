@@ -15,6 +15,7 @@ export interface SkillEntry {
   rarity:      string;
   description: string;
   condition:   string | null;
+  category:    string;   // 'core' | 'active' | 'passive'
 }
 
 // ---------------------------------------------------------------------------
@@ -43,11 +44,19 @@ export async function parseSkills(fetchTextFileFn: (name: string) => Promise<str
   const lines = text.split(/\r?\n/);
   const parsed: SkillEntry[] = [];
   let current: SkillEntry | null = null;
+  let currentCategory = 'active';
 
   for (const raw of lines) {
     const trimmed = raw.trim();
 
     if (!trimmed || trimmed.startsWith('//')) continue;
+
+    // *category directive — sets the category for all subsequent skills
+    const mCat = trimmed.match(/^\*category\s+(core|active|passive)\s*$/i);
+    if (mCat) {
+      currentCategory = mCat[1].toLowerCase();
+      continue;
+    }
 
     // Format A: *skill key [Rarity] "Label" cost  (preferred)
     // Format B: *skill key "Label" cost [rarity]   (legacy)
@@ -63,6 +72,7 @@ export async function parseSkills(fetchTextFileFn: (name: string) => Promise<str
           rarity:       mA[2].toLowerCase(),
           description:  '',
           condition:    null,
+          category:     currentCategory,
         };
       } else {
         current = {
@@ -72,6 +82,7 @@ export async function parseSkills(fetchTextFileFn: (name: string) => Promise<str
           rarity:       mB![4] ? mB![4].toLowerCase() : 'common',
           description:  '',
           condition:    null,
+          category:     currentCategory,
         };
       }
       continue;

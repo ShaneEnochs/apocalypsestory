@@ -186,15 +186,36 @@ function buildSkillsTabHtml(): string {
   if (ownedSkills.length === 0) {
     html += `<div class="empty-state">${EMPTY_SKILLS_SVG}<p class="empty-state-text">No skills learned yet.</p></div>`;
   } else {
-    const skillItems = ownedSkills.map((k: string) => {
-      const entry   = skillRegistry.find(s => s.key === k);
-      const label   = escapeHtml(entry ? entry.label : k);
-      const desc    = escapeDesc(entry ? entry.description : '');
-      const rarity  = entry?.rarity || 'common';
-      const rarCls  = ` skill-rarity--${rarity}`;
+    const CATEGORY_ORDER  = ['core', 'active', 'passive'] as const;
+    const CATEGORY_LABELS: Record<string, string> = {
+      core:    'Core Class Skills',
+      active:  'Active Skills',
+      passive: 'Passives',
+    };
+
+    const grouped: Record<string, string[]> = { core: [], active: [], passive: [] };
+    for (const k of ownedSkills) {
+      const entry = skillRegistry.find(s => s.key === k);
+      const cat   = entry?.category || 'active';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(k);
+    }
+
+    const buildItem = (k: string) => {
+      const entry  = skillRegistry.find(s => s.key === k);
+      const label  = escapeHtml(entry ? entry.label : k);
+      const desc   = escapeDesc(entry ? entry.description : '');
+      const rarity = entry?.rarity || 'common';
+      const rarCls = ` skill-rarity--${rarity}`;
       return `<li class="skill-accordion skill-accordion--rarity-${rarity}"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name${rarCls}">${label}</span><span class="skill-accordion-chevron">▾</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
-    }).join('');
-    html += `<ul class="skill-accordion-list">${skillItems}</ul>`;
+    };
+
+    for (const cat of CATEGORY_ORDER) {
+      const keys = grouped[cat];
+      if (!keys || keys.length === 0) continue;
+      html += `<div class="skill-category-header">${CATEGORY_LABELS[cat]}</div>`;
+      html += `<ul class="skill-accordion-list">${keys.map(buildItem).join('')}</ul>`;
+    }
   }
   return html;
 }

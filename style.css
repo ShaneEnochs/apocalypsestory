@@ -1647,6 +1647,20 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
    17. SKILL SYSTEM (merged from skill_styles.css)
    ============================================================ */
 
+/* --- Skill category headers (Core Class Skills / Active / Passives) --- */
+.skill-category-header {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 10px 2px 4px;
+  margin-top: 6px;
+  border-bottom: 1px solid var(--border-dim);
+  margin-bottom: 6px;
+}
+.skill-category-header:first-child { margin-top: 0; }
+
 /* --- Sidebar skill accordion --- */
 .skill-accordion-list {
   list-style: none;
