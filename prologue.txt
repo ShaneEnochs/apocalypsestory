@@ -1,4 +1,4 @@
-*title The End of the World
+*title [Prologue] The End of the World
 
 *checkpoint "Prologue — The End of the World"
 

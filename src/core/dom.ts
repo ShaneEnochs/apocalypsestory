@@ -48,31 +48,39 @@ import { setChapterTitleState } from './state.js';
 // ---------------------------------------------------------------------------
 // Chapter card log callback — injected from engine.ts to avoid core→ui import.
 // ---------------------------------------------------------------------------
-let _pushChapterCardLog: ((entry: { type: string; text: string }) => void) | null = null;
+let _pushChapterCardLog: ((entry: { type: string; text: string; label: string }) => void) | null = null;
 
-export function registerChapterCardLog(fn: (entry: { type: string; text: string }) => void): void {
+export function registerChapterCardLog(fn: (entry: { type: string; text: string; label: string }) => void): void {
   _pushChapterCardLog = fn;
 }
 
 // ---------------------------------------------------------------------------
 // setChapterTitle — updates the chapter title DOM element and engine state.
-// Shows a brief animated chapter card if the title actually changed.
+// Supports optional [Label] prefix in the title string:
+//   *title [Prologue] The End of the World
+//   → chapter-bar shows "The End of the World", card label shows "Prologue"
+//   *title The End of the World
+//   → chapter-bar shows "The End of the World", card label shows "Chapter"
 // ---------------------------------------------------------------------------
 export function setChapterTitle(t: string): void {
+  const m = t.match(/^\[([^\]]+)\]\s+(.+)$/);
+  const label      = m ? m[1] : 'Chapter';
+  const cleanTitle = m ? m[2] : t;
+
   const el   = document.getElementById('chapter-title');
   const prev = el?.textContent ?? '';
-  if (el) el.textContent = t;
-  setChapterTitleState(t);
-  if (t && t !== prev && t !== '—') showChapterCard(t);
+  if (el) el.textContent = cleanTitle;
+  setChapterTitleState(cleanTitle);
+  if (cleanTitle && cleanTitle !== prev && cleanTitle !== '—') showChapterCard(cleanTitle, label);
 }
 
-export function showChapterCard(title: string): void {
+export function showChapterCard(title: string, label = 'Chapter'): void {
   document.querySelector('.chapter-card')?.remove();
   const card = document.createElement('div');
   card.className = 'chapter-card';
   const lbl  = document.createElement('span');
   lbl.className = 'chapter-card-label';
-  lbl.textContent = 'Chapter';
+  lbl.textContent = label;
   const ttl  = document.createElement('span');
   ttl.className = 'chapter-card-title';
   ttl.textContent = title;
@@ -81,7 +89,7 @@ export function showChapterCard(title: string): void {
   const nc = document.getElementById('narrative-content');
   const ca = document.getElementById('choice-area');
   if (nc && ca) nc.insertBefore(card, ca);
-  if (_pushChapterCardLog) _pushChapterCardLog({ type: 'chapter-card', text: title });
+  if (_pushChapterCardLog) _pushChapterCardLog({ type: 'chapter-card', text: title, label });
 }
 
 // ---------------------------------------------------------------------------
