@@ -49,17 +49,31 @@ export async function parseSkills(fetchTextFileFn: (name: string) => Promise<str
 
     if (!trimmed || trimmed.startsWith('//')) continue;
 
-    const m = trimmed.match(/^\*skill\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?\s*$/i);
-    if (m) {
+    // Format A: *skill key [Rarity] "Label" cost  (preferred)
+    // Format B: *skill key "Label" cost [rarity]   (legacy)
+    const mA = trimmed.match(/^\*skill\s+([\w]+)\s+\[([^\]]+)\]\s+"([^"]+)"\s+(\d+)\s*$/i);
+    const mB = !mA && trimmed.match(/^\*skill\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?\s*$/i);
+    if (mA || mB) {
       if (current) parsed.push(current);
-      current = {
-        key:          normalizeKey(m[1]),
-        label:        m[2],
-        essenceCost:  Number(m[3]),
-        rarity:       m[4] ? m[4].toLowerCase() : 'common',
-        description:  '',
-        condition:    null,
-      };
+      if (mA) {
+        current = {
+          key:          normalizeKey(mA[1]),
+          label:        mA[3],
+          essenceCost:  Number(mA[4]),
+          rarity:       mA[2].toLowerCase(),
+          description:  '',
+          condition:    null,
+        };
+      } else {
+        current = {
+          key:          normalizeKey(mB![1]),
+          label:        mB![2],
+          essenceCost:  Number(mB![3]),
+          rarity:       mB![4] ? mB![4].toLowerCase() : 'common',
+          description:  '',
+          condition:    null,
+        };
+      }
       continue;
     }
 

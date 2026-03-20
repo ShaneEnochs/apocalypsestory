@@ -288,6 +288,15 @@ export async function parseStartup(
       continue;
     }
 
+    if (line.trimmed.startsWith('*grant_skill')) {
+      inSceneList = false;
+      const raw = line.trimmed.replace(/^\*grant_skill\s*/, '').replace(/^["']|["']$/g, '').trim();
+      const k   = normalizeKey(raw);
+      if (!Array.isArray(playerState.skills)) playerState.skills = [];
+      if (k && !playerState.skills.includes(k)) playerState.skills.push(k);
+      continue;
+    }
+
     if (line.trimmed.startsWith('*scene_list')) { inSceneList = true; continue; }
     if (inSceneList && !line.trimmed.startsWith('*') && line.indent > 0) {
       startup.sceneList.push(line.trimmed);
