@@ -24,6 +24,7 @@ export interface NarrativeLogEntry {
   varName?: string;
   prompt?:  string;
   value?:   string | null;
+  label?:   string;    // chapter-card label (e.g. "Prologue", "Chapter 1")
   // image-specific fields
   alt?:     string;
   width?:   number | null;
@@ -155,10 +156,10 @@ export function formatText(text: unknown): string {
     }
   );
 
-  // 3. Markdown: **bold** and *italic*
+  // 3. Bold and italic: [b]...[/b] and [i]...[/i]
   result = result
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    .replace(/\[b\](.*?)\[\/b\]/g, '<strong>$1</strong>')
+    .replace(/\[i\](.*?)\[\/i\]/g, '<em>$1</em>');
 
   // 4. Inline color spans: [cyan]...[/cyan], [amber]...[/amber], etc.
   const COLOR_TAGS = [
@@ -461,7 +462,7 @@ export function renderFromLog(log: NarrativeLogEntry[], { skipAnimations = true 
         card.style.animation = 'none';
         const lbl = document.createElement('span');
         lbl.className = 'chapter-card-label';
-        lbl.textContent = 'Chapter';
+        lbl.textContent = entry.label ?? 'Chapter';
         const ttl = document.createElement('span');
         ttl.className = 'chapter-card-title';
         ttl.textContent = entry.text ?? '';

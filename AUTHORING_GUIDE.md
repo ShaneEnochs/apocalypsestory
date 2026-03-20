@@ -220,10 +220,10 @@ You see {them} across the room.
 Tokens: `{they}` `{them}` `{their}` `{theirs}` `{themself}`
 (Capitalised forms: `{They}` `{Them}` etc.)
 
-### Markdown
+### Bold and italic
 ```
-**bold text**
-*italic text*
+[b]bold text[/b]
+[i]italic text[/i]
 ```
 
 ### Inline color tags
@@ -247,9 +247,14 @@ Renders a styled [SYSTEM] block. Inline or multi-line.
 ```
 
 ### `*title text`
-Sets the chapter title displayed in the UI header.
+Sets the chapter title displayed in the UI header and shows a chapter card.
+An optional `[Label]` prefix controls the word shown above the title on the card
+(default: "Chapter"). The label does not appear in the chapter bar.
 ```
 *title The Fall of Solace
+*title [Prologue] The End of the World
+*title [Chapter 1] A New Dawn
+*title [Epilogue] What Remains
 ```
 
 ### `*set_game_title "New Title"`

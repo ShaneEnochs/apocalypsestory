@@ -985,7 +985,7 @@ function formatText(text) {
       return resolvePronoun(lower, isCapital).replace(/\*/g, "&#42;");
     }
   );
-  result = result.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  result = result.replace(/\[b\](.*?)\[\/b\]/g, "<strong>$1</strong>").replace(/\[i\](.*?)\[\/i\]/g, "<em>$1</em>");
   const COLOR_TAGS = [
     "cyan",
     "amber",
@@ -1210,7 +1210,7 @@ function renderFromLog(log, { skipAnimations = true } = {}) {
         card.style.animation = "none";
         const lbl = document.createElement("span");
         lbl.className = "chapter-card-label";
-        lbl.textContent = "Chapter";
+        lbl.textContent = entry.label ?? "Chapter";
         const ttl = document.createElement("span");
         ttl.className = "chapter-card-title";
         ttl.textContent = entry.text ?? "";
@@ -1871,19 +1871,22 @@ function registerChapterCardLog(fn) {
   _pushChapterCardLog = fn;
 }
 function setChapterTitle(t) {
+  const m = t.match(/^\[([^\]]+)\]\s+(.+)$/);
+  const label = m ? m[1] : "Chapter";
+  const cleanTitle = m ? m[2] : t;
   const el = document.getElementById("chapter-title");
   const prev = el?.textContent ?? "";
-  if (el) el.textContent = t;
-  setChapterTitleState(t);
-  if (t && t !== prev && t !== "\u2014") showChapterCard(t);
+  if (el) el.textContent = cleanTitle;
+  setChapterTitleState(cleanTitle);
+  if (cleanTitle && cleanTitle !== prev && cleanTitle !== "\u2014") showChapterCard(cleanTitle, label);
 }
-function showChapterCard(title) {
+function showChapterCard(title, label = "Chapter") {
   document.querySelector(".chapter-card")?.remove();
   const card = document.createElement("div");
   card.className = "chapter-card";
   const lbl = document.createElement("span");
   lbl.className = "chapter-card-label";
-  lbl.textContent = "Chapter";
+  lbl.textContent = label;
   const ttl = document.createElement("span");
   ttl.className = "chapter-card-title";
   ttl.textContent = title;
@@ -1892,7 +1895,7 @@ function showChapterCard(title) {
   const nc = document.getElementById("narrative-content");
   const ca = document.getElementById("choice-area");
   if (nc && ca) nc.insertBefore(card, ca);
-  if (_pushChapterCardLog) _pushChapterCardLog({ type: "chapter-card", text: title });
+  if (_pushChapterCardLog) _pushChapterCardLog({ type: "chapter-card", text: title, label });
 }
 function initThemeToggle() {
   const btn = document.getElementById("theme-toggle-btn");
