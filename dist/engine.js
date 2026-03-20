@@ -147,6 +147,14 @@ async function parseStartup(fetchTextFileFn, evalValueFn) {
       playerState[normalizeKey(rawKey)] = evalValueFn(value);
       continue;
     }
+    if (line.trimmed.startsWith("*grant_skill")) {
+      inSceneList = false;
+      const raw = line.trimmed.replace(/^\*grant_skill\s*/, "").replace(/^["']|["']$/g, "").trim();
+      const k = normalizeKey(raw);
+      if (!Array.isArray(playerState.skills)) playerState.skills = [];
+      if (k && !playerState.skills.includes(k)) playerState.skills.push(k);
+      continue;
+    }
     if (line.trimmed.startsWith("*scene_list")) {
       inSceneList = true;
       continue;
@@ -695,17 +703,29 @@ async function parseSkills(fetchTextFileFn) {
   for (const raw of lines) {
     const trimmed = raw.trim();
     if (!trimmed || trimmed.startsWith("//")) continue;
-    const m = trimmed.match(/^\*skill\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?\s*$/i);
-    if (m) {
+    const mA = trimmed.match(/^\*skill\s+([\w]+)\s+\[([^\]]+)\]\s+"([^"]+)"\s+(\d+)\s*$/i);
+    const mB = !mA && trimmed.match(/^\*skill\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?\s*$/i);
+    if (mA || mB) {
       if (current) parsed.push(current);
-      current = {
-        key: normalizeKey(m[1]),
-        label: m[2],
-        essenceCost: Number(m[3]),
-        rarity: m[4] ? m[4].toLowerCase() : "common",
-        description: "",
-        condition: null
-      };
+      if (mA) {
+        current = {
+          key: normalizeKey(mA[1]),
+          label: mA[3],
+          essenceCost: Number(mA[4]),
+          rarity: mA[2].toLowerCase(),
+          description: "",
+          condition: null
+        };
+      } else {
+        current = {
+          key: normalizeKey(mB[1]),
+          label: mB[2],
+          essenceCost: Number(mB[3]),
+          rarity: mB[4] ? mB[4].toLowerCase() : "common",
+          description: "",
+          condition: null
+        };
+      }
       continue;
     }
     if (current && trimmed.startsWith("*require ")) {
