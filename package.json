@@ -9,11 +9,12 @@
     "test": "npx tsx tests/test_runner.mjs",
     "test:e2e": "npx playwright test",
     "test:all": "npx tsx tests/test_runner.mjs && npx playwright test",
-    "dev": "npx serve . -l 3000 -s"
+    "dev": "npx serve . -l 3000 -s",
+    "lint": "npx tsx tools/lint.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0",
-    "esbuild": "^0.21.0",
+    "esbuild": "^0.21.5",
     "serve": "^14.2.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"

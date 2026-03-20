@@ -1,17 +1,17 @@
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+
 // src/core/state.ts
-var playerState = {};
-var tempState = {};
-var statRegistry = [];
-var currentScene = null;
-var currentLines = [];
-var ip = 0;
-var awaitingChoice = null;
-var pageBreakIp = null;
 function setPageBreakIp(n) {
   pageBreakIp = n;
 }
-var startup = { sceneList: [] };
-var chapterTitle = "\u2014";
 function setChapterTitleState(t) {
   chapterTitle = t;
 }
@@ -53,7 +53,6 @@ function resolveStore(key) {
   if (Object.prototype.hasOwnProperty.call(playerState, key)) return playerState;
   return null;
 }
-var _startupDefaults = {};
 function captureStartupDefaults() {
   _startupDefaults = JSON.parse(JSON.stringify(playerState));
 }
@@ -112,7 +111,6 @@ function declareTemp(command, evalValueFn) {
   const [, rawKey, rhs] = m;
   tempState[normalizeKey(rawKey)] = rhs !== void 0 ? evalValueFn(rhs) : 0;
 }
-var _statRegistryWarningFired = false;
 async function parseStartup(fetchTextFileFn, evalValueFn) {
   const text = await fetchTextFileFn("startup");
   const lines = text.split(/\r?\n/).map((raw) => ({
@@ -162,33 +160,26 @@ async function parseStartup(fetchTextFileFn, evalValueFn) {
     _statRegistryWarningFired = true;
   }
 }
+var playerState, tempState, statRegistry, currentScene, currentLines, ip, awaitingChoice, pageBreakIp, startup, chapterTitle, _startupDefaults, _statRegistryWarningFired;
+var init_state = __esm({
+  "src/core/state.ts"() {
+    "use strict";
+    playerState = {};
+    tempState = {};
+    statRegistry = [];
+    currentScene = null;
+    currentLines = [];
+    ip = 0;
+    awaitingChoice = null;
+    pageBreakIp = null;
+    startup = { sceneList: [] };
+    chapterTitle = "\u2014";
+    _startupDefaults = {};
+    _statRegistryWarningFired = false;
+  }
+});
 
 // src/core/expression.ts
-var TT = {
-  NUM: "NUM",
-  STR: "STR",
-  BOOL: "BOOL",
-  IDENT: "IDENT",
-  LBRACKET: "[",
-  RBRACKET: "]",
-  LPAREN: "(",
-  RPAREN: ")",
-  PLUS: "+",
-  MINUS: "-",
-  STAR: "*",
-  SLASH: "/",
-  LT: "<",
-  GT: ">",
-  LTE: "<=",
-  GTE: ">=",
-  EQ: "=",
-  NEQ: "!=",
-  AND: "AND",
-  OR: "OR",
-  NOT: "NOT",
-  COMMA: ",",
-  EOF: "EOF"
-};
 function tokenise(src) {
   const tokens = [];
   let i = 0;
@@ -494,6 +485,38 @@ function evalValue(expr) {
     return 0;
   }
 }
+var TT;
+var init_expression = __esm({
+  "src/core/expression.ts"() {
+    "use strict";
+    init_state();
+    TT = {
+      NUM: "NUM",
+      STR: "STR",
+      BOOL: "BOOL",
+      IDENT: "IDENT",
+      LBRACKET: "[",
+      RBRACKET: "]",
+      LPAREN: "(",
+      RPAREN: ")",
+      PLUS: "+",
+      MINUS: "-",
+      STAR: "*",
+      SLASH: "/",
+      LT: "<",
+      GT: ">",
+      LTE: "<=",
+      GTE: ">=",
+      EQ: "=",
+      NEQ: "!=",
+      AND: "AND",
+      OR: "OR",
+      NOT: "NOT",
+      COMMA: ",",
+      EOF: "EOF"
+    };
+  }
+});
 
 // src/core/parser.ts
 function parseLines(text) {
@@ -572,6 +595,32 @@ function parseSystemBlock(startIndex, ctx) {
   }
   return { text: "", endIp: currentLines2.length, ok: false };
 }
+function parseRandomChoice(startIndex, indent, ctx) {
+  const { currentLines: currentLines2 } = ctx;
+  const choices = [];
+  let i = startIndex + 1;
+  while (i < currentLines2.length) {
+    const line = currentLines2[i];
+    if (!line.trimmed) {
+      i += 1;
+      continue;
+    }
+    if (line.indent <= indent) break;
+    const m = line.trimmed.match(/^(\d+)\s*#(.*)$/);
+    if (m) {
+      const weight = Math.max(1, parseInt(m[1], 10));
+      const text = m[2].trim();
+      const optionIndent = line.indent;
+      const start = i + 1;
+      const end = findBlockEnd(start, optionIndent, currentLines2);
+      choices.push({ weight, text, start, end });
+      i = end;
+      continue;
+    }
+    i += 1;
+  }
+  return { choices, end: i };
+}
 function findBlockEnd(fromIndex, parentIndent, currentLines2) {
   let i = fromIndex;
   while (i < currentLines2.length) {
@@ -581,6 +630,11 @@ function findBlockEnd(fromIndex, parentIndent, currentLines2) {
   }
   return i;
 }
+var init_parser = __esm({
+  "src/core/parser.ts"() {
+    "use strict";
+  }
+});
 
 // src/systems/inventory.ts
 function extractStackCount(itemStr) {
@@ -618,257 +672,14 @@ function removeInventoryItem(item) {
   else playerState.inventory[idx] = `${normalized} (${qty - 1})`;
   return true;
 }
-
-// src/systems/saves.ts
-var SAVE_VERSION = 9;
-var SAVE_KEY_AUTO = "sa_save_auto";
-var SAVE_KEY_SLOTS = { 1: "sa_save_slot_1", 2: "sa_save_slot_2", 3: "sa_save_slot_3" };
-function saveKeyForSlot(slot) {
-  return slot === "auto" ? SAVE_KEY_AUTO : SAVE_KEY_SLOTS[slot] ?? null;
-}
-var _staleSaveFound = false;
-function clearStaleSaveFound() {
-  _staleSaveFound = false;
-}
-function setStaleSaveFound() {
-  _staleSaveFound = true;
-}
-function crc16(str) {
-  let crc = 65535;
-  for (let i = 0; i < str.length; i++) {
-    crc ^= str.charCodeAt(i);
-    for (let j = 0; j < 8; j++) {
-      crc = crc & 1 ? crc >>> 1 ^ 40961 : crc >>> 1;
-    }
+var init_inventory = __esm({
+  "src/systems/inventory.ts"() {
+    "use strict";
+    init_state();
   }
-  return crc.toString(16).padStart(4, "0");
-}
-function buildSaveCodePayload(label, narrativeLog) {
-  const defaults = getStartupDefaults();
-  const ps = {};
-  for (const [k, v] of Object.entries(playerState)) {
-    if (JSON.stringify(v) !== JSON.stringify(defaults[k])) {
-      ps[k] = v;
-    }
-  }
-  const payload = {
-    v: SAVE_VERSION,
-    s: currentScene,
-    ip: pageBreakIp ?? ip,
-    ct: chapterTitle,
-    ps,
-    nl: narrativeLog || [],
-    ts: Date.now()
-  };
-  if (label) payload.lb = label;
-  if (awaitingChoice) payload.ac = JSON.parse(JSON.stringify(awaitingChoice));
-  if (statRegistry.length > 0) payload.sr = JSON.parse(JSON.stringify(statRegistry));
-  return payload;
-}
-function encodeSaveCode(narrativeLog, label = null) {
-  const json = JSON.stringify(buildSaveCodePayload(label, narrativeLog));
-  const compressed = btoa(unescape(encodeURIComponent(json)));
-  const checksum = crc16(compressed);
-  return `SA1|${compressed}|${checksum}`;
-}
-function decodeSaveCode(code) {
-  const trimmed = code.trim();
-  const parts = trimmed.split("|");
-  if (parts.length !== 3) {
-    return { ok: false, reason: "Invalid save code format." };
-  }
-  const [prefix, compressed, checksum] = parts;
-  if (prefix !== "SA1") {
-    return { ok: false, reason: `Unrecognized save code version: ${prefix}` };
-  }
-  if (crc16(compressed) !== checksum) {
-    return { ok: false, reason: "Save code is corrupted (checksum mismatch). Check for missing characters." };
-  }
-  let json;
-  try {
-    const decoded = decodeURIComponent(escape(atob(compressed)));
-    json = JSON.parse(decoded);
-  } catch (err) {
-    return { ok: false, reason: `Save code could not be decoded: ${err.message}` };
-  }
-  if (json.v !== SAVE_VERSION) {
-    return { ok: false, reason: `Save code is from a different game version (v${json.v}, expected v${SAVE_VERSION}).` };
-  }
-  const defaults = getStartupDefaults();
-  const fullPlayerState = { ...defaults, ...json.ps };
-  return {
-    ok: true,
-    save: {
-      version: json.v,
-      scene: json.s,
-      ip: json.ip,
-      chapterTitle: json.ct,
-      playerState: fullPlayerState,
-      narrativeLog: json.nl || [],
-      awaitingChoice: json.ac || null,
-      statRegistry: json.sr || JSON.parse(JSON.stringify(statRegistry)),
-      label: json.lb || null,
-      characterName: `${fullPlayerState.first_name || ""} ${fullPlayerState.last_name || ""}`.trim() || "Unknown",
-      timestamp: json.ts || Date.now()
-    }
-  };
-}
-function saveGameToSlot(slot, label = null, narrativeLog = []) {
-  const key = saveKeyForSlot(slot);
-  if (!key) {
-    console.warn(`[saves] Unknown save slot: "${slot}"`);
-    return;
-  }
-  try {
-    const code = encodeSaveCode(narrativeLog, label);
-    localStorage.setItem(key, code);
-  } catch (err) {
-    console.warn(`[saves] Save to slot "${slot}" failed:`, err);
-  }
-}
-function loadSaveFromSlot(slot) {
-  const key = saveKeyForSlot(slot);
-  if (!key) return null;
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    if (raw.startsWith("SA1|")) {
-      const result = decodeSaveCode(raw);
-      if (result.ok) return result.save;
-      const reason = result.reason;
-      console.warn(`[saves] Slot "${slot}" decode failed: ${reason}`);
-      if (reason.includes("different game version")) {
-        setStaleSaveFound();
-      }
-      try {
-        localStorage.removeItem(key);
-      } catch (_) {
-      }
-      return null;
-    }
-    console.warn(`[saves] Slot "${slot}" contains legacy format \u2014 discarding.`);
-    setStaleSaveFound();
-    try {
-      localStorage.removeItem(key);
-    } catch (_) {
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-function deleteSaveSlot(slot) {
-  const key = saveKeyForSlot(slot);
-  if (key) try {
-    localStorage.removeItem(key);
-  } catch (_) {
-  }
-}
-function exportSaveSlot(slot) {
-  const save = loadSaveFromSlot(slot);
-  if (!save) return false;
-  const safeName = (save.characterName || "Unknown").replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "_");
-  const filename = `sa-save-slot${slot}-${safeName}.json`;
-  const blob = new Blob([JSON.stringify(save, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  return true;
-}
-function importSaveFromJSON(json, targetSlot) {
-  if (!json || typeof json !== "object" || Array.isArray(json))
-    return { ok: false, reason: "File is not a valid JSON object." };
-  if (json.version !== SAVE_VERSION)
-    return { ok: false, reason: `Save version mismatch (file is v${json.version}, engine expects v${SAVE_VERSION}).` };
-  if (!json.playerState || typeof json.playerState !== "object")
-    return { ok: false, reason: "Save file is missing playerState." };
-  if (!json.scene || typeof json.scene !== "string")
-    return { ok: false, reason: "Save file is missing scene name." };
-  const key = saveKeyForSlot(targetSlot);
-  if (!key) return { ok: false, reason: `Invalid target slot: "${targetSlot}".` };
-  const defaults = getStartupDefaults();
-  const deltaPs = {};
-  for (const [k, v] of Object.entries(json.playerState)) {
-    if (JSON.stringify(v) !== JSON.stringify(defaults[k])) {
-      deltaPs[k] = v;
-    }
-  }
-  const payload = {
-    v: SAVE_VERSION,
-    s: json.scene,
-    ip: json.ip ?? 0,
-    ct: json.chapterTitle || "",
-    ps: deltaPs,
-    nl: json.narrativeLog || [],
-    ts: json.timestamp || Date.now()
-  };
-  if (json.label) payload.lb = json.label;
-  if (json.awaitingChoice) payload.ac = json.awaitingChoice;
-  if (json.statRegistry) payload.sr = json.statRegistry;
-  try {
-    const jsonStr = JSON.stringify(payload);
-    const compressed = btoa(unescape(encodeURIComponent(jsonStr)));
-    const checksum = crc16(compressed);
-    const code = `SA1|${compressed}|${checksum}`;
-    localStorage.setItem(key, code);
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, reason: `localStorage write failed: ${err.message}` };
-  }
-}
-async function restoreFromSave(save, {
-  runStatsScene: runStatsScene2,
-  renderFromLog: renderFromLog2,
-  renderChoices: renderChoices2,
-  runInterpreter: runInterpreter2,
-  clearNarrative: clearNarrative2,
-  applyTransition: applyTransition2,
-  setChapterTitle: setChapterTitle2,
-  setChoiceArea: setChoiceArea2,
-  parseAndCacheScene,
-  fetchTextFileFn,
-  evalValueFn
-}) {
-  await parseStartup(fetchTextFileFn, evalValueFn);
-  setPlayerState({ ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) });
-  clearTempState();
-  if (Array.isArray(save.statRegistry) && save.statRegistry.length > 0) {
-    const freshStatKeys = new Set(statRegistry.map((e) => e.key));
-    const extra = save.statRegistry.filter((e) => !freshStatKeys.has(e.key));
-    if (extra.length > 0) {
-      setStatRegistry([...statRegistry, ...extra]);
-    }
-  }
-  await parseAndCacheScene(save.scene);
-  setCurrentScene(save.scene);
-  setIp(save.ip ?? 0);
-  setAwaitingChoice(null);
-  setPageBreakIp(null);
-  if (save.chapterTitle) {
-    setChapterTitle2(save.chapterTitle);
-  }
-  clearNarrative2();
-  applyTransition2();
-  renderFromLog2(save.narrativeLog ?? [], { skipAnimations: true });
-  if (typeof setChoiceArea2 === "function") {
-    setChoiceArea2(document.getElementById("choice-area"));
-  }
-  await runStatsScene2();
-  if (save.awaitingChoice) {
-    setAwaitingChoice(save.awaitingChoice);
-    renderChoices2(save.awaitingChoice.choices);
-  } else {
-    await runInterpreter2({ suppressAutoSave: true });
-  }
-}
+});
 
 // src/systems/skills.ts
-var skillRegistry = [];
 async function parseSkills(fetchTextFileFn) {
   let text;
   try {
@@ -952,6 +763,14 @@ function purchaseSkill(key) {
   grantSkill(k);
   return true;
 }
+var skillRegistry;
+var init_skills = __esm({
+  "src/systems/skills.ts"() {
+    "use strict";
+    init_state();
+    skillRegistry = [];
+  }
+});
 
 // src/systems/journal.ts
 function addJournalEntry(text, type = "entry", unique = false) {
@@ -969,579 +788,62 @@ function getJournalEntries() {
 function getAchievements() {
   return getJournalEntries().filter((e) => e.type === "achievement");
 }
+var init_journal = __esm({
+  "src/systems/journal.ts"() {
+    "use strict";
+    init_state();
+  }
+});
 
-// src/systems/procedures.ts
-var procedureRegistry = /* @__PURE__ */ new Map();
-async function parseProcedures(fetchTextFileFn) {
+// src/systems/glossary.ts
+async function parseGlossary(fetchTextFileFn) {
   let text;
   try {
-    text = await fetchTextFileFn("procedures");
+    text = await fetchTextFileFn("glossary");
   } catch {
-    console.warn("[procedures] procedures.txt not found \u2014 procedure system disabled.");
     return;
   }
-  const rawLines = text.split(/\r?\n/);
-  let currentName = null;
-  let currentBlock = [];
-  function saveProc() {
-    if (!currentName || currentBlock.length === 0) return;
-    procedureRegistry.set(currentName, {
-      name: currentName,
-      lines: parseLines(currentBlock.join("\n"))
-    });
+  const lines = text.split(/\r?\n/);
+  let currentTerm = null;
+  const descLines = [];
+  function flush() {
+    if (currentTerm !== null) {
+      const description = descLines.map((l) => l.trim()).filter(Boolean).join(" ");
+      addGlossaryTerm(currentTerm, description);
+    }
+    currentTerm = null;
+    descLines.length = 0;
   }
-  for (const raw of rawLines) {
+  for (const raw of lines) {
     const trimmed = raw.trim();
-    if (!currentName && (!trimmed || trimmed.startsWith("//"))) continue;
-    const m = trimmed.match(/^\*procedure\s+([\w]+)\s*$/);
+    if (!trimmed || trimmed.startsWith("//")) continue;
+    const m = trimmed.match(/^\*term\s+"([^"]+)"/);
     if (m) {
-      saveProc();
-      currentName = m[1].toLowerCase();
-      currentBlock = [];
-      continue;
-    }
-    if (currentName) currentBlock.push(raw);
-  }
-  saveProc();
-  console.log(`[procedures] Loaded ${procedureRegistry.size} procedure(s).`);
-}
-function getProcedure(name) {
-  return procedureRegistry.get(name.toLowerCase()) ?? null;
-}
-
-// src/core/interpreter.ts
-var cb = {};
-function registerCallbacks(callbacks) {
-  Object.assign(cb, callbacks);
-}
-var _sceneCache = null;
-var _labelsCache = null;
-function registerCaches(sceneCache2, labelsCache2) {
-  _sceneCache = sceneCache2;
-  _labelsCache = labelsCache2;
-}
-var _gosubStack = [];
-var _callStack = [];
-function returnFromProcedure() {
-  if (_callStack.length === 0) return;
-  const frame = _callStack.pop();
-  setCurrentScene(frame.scene);
-  setCurrentLines(frame.lines);
-  setIp(frame.ip);
-  _gosubStack.length = frame.gosubStackLength;
-  frame.onReturn();
-}
-function isDirective(trimmed, directive) {
-  if (!trimmed.startsWith(directive)) return false;
-  const rest = trimmed.slice(directive.length);
-  return rest === "" || /\s/.test(rest[0]);
-}
-function findBlockEnd2(fromIndex, parentIndent) {
-  let i = fromIndex;
-  while (i < currentLines.length) {
-    const l = currentLines[i];
-    if (l.trimmed && l.indent <= parentIndent) break;
-    i += 1;
-  }
-  return i;
-}
-function findIfChainEnd(fromIndex, indent) {
-  let i = fromIndex + 1;
-  while (i < currentLines.length) {
-    const line = currentLines[i];
-    if (!line.trimmed) {
-      i += 1;
-      continue;
-    }
-    if (line.indent < indent) break;
-    if (line.indent === indent) {
-      if (isDirective(line.trimmed, "*elseif")) {
-        i = findBlockEnd2(i + 1, indent);
-        continue;
-      }
-      if (isDirective(line.trimmed, "*else")) {
-        i = findBlockEnd2(i + 1, indent);
-        break;
-      }
-      break;
-    }
-    i += 1;
-  }
-  return i;
-}
-function evaluateCondition(raw) {
-  const condition = raw.replace(/^\*if\s*/, "").replace(/^\*elseif\s*/, "").replace(/^\*loop\s*/, "").trim();
-  return !!evalValue(condition);
-}
-async function executeBlock(start, end, resumeAfter = end) {
-  setIp(start);
-  while (ip < end) {
-    await executeCurrentLine();
-    if (awaitingChoice) {
-      const ac = awaitingChoice;
-      ac._blockEnd = end;
-      ac._savedIp = resumeAfter;
-      setAwaitingChoice(ac);
-      return "choice";
-    }
-    if (ip < start || ip >= end) {
-      return "goto";
+      flush();
+      currentTerm = m[1];
+    } else if (currentTerm !== null && trimmed) {
+      descLines.push(trimmed);
     }
   }
-  setIp(resumeAfter);
-  return "normal";
+  flush();
 }
-async function gotoScene(name, label = null) {
-  let text;
-  try {
-    text = await cb.fetchTextFile(name);
-  } catch (err) {
-    cb.showEngineError(`Could not load scene "${name}".
-${err.message}`);
-    return;
-  }
-  const prevChapterTitle = chapterTitle;
-  clearTempState();
-  _gosubStack.length = 0;
-  _callStack.length = 0;
-  setCurrentScene(name);
-  setCurrentLines(parseLines(text));
-  indexLabels(name, currentLines, _labelsCache);
-  setIp(0);
-  cb.clearNarrative();
-  cb.applyTransition();
-  if (label) {
-    const labels = _labelsCache.get(name) || {};
-    setIp(labels[label] ?? 0);
-  }
-  setAwaitingChoice(null);
-  setPageBreakIp(null);
-  await runInterpreter();
-  if (chapterTitle === prevChapterTitle) {
-    const fallback = name.replace(/\.txt$/i, "").toUpperCase();
-    cb.setChapterTitle(fallback);
-  }
-}
-async function runInterpreter({ suppressAutoSave = false } = {}) {
-  while (ip < currentLines.length) {
-    await executeCurrentLine();
-    if (awaitingChoice) break;
-  }
-  cb.runStatsScene();
-  if (!suppressAutoSave && pageBreakIp === null && cb.getNarrativeLog) {
-    saveGameToSlot("auto", null, cb.getNarrativeLog());
-  }
-}
-var commands = /* @__PURE__ */ new Map();
-function registerCommand(directive, handler) {
-  commands.set(directive, handler);
-}
-async function executeCurrentLine() {
-  const line = currentLines[ip];
-  if (!line) return;
-  if (!line.trimmed || line.trimmed.startsWith("//")) {
-    advanceIp();
-    return;
-  }
-  const t = line.trimmed;
-  if (!t.startsWith("*")) {
-    cb.addParagraph(t);
-    advanceIp();
-    return;
-  }
-  for (const [directive, handler] of commands) {
-    if (isDirective(t, directive)) {
-      await handler(t, line);
-      return;
-    }
-  }
-  console.warn(`[interpreter] Unknown directive "${t.split(/\s/)[0]}" in "${currentScene}" at line ${ip} \u2014 skipping.`);
-  advanceIp();
-}
-registerCommand("*title", (t) => {
-  cb.setChapterTitle(t.replace(/^\*title\s*/, "").trim());
-  advanceIp();
-});
-registerCommand("*set_game_title", (t) => {
-  const m = t.match(/^\*set_game_title\s+"([^"]+)"$/);
-  const title = m ? m[1] : t.replace(/^\*set_game_title\s*/, "").trim();
-  if (title) {
-    playerState.game_title = title;
-    if (cb.setGameTitle) cb.setGameTitle(title);
-  }
-  advanceIp();
-});
-registerCommand("*set_game_byline", (t) => {
-  const m = t.match(/^\*set_game_byline\s+"([^"]+)"$/);
-  const byline = m ? m[1] : t.replace(/^\*set_game_byline\s*/, "").trim();
-  if (byline) {
-    playerState.game_byline = byline;
-    if (cb.setGameByline) cb.setGameByline(byline);
-  }
-  advanceIp();
-});
-registerCommand("*label", () => {
-  advanceIp();
-});
-registerCommand("*comment", () => {
-  advanceIp();
-});
-registerCommand("*goto_scene", async (t) => {
-  await gotoScene(t.replace(/^\*goto_scene\s*/, "").trim());
-});
-registerCommand("*goto", (t) => {
-  const label = t.replace(/^\*goto\s*/, "").trim();
-  const labels = _labelsCache.get(currentScene) || {};
-  if (labels[label] === void 0) {
-    cb.showEngineError(`Unknown label "${label}" in scene "${currentScene}".`);
-    setIp(currentLines.length);
-    return;
-  }
-  setIp(labels[label]);
-});
-registerCommand("*system", (t) => {
-  if (t.trimEnd() === "*system") {
-    const parsed = parseSystemBlock(ip, { currentLines });
-    if (!parsed.ok) {
-      cb.showEngineError(`Unclosed *system block in "${currentScene}". Add *end_system.`);
-      setIp(currentLines.length);
-      return;
-    }
-    cb.addSystem(parsed.text);
-    setIp(parsed.endIp);
+function addGlossaryTerm(term, description) {
+  const existing = glossaryRegistry.findIndex((e) => e.term.toLowerCase() === term.toLowerCase());
+  if (existing !== -1) {
+    glossaryRegistry[existing] = { term, description };
   } else {
-    cb.addSystem(t.replace(/^\*system\s*/, "").trim());
-    advanceIp();
+    glossaryRegistry.push({ term, description });
   }
-});
-registerCommand("*set", (t) => {
-  setVar(t, evalValue);
-  advanceIp();
-});
-registerCommand("*set_stat", (t) => {
-  setStatClamped(t, evalValue);
-  advanceIp();
-});
-registerCommand("*create", (t) => {
-  const m = t.match(/^\*create\s+([a-zA-Z_][\w]*)\s+(.+)$/);
-  if (!m) {
-    advanceIp();
-    return;
-  }
-  const [, rawKey, rhs] = m;
-  const key = normalizeKey(rawKey);
-  playerState[key] = evalValue(rhs);
-  advanceIp();
-});
-registerCommand("*create_stat", (t) => {
-  const m = t.match(/^\*create_stat\s+([a-zA-Z_][\w]*)\s+"([^"]+)"\s+(.+)$/);
-  if (!m) {
-    advanceIp();
-    return;
-  }
-  const [, rawKey, label, rhs] = m;
-  const key = normalizeKey(rawKey);
-  const defaultVal = evalValue(rhs);
-  playerState[key] = defaultVal;
-  if (!statRegistry.find((e) => e.key === key)) {
-    setStatRegistry([...statRegistry, { key, label, defaultVal: Number(defaultVal) }]);
-  }
-  advanceIp();
-});
-registerCommand("*temp", (t) => {
-  declareTemp(t, evalValue);
-  advanceIp();
-});
-function _handleAddEssence(n) {
-  if (n > 0) {
-    playerState.essence = Number(playerState.essence || 0) + n;
-    cb.scheduleStatsRender();
-  }
-  advanceIp();
 }
-registerCommand("*award_essence", (t) => {
-  _handleAddEssence(Number(t.replace(/^\*award_essence\s*/, "").trim()) || 0);
-});
-registerCommand("*add_essence", (t) => {
-  _handleAddEssence(Number(t.replace(/^\*add_essence\s*/, "").trim()) || 0);
-});
-function stripItemName(raw) {
-  const s = raw.trim();
-  if (s.startsWith('"') && s.endsWith('"') || s.startsWith("'") && s.endsWith("'")) {
-    return s.slice(1, -1);
+var glossaryRegistry;
+var init_glossary = __esm({
+  "src/systems/glossary.ts"() {
+    "use strict";
+    glossaryRegistry = [];
   }
-  return s;
-}
-registerCommand("*add_item", (t) => {
-  addInventoryItem(stripItemName(t.replace(/^\*add_item\s*/, "")));
-  cb.scheduleStatsRender();
-  advanceIp();
-});
-registerCommand("*grant_item", (t) => {
-  addInventoryItem(stripItemName(t.replace(/^\*grant_item\s*/, "")));
-  cb.scheduleStatsRender();
-  advanceIp();
-});
-registerCommand("*remove_item", (t) => {
-  removeInventoryItem(stripItemName(t.replace(/^\*remove_item\s*/, "")));
-  cb.scheduleStatsRender();
-  advanceIp();
-});
-registerCommand("*check_item", (t) => {
-  const m = t.match(/^\*check_item\s+"([^"]+)"\s+([\w_]+)/);
-  if (!m) {
-    console.warn(`[interpreter] *check_item: malformed \u2014 expected: *check_item "Item Name" varName
-Got: ${t}`);
-    advanceIp();
-    return;
-  }
-  const itemName = m[1];
-  const varName = normalizeKey(m[2]);
-  const inv = Array.isArray(playerState.inventory) ? playerState.inventory : [];
-  const has = inv.some((i) => itemBaseName(i) === itemName);
-  const store = resolveStore(varName);
-  if (store) store[varName] = has;
-  else tempState[varName] = has;
-  advanceIp();
-});
-registerCommand("*grant_skill", (t) => {
-  grantSkill(t.replace(/^\*grant_skill\s*/, "").trim());
-  cb.scheduleStatsRender();
-  advanceIp();
-});
-registerCommand("*revoke_skill", (t) => {
-  revokeSkill(t.replace(/^\*revoke_skill\s*/, "").trim());
-  cb.scheduleStatsRender();
-  advanceIp();
-});
-registerCommand("*if_skill", async (t, line) => {
-  const key = normalizeKey(t.replace(/^\*if_skill\s*/, "").trim());
-  const cond = playerHasSkill(key);
-  if (cond) {
-    const bs = ip + 1, be = findBlockEnd2(bs, line.indent);
-    const reason = await executeBlock(bs, be, be);
-    if (reason === "choice" || reason === "goto") return;
-  } else {
-    setIp(findBlockEnd2(ip + 1, line.indent));
-  }
-});
-registerCommand("*journal", (t) => {
-  const text = t.replace(/^\*journal\s*/, "").trim();
-  if (text) {
-    addJournalEntry(text, "entry");
-    cb.scheduleStatsRender();
-  }
-  advanceIp();
-});
-registerCommand("*notify", (t) => {
-  const m = t.match(/^\*notify\s+"([^"]+)"(?:\s+(\d+))?/);
-  if (m) {
-    const raw = m[1];
-    const duration = m[2] ? Number(m[2]) : 2e3;
-    const message = cb.formatText ? cb.formatText(raw).replace(/<[^>]+>/g, "") : raw;
-    if (cb.showToast) cb.showToast(message, duration);
-  }
-  advanceIp();
-});
-registerCommand("*achievement", (t) => {
-  const text = t.replace(/^\*achievement\s*/, "").trim();
-  if (text) {
-    addJournalEntry(text, "achievement", true);
-    cb.scheduleStatsRender();
-  }
-  advanceIp();
-});
-registerCommand("*save_point", (t) => {
-  const label = t.replace(/^\*save_point\s*/, "").trim() || null;
-  if (cb.getNarrativeLog) saveGameToSlot("auto", label, cb.getNarrativeLog());
-  advanceIp();
-});
-registerCommand("*page_break", (t) => {
-  const btnText = t.replace(/^\*page_break\s*/, "").trim() || "Continue";
-  const resumeIp = ip + 1;
-  setPageBreakIp(ip);
-  if (cb.getNarrativeLog) saveGameToSlot("auto", null, cb.getNarrativeLog());
-  setIp(currentLines.length);
-  cb.showPageBreak(btnText, () => {
-    setPageBreakIp(null);
-    cb.clearNarrative();
-    setIp(resumeIp);
-    runInterpreter().catch((err) => cb.showEngineError(err instanceof Error ? err.message : String(err)));
-  });
-});
-registerCommand("*input", (t) => {
-  const m = t.match(/^\*input\s+([a-zA-Z_][\w]*)\s+"([^"]+)"$/);
-  if (!m) {
-    cb.showEngineError(`*input requires: *input varName "Prompt text"
-Got: ${t}`);
-    setIp(currentLines.length);
-    return;
-  }
-  const varName = normalizeKey(m[1]);
-  const prompt = m[2];
-  const resumeIp = ip + 1;
-  setIp(currentLines.length);
-  cb.showInputPrompt(varName, prompt, (value) => {
-    const store = resolveStore(varName);
-    if (!store) {
-      cb.showEngineError(`*input: variable "${varName}" is not declared. Add *create ${varName} or *temp ${varName} before using *input.`);
-      setIp(resumeIp);
-      runInterpreter().catch((err) => cb.showEngineError(err instanceof Error ? err.message : String(err)));
-      return;
-    }
-    store[varName] = value;
-    setIp(resumeIp);
-    runInterpreter().catch((err) => cb.showEngineError(err instanceof Error ? err.message : String(err)));
-  });
-});
-registerCommand("*choice", (t, line) => {
-  const parsed = parseChoice(ip, line.indent, {
-    currentLines,
-    evalValue,
-    showEngineError: cb.showEngineError
-  });
-  if (parsed.choices.length === 0) {
-    cb.showEngineError(`*choice at line ${ip} in "${currentScene}" produced no options. Check for missing or malformed # lines.`);
-    setIp(currentLines.length);
-    return;
-  }
-  setAwaitingChoice({ end: parsed.end, choices: parsed.choices });
-  cb.renderChoices(parsed.choices);
-});
-registerCommand("*ending", (t) => {
-  const args = [...t.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-  const title = args[0] ?? "The End";
-  const content = args[1] ?? "Your path is complete.";
-  cb.showEndingScreen(title, content);
-  setIp(currentLines.length);
-});
-registerCommand("*if", async (t, line) => {
-  const chainEnd = findIfChainEnd(ip, line.indent);
-  let cursor = ip, executed = false;
-  while (cursor < chainEnd) {
-    const c = currentLines[cursor];
-    if (!c.trimmed) {
-      cursor += 1;
-      continue;
-    }
-    if (isDirective(c.trimmed, "*if") || isDirective(c.trimmed, "*elseif")) {
-      const bs = cursor + 1, be = findBlockEnd2(bs, c.indent);
-      if (!executed && evaluateCondition(c.trimmed)) {
-        const reason = await executeBlock(bs, be, chainEnd);
-        executed = true;
-        if (reason === "choice" || reason === "goto") return;
-      }
-      cursor = be;
-      continue;
-    }
-    if (isDirective(c.trimmed, "*else")) {
-      const bs = cursor + 1, be = findBlockEnd2(bs, c.indent);
-      if (!executed) {
-        const reason = await executeBlock(bs, be, chainEnd);
-        if (reason === "choice" || reason === "goto") return;
-      }
-      cursor = be;
-      continue;
-    }
-    cursor += 1;
-  }
-  setIp(chainEnd);
-});
-registerCommand("*loop", async (t, line) => {
-  const LOOP_GUARD = 1e4;
-  const blockStart = ip + 1, blockEnd = findBlockEnd2(blockStart, line.indent);
-  let guard = 0;
-  while (evaluateCondition(t) && guard < LOOP_GUARD) {
-    const reason = await executeBlock(blockStart, blockEnd);
-    if (reason === "choice") {
-      const ac = awaitingChoice;
-      if (ac) setAwaitingChoice({ ...ac, _savedIp: blockEnd });
-      return;
-    }
-    if (reason === "goto") return;
-    guard += 1;
-  }
-  if (guard >= LOOP_GUARD) {
-    cb.showEngineError(`*loop guard tripped in scene "${currentScene}" after ${LOOP_GUARD} iterations \u2014 possible infinite loop. Check that the loop condition can become false.`);
-  }
-  setIp(blockEnd);
-});
-registerCommand("*patch_state", (t) => {
-  const m = t.match(/^\*patch_state\s+([a-zA-Z_][\w]*)\s+(.+)$/);
-  if (!m) {
-    advanceIp();
-    return;
-  }
-  patchPlayerState({ [normalizeKey(m[1])]: evalValue(m[2]) });
-  advanceIp();
-});
-registerCommand("*call", async (t) => {
-  const name = t.replace(/^\*call\s*/, "").trim().toLowerCase();
-  const proc = getProcedure(name);
-  if (!proc) {
-    cb.showEngineError(`*call: Unknown procedure "${name}". Check procedures.txt.`);
-    advanceIp();
-    return;
-  }
-  let _returned = false;
-  _callStack.push({
-    scene: currentScene,
-    lines: currentLines,
-    // exact reference restored on return
-    ip: ip + 1,
-    // resume AFTER the *call line
-    gosubStackLength: _gosubStack.length,
-    onReturn: () => {
-      _returned = true;
-    }
-  });
-  setCurrentLines(proc.lines);
-  setIp(0);
-  while (ip < currentLines.length && !_returned) {
-    await executeCurrentLine();
-    if (awaitingChoice) return;
-  }
-  if (!_returned) {
-    returnFromProcedure();
-  }
-});
-registerCommand("*gosub", (t) => {
-  const label = t.replace(/^\*gosub\s*/, "").trim();
-  const labels = _labelsCache.get(currentScene) || {};
-  if (labels[label] === void 0) {
-    cb.showEngineError(`*gosub: Unknown label "${label}" in scene "${currentScene}".`);
-    setIp(currentLines.length);
-    return;
-  }
-  _gosubStack.push(ip + 1);
-  setIp(labels[label]);
-});
-registerCommand("*return", () => {
-  if (_callStack.length > 0) {
-    returnFromProcedure();
-    return;
-  }
-  if (_gosubStack.length === 0) {
-    cb.showEngineError(`*return without matching *gosub or *call in scene "${currentScene}".`);
-    setIp(currentLines.length);
-    return;
-  }
-  setIp(_gosubStack.pop());
-});
-registerCommand("*finish", async () => {
-  const list = startup.sceneList;
-  const currentIdx = list.indexOf(currentScene.replace(/\.txt$/i, ""));
-  const nextIdx = currentIdx + 1;
-  if (nextIdx >= list.length) {
-    cb.showEngineError(`*finish: no next scene after "${currentScene}" in scene_list.`);
-    setIp(currentLines.length);
-    return;
-  }
-  await gotoScene(list[nextIdx]);
 });
 
 // src/systems/items.ts
-var itemRegistry = [];
 async function parseItems(fetchTextFileFn) {
   let text;
   try {
@@ -1600,18 +902,20 @@ function purchaseItem(key) {
   addInventoryItem(entry.label);
   return true;
 }
+var itemRegistry;
+var init_items = __esm({
+  "src/systems/items.ts"() {
+    "use strict";
+    init_state();
+    init_inventory();
+    itemRegistry = [];
+  }
+});
 
 // src/ui/narrative.ts
 function escapeHtml(val) {
   return String(val ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-var _narrativeContent;
-var _choiceArea;
-var _narrativePanel;
-var _scheduleStats;
-var _onBeforeChoice;
-var _executeBlock;
-var _runInterpreter;
 function init({
   narrativeContent,
   choiceArea,
@@ -1634,7 +938,6 @@ function init({
 function setChoiceArea(el) {
   _choiceArea = el;
 }
-var _narrativeLog = [];
 function getNarrativeLog() {
   return _narrativeLog;
 }
@@ -1652,6 +955,20 @@ function resolvePronoun(lower, isCapital) {
 function formatText(text) {
   if (!text) return "";
   let result = String(text);
+  const _glossaryTokens = [];
+  if (glossaryRegistry.length > 0) {
+    for (const entry of glossaryRegistry) {
+      const escaped = entry.term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(`\\b(${escaped})\\b`, "gi");
+      result = result.replace(regex, (match) => {
+        const idx = _glossaryTokens.length;
+        _glossaryTokens.push(
+          `<span class="lore-term" tabindex="0" data-tooltip="${escapeHtml(entry.description)}">${match}</span>`
+        );
+        return `\0LTERM${idx}\0`;
+      });
+    }
+  }
   result = result.replace(/\$\{([a-zA-Z_][\w]*)\}/g, (_, v) => {
     const k = normalizeKey(v);
     const store = resolveStore(k);
@@ -1689,7 +1006,23 @@ function formatText(text) {
     const close = new RegExp(`\\[\\/${color}\\]`, "g");
     result = result.replace(open, `<span class="inline-accent-${color}">`).replace(close, "</span>");
   }
+  if (_glossaryTokens.length > 0) {
+    result = result.replace(/\x00LTERM(\d+)\x00/g, (_, i) => _glossaryTokens[Number(i)] ?? "");
+  }
   return result;
+}
+function addImage(filename, alt, width) {
+  const img = document.createElement("img");
+  img.src = `media/${filename}`;
+  img.alt = alt;
+  img.className = "narrative-image";
+  img.loading = "lazy";
+  if (width) img.style.maxWidth = `${width}px`;
+  const wrapper = document.createElement("div");
+  wrapper.className = "narrative-image-wrapper";
+  wrapper.appendChild(img);
+  _narrativeContent.insertBefore(wrapper, _choiceArea);
+  _narrativeLog.push({ type: "image", text: filename, alt, width });
 }
 function addParagraph(text, cls = "narrative-paragraph") {
   const p = document.createElement("p");
@@ -1730,10 +1063,12 @@ function renderChoices(choices) {
   _choiceArea.setAttribute("role", "group");
   _choiceArea.setAttribute("aria-label", "Story choices");
   let choiceMade = false;
-  choices.forEach((choice) => {
+  choices.forEach((choice, index) => {
     const btn = document.createElement("button");
     btn.className = "choice-btn";
     btn.innerHTML = `<span>${formatText(choice.text)}</span>`;
+    const plainText = choice.text.replace(/<[^>]+>/g, "");
+    btn.setAttribute("aria-label", `Choice ${index + 1} of ${choices.length}: ${plainText}`);
     if (choice.statTag) {
       const { label, requirement } = choice.statTag;
       const key = normalizeKey(label.replace(/\s+/g, "_"));
@@ -1770,6 +1105,19 @@ function renderChoices(choices) {
     const firstEnabled = _choiceArea.querySelector(".choice-btn:not(:disabled)");
     if (firstEnabled) firstEnabled.focus({ preventScroll: true });
   });
+  if (!_choiceAreaArrowHandler) {
+    _choiceAreaArrowHandler = (e) => {
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      e.preventDefault();
+      const btns = [..._choiceArea.querySelectorAll(".choice-btn:not(:disabled)")];
+      const current = document.activeElement;
+      const idx = btns.indexOf(current);
+      if (idx === -1) return;
+      const next = e.key === "ArrowDown" ? (idx + 1) % btns.length : (idx - 1 + btns.length) % btns.length;
+      btns[next].focus();
+    };
+    _choiceArea.addEventListener("keydown", _choiceAreaArrowHandler);
+  }
 }
 function showPageBreak(btnText, onContinue) {
   const btn = document.createElement("button");
@@ -1852,25 +1200,37 @@ function renderFromLog(log, { skipAnimations = true } = {}) {
         _narrativeContent.insertBefore(wrapper, _choiceArea);
         break;
       }
+      case "image": {
+        const img = document.createElement("img");
+        img.src = `media/${entry.text ?? ""}`;
+        img.alt = entry.alt ?? "";
+        img.className = "narrative-image";
+        img.loading = "lazy";
+        if (entry.width) img.style.maxWidth = `${entry.width}px`;
+        const wrapper = document.createElement("div");
+        wrapper.className = "narrative-image-wrapper";
+        wrapper.appendChild(img);
+        _narrativeContent.insertBefore(wrapper, _choiceArea);
+        break;
+      }
       default:
         console.warn("[narrative] renderFromLog: unknown entry type:", entry.type);
     }
   }
   _narrativeLog = [...log];
 }
+var _narrativeContent, _choiceArea, _narrativePanel, _scheduleStats, _onBeforeChoice, _executeBlock, _runInterpreter, _choiceAreaArrowHandler, _narrativeLog;
+var init_narrative = __esm({
+  "src/ui/narrative.ts"() {
+    "use strict";
+    init_state();
+    init_glossary();
+    _choiceAreaArrowHandler = null;
+    _narrativeLog = [];
+  }
+});
 
 // src/ui/panels.ts
-var _statusPanel;
-var _endingOverlay = null;
-var _endingTitle = null;
-var _endingContent = null;
-var _endingStats = null;
-var _endingActionBtn = null;
-var _storeOverlay = null;
-var _fetchTextFile;
-var _scheduleStats2;
-var _trapFocus = null;
-var _showToast;
 function init2({
   statusPanel,
   endingOverlay,
@@ -1897,32 +1257,178 @@ function init2({
   _showToast = showToast2 ?? (() => {
   });
 }
-var styleState = { colors: {}, icons: {} };
-var _activeStatusTab = "stats";
-var EMPTY_SKILLS_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <polygon points="24,3 42,13.5 42,34.5 24,45 6,34.5 6,13.5" stroke="var(--cyan)" stroke-width="1.5"/>
-  <circle cx="24" cy="24" r="9" stroke="var(--cyan)" stroke-width="1.2" opacity="0.5"/>
-  <line x1="24" y1="15" x2="24" y2="33" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
-  <line x1="15.2" y1="19.5" x2="32.8" y2="28.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
-  <line x1="32.8" y1="19.5" x2="15.2" y2="28.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
-</svg>`;
-var EMPTY_INV_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M17 19 C14 23 12 29 12 35 C12 41 17 45 24 45 C31 45 36 41 36 35 C36 29 34 23 31 19 Z" stroke="var(--cyan)" stroke-width="1.5"/>
-  <path d="M19 19 C19 14 21 11 24 11 C27 11 29 14 29 19" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round"/>
-  <path d="M21 13 C22 10 26 10 27 13" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="24" y1="29" x2="24" y2="38" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
-  <line x1="19.5" y1="33.5" x2="28.5" y2="33.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
-</svg>`;
-var EMPTY_LOG_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="8" y="6" width="30" height="37" rx="2" stroke="var(--cyan)" stroke-width="1.5"/>
-  <line x1="15" y1="6" x2="15" y2="43" stroke="var(--cyan)" stroke-width="1.5"/>
-  <line x1="20" y1="17" x2="33" y2="17" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
-  <line x1="20" y1="23" x2="33" y2="23" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
-  <line x1="20" y1="29" x2="33" y2="29" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
-  <line x1="20" y1="35" x2="28" y2="35" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
-  <path d="M35 30 Q39 33 35 36" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-</svg>`;
-var _prevStatValues = /* @__PURE__ */ new Map();
+function buildStatsTabHtml(entries) {
+  let html = "";
+  let inGroup = false;
+  entries.forEach((e) => {
+    if (e.type === "group") {
+      if (inGroup) html += `</div>`;
+      html += `<div class="status-section"><div class="status-label status-section-header">${escapeHtml(e.name)}</div>`;
+      inGroup = true;
+    }
+    if (e.type === "stat" && e.key) {
+      const cc = styleState.colors[e.key] || "";
+      const ic = styleState.icons[e.key] ?? "";
+      const rawVal = playerState[e.key] ?? "\u2014";
+      const numVal = parseFloat(String(rawVal));
+      if (!isNaN(numVal)) {
+        const prev = _prevStatValues.get(e.key);
+        _prevStatValues.set(e.key, numVal);
+        if (prev !== void 0 && prev !== numVal) {
+          _statChanges.set(e.key, numVal > prev ? "up" : "down");
+        }
+      }
+      html += `<div class="status-row" data-stat-key="${e.key}"><span class="status-label">${ic ? ic + " " : ""}${escapeHtml(e.label)}</span><span class="status-value ${cc}">${formatText(String(rawVal))}</span></div>`;
+    }
+  });
+  if (inGroup) html += `</div>`;
+  const achvsForStats = getAchievements();
+  if (achvsForStats.length > 0) {
+    const achvAccordions = achvsForStats.map((a) => {
+      const dashIdx = a.text.indexOf(" \u2014 ");
+      const title = dashIdx !== -1 ? escapeHtml(a.text.slice(0, dashIdx)) : escapeHtml(a.text);
+      const body = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : "";
+      return `<li class="skill-accordion skill-accordion--achievement">
+        <button class="skill-accordion-btn">
+          <span class="skill-accordion-name"><span class="journal-achievement-icon"></span>${title}</span>
+          ${body ? `<span class="skill-accordion-chevron">\u25BE</span>` : ""}
+        </button>
+        ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ""}
+      </li>`;
+    }).join("");
+    html += `<div class="status-section"><div class="status-label status-section-header">Achievements</div><ul class="skill-accordion-list">${achvAccordions}</ul></div>`;
+  }
+  return html;
+}
+function buildSkillsTabHtml() {
+  const hasSkillStore = skillRegistry.length > 0;
+  let html = hasSkillStore ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-skills" data-store-tab="skills">Skill Store</button></div>` : "";
+  const ownedSkills = Array.isArray(playerState.skills) ? playerState.skills : [];
+  if (ownedSkills.length === 0) {
+    html += `<div class="empty-state">${EMPTY_SKILLS_SVG}<p class="empty-state-text">No skills learned yet.</p></div>`;
+  } else {
+    const skillItems = ownedSkills.map((k) => {
+      const entry = skillRegistry.find((s) => s.key === k);
+      const label = escapeHtml(entry ? entry.label : k);
+      const desc = escapeHtml(entry ? entry.description : "");
+      const rarity = entry?.rarity || "common";
+      const rarCls = ` skill-rarity--${rarity}`;
+      return `<li class="skill-accordion skill-accordion--rarity-${rarity}"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name${rarCls}">${label}</span><span class="skill-accordion-chevron">\u25BE</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
+    }).join("");
+    html += `<ul class="skill-accordion-list">${skillItems}</ul>`;
+  }
+  return html;
+}
+function buildInventoryTabHtml() {
+  const hasItemStore = itemRegistry.length > 0;
+  let html = hasItemStore ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-inv" data-store-tab="items">Item Store</button></div>` : "";
+  const invItems = Array.isArray(playerState.inventory) ? playerState.inventory : [];
+  if (invItems.length === 0) {
+    html += `<div class="empty-state">${EMPTY_INV_SVG}<p class="empty-state-text">Nothing here yet.</p></div>`;
+  } else {
+    const invAccordions = invItems.map((invEntry) => {
+      const baseName = itemBaseName(invEntry);
+      const regEntry = itemRegistry.find((r) => r.label === baseName);
+      const label = escapeHtml(invEntry);
+      const desc = escapeHtml(regEntry ? regEntry.description : "");
+      const rarity = regEntry?.rarity || "common";
+      const rarCls = ` skill-rarity--${rarity}`;
+      return `<li class="skill-accordion skill-accordion--rarity-${rarity}">
+        <button class="skill-accordion-btn">
+          <span class="skill-accordion-name${rarCls}">${label}</span>
+          <span class="skill-accordion-chevron">\u25BE</span>
+        </button>
+        <div class="skill-accordion-desc" style="display:none;">${desc || '<em style="color:var(--text-faint)">No description available.</em>'}</div>
+      </li>`;
+    }).join("");
+    html += `<ul class="skill-accordion-list">${invAccordions}</ul>`;
+  }
+  return html;
+}
+function buildLogTabHtml() {
+  let achievementsHtml = "";
+  const achvs = getAchievements();
+  const jentries = getJournalEntries().filter((j) => j.type !== "achievement");
+  if (achvs.length === 0 && jentries.length === 0) {
+    return `<div class="empty-state">${EMPTY_LOG_SVG}<p class="empty-state-text">Nothing recorded yet.</p></div>`;
+  }
+  if (achvs.length > 0) {
+    const achvAccordionItems = achvs.map((a) => {
+      const dashIdx = a.text.indexOf(" \u2014 ");
+      const title = dashIdx !== -1 ? escapeHtml(a.text.slice(0, dashIdx)) : escapeHtml(a.text);
+      const body = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : "";
+      return `<li class="skill-accordion skill-accordion--achievement">
+          <button class="skill-accordion-btn">
+            <span class="skill-accordion-name"><span class="journal-achievement-icon"></span>${title}</span>
+            ${body ? `<span class="skill-accordion-chevron">\u25BE</span>` : ""}
+          </button>
+          ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ""}
+        </li>`;
+    }).join("");
+    achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;">Achievements</div><ul class="skill-accordion-list" style="margin-bottom:14px;">${achvAccordionItems}</ul>`;
+  }
+  if (jentries.length > 0) {
+    const journalItems = [...jentries].reverse().map(
+      (j) => `<li class="journal-entry">${escapeHtml(j.text)}</li>`
+    ).join("");
+    achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;">Journal</div><ul class="journal-list">${journalItems}</ul>`;
+  }
+  if (glossaryRegistry.length > 0) {
+    const glossaryItems = glossaryRegistry.map(
+      (entry) => `<li class="skill-accordion">
+        <button class="skill-accordion-btn">
+          <span class="skill-accordion-name">${escapeHtml(entry.term)}</span>
+          <span class="skill-accordion-chevron">\u25BE</span>
+        </button>
+        <div class="skill-accordion-desc" style="display:none;">${escapeHtml(entry.description)}</div>
+      </li>`
+    ).join("");
+    achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;margin-top:14px;">Glossary</div><ul class="skill-accordion-list">${glossaryItems}</ul>`;
+  }
+  return achievementsHtml;
+}
+function buildTabHtml(tabKey, entries) {
+  switch (tabKey) {
+    case "stats":
+      return buildStatsTabHtml(entries);
+    case "skills":
+      return buildSkillsTabHtml();
+    case "inventory":
+      return buildInventoryTabHtml();
+    case "achievements":
+      return buildLogTabHtml();
+    default:
+      return "";
+  }
+}
+function applyStatFlashes() {
+  if (_statChanges.size === 0) return;
+  _statChanges.forEach((dir, key) => {
+    const row = _statusPanel.querySelector(`.status-row[data-stat-key="${key}"]`);
+    const valEl = row?.querySelector(".status-value");
+    if (valEl) {
+      const cls = dir === "up" ? "stat-flash--up" : "stat-flash--down";
+      valEl.classList.add(cls);
+      valEl.addEventListener("animationend", () => valEl.classList.remove(cls), { once: true });
+    }
+  });
+  _statChanges.clear();
+}
+function wireTabContent() {
+  const skillsStoreBtn = _statusPanel.querySelector("#status-store-btn-skills");
+  if (skillsStoreBtn) skillsStoreBtn.addEventListener("click", () => showStore("skills"));
+  const invStoreBtn = _statusPanel.querySelector("#status-store-btn-inv");
+  if (invStoreBtn) invStoreBtn.addEventListener("click", () => showStore("items"));
+  _statusPanel.querySelectorAll(".skill-accordion-btn").forEach((btn) => {
+    const desc = btn.nextElementSibling;
+    if (!desc) return;
+    btn.addEventListener("click", () => {
+      const isOpen = desc.style.display !== "none";
+      desc.style.display = isOpen ? "none" : "block";
+      btn.classList.toggle("skill-accordion-btn--open", !isOpen);
+    });
+  });
+}
 async function runStatsScene() {
   const text = await _fetchTextFile("stats");
   const lines = text.split(/\r?\n/).map((raw) => ({ raw, trimmed: raw.trim() }));
@@ -1956,169 +1462,44 @@ async function runStatsScene() {
       if (m) entries.push({ type: "stat", key: normalizeKey(m[1]), label: m[2] });
     }
   });
-  let statsHtml = "";
-  let inGroup = false;
-  entries.forEach((e) => {
-    if (e.type === "group") {
-      if (inGroup) statsHtml += `</div>`;
-      statsHtml += `<div class="status-section"><div class="status-label status-section-header">${escapeHtml(e.name)}</div>`;
-      inGroup = true;
-    }
-    if (e.type === "stat" && e.key) {
-      const cc = styleState.colors[e.key] || "";
-      const ic = styleState.icons[e.key] ?? "";
-      const rawVal = playerState[e.key] ?? "\u2014";
-      statsHtml += `<div class="status-row" data-stat-key="${e.key}"><span class="status-label">${ic ? ic + " " : ""}${escapeHtml(e.label)}</span><span class="status-value ${cc}">${formatText(String(rawVal))}</span></div>`;
-    }
+  _lastEntries = entries;
+  Object.keys(_dirtyTabs).forEach((k) => {
+    _dirtyTabs[k] = true;
   });
-  if (inGroup) statsHtml += `</div>`;
-  const achvsForStats = getAchievements();
-  if (achvsForStats.length > 0) {
-    const achvAccordions = achvsForStats.map((a) => {
-      const dashIdx = a.text.indexOf(" \u2014 ");
-      const title = dashIdx !== -1 ? escapeHtml(a.text.slice(0, dashIdx)) : escapeHtml(a.text);
-      const body = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : "";
-      return `<li class="skill-accordion skill-accordion--achievement">
-        <button class="skill-accordion-btn">
-          <span class="skill-accordion-name"><span class="journal-achievement-icon"></span>${title}</span>
-          ${body ? `<span class="skill-accordion-chevron">\u25BE</span>` : ""}
-        </button>
-        ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ""}
-      </li>`;
-    }).join("");
-    statsHtml += `<div class="status-section"><div class="status-label status-section-header">Achievements</div><ul class="skill-accordion-list">${achvAccordions}</ul></div>`;
-  }
-  const hasSkillStore = skillRegistry.length > 0;
-  let skillsHtml = hasSkillStore ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-skills" data-store-tab="skills">Skill Store</button></div>` : "";
-  const ownedSkills = Array.isArray(playerState.skills) ? playerState.skills : [];
-  if (ownedSkills.length === 0) {
-    skillsHtml += `<div class="empty-state">${EMPTY_SKILLS_SVG}<p class="empty-state-text">No skills learned yet.</p></div>`;
-  } else {
-    const skillItems = ownedSkills.map((k) => {
-      const entry = skillRegistry.find((s) => s.key === k);
-      const label = escapeHtml(entry ? entry.label : k);
-      const desc = escapeHtml(entry ? entry.description : "");
-      const rarity = entry?.rarity || "common";
-      const rarCls = ` skill-rarity--${rarity}`;
-      return `<li class="skill-accordion skill-accordion--rarity-${rarity}"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name${rarCls}">${label}</span><span class="skill-accordion-chevron">\u25BE</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
-    }).join("");
-    skillsHtml += `<ul class="skill-accordion-list">${skillItems}</ul>`;
-  }
-  const hasItemStore = itemRegistry.length > 0;
-  let inventoryHtml = hasItemStore ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-inv" data-store-tab="items">Item Store</button></div>` : "";
-  const invItems = Array.isArray(playerState.inventory) ? playerState.inventory : [];
-  if (invItems.length === 0) {
-    inventoryHtml += `<div class="empty-state">${EMPTY_INV_SVG}<p class="empty-state-text">Nothing here yet.</p></div>`;
-  } else {
-    const invAccordions = invItems.map((invEntry) => {
-      const baseName = itemBaseName(invEntry);
-      const regEntry = itemRegistry.find((r) => r.label === baseName);
-      const label = escapeHtml(invEntry);
-      const desc = escapeHtml(regEntry ? regEntry.description : "");
-      const rarity = regEntry?.rarity || "common";
-      const rarCls = ` skill-rarity--${rarity}`;
-      return `<li class="skill-accordion skill-accordion--rarity-${rarity}">
-        <button class="skill-accordion-btn">
-          <span class="skill-accordion-name${rarCls}">${label}</span>
-          <span class="skill-accordion-chevron">\u25BE</span>
-        </button>
-        <div class="skill-accordion-desc" style="display:none;">${desc || '<em style="color:var(--text-faint)">No description available.</em>'}</div>
-      </li>`;
-    }).join("");
-    inventoryHtml += `<ul class="skill-accordion-list">${invAccordions}</ul>`;
-  }
-  let achievementsHtml = "";
-  const achvs = getAchievements();
-  const jentries = getJournalEntries().filter((j) => j.type !== "achievement");
-  if (achvs.length === 0 && jentries.length === 0) {
-    achievementsHtml = `<div class="empty-state">${EMPTY_LOG_SVG}<p class="empty-state-text">Nothing recorded yet.</p></div>`;
-  } else {
-    if (achvs.length > 0) {
-      const achvAccordionItems = achvs.map((a) => {
-        const dashIdx = a.text.indexOf(" \u2014 ");
-        const title = dashIdx !== -1 ? escapeHtml(a.text.slice(0, dashIdx)) : escapeHtml(a.text);
-        const body = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : "";
-        return `<li class="skill-accordion skill-accordion--achievement">
-          <button class="skill-accordion-btn">
-            <span class="skill-accordion-name"><span class="journal-achievement-icon"></span>${title}</span>
-            ${body ? `<span class="skill-accordion-chevron">\u25BE</span>` : ""}
-          </button>
-          ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ""}
-        </li>`;
-      }).join("");
-      achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;">Achievements</div><ul class="skill-accordion-list" style="margin-bottom:14px;">${achvAccordionItems}</ul>`;
-    }
-    if (jentries.length > 0) {
-      const journalItems = [...jentries].reverse().map(
-        (j) => `<li class="journal-entry">${escapeHtml(j.text)}</li>`
-      ).join("");
-      achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;">Journal</div><ul class="journal-list">${journalItems}</ul>`;
-    }
-  }
   const tabs = [
     { key: "stats", label: "Stats" },
     { key: "skills", label: "Skills" },
     { key: "inventory", label: "Inv" },
     { key: "achievements", label: "Log" }
   ];
-  const tabBarHtml = `<div class="status-tabs" id="status-tab-bar">
-    ${tabs.map((t) => `<button class="status-tab ${_activeStatusTab === t.key ? "status-tab--active" : ""}" data-tab="${t.key}">${t.label}</button>`).join("")}
+  const tabBarHtml = `<div class="status-tabs" role="tablist" id="status-tab-bar">
+    ${tabs.map((t) => `<button role="tab" aria-selected="${_activeStatusTab === t.key}" aria-controls="status-tab-pane" id="tab-${t.key}" class="status-tab ${_activeStatusTab === t.key ? "status-tab--active" : ""}" data-tab="${t.key}">${t.label}</button>`).join("")}
   </div>`;
-  const contentMap = {
-    stats: statsHtml,
-    skills: skillsHtml,
-    inventory: inventoryHtml,
-    achievements: achievementsHtml
-  };
-  const panelHtml = `${tabBarHtml}<div class="status-tab-content" id="status-tab-pane">${contentMap[_activeStatusTab]}</div>`;
-  _statusPanel.innerHTML = panelHtml;
+  const activeHtml = buildTabHtml(_activeStatusTab, entries);
+  _dirtyTabs[_activeStatusTab] = false;
+  _statusPanel.innerHTML = `${tabBarHtml}<div role="tabpanel" aria-labelledby="tab-${_activeStatusTab}" class="status-tab-content" id="status-tab-pane">${activeHtml}</div>`;
   _statusPanel.querySelectorAll(".status-tab").forEach((btn) => {
     btn.addEventListener("click", () => {
       _activeStatusTab = btn.dataset.tab ?? "stats";
-      _statusPanel.querySelectorAll(".status-tab").forEach(
-        (b) => b.classList.toggle("status-tab--active", b.dataset.tab === _activeStatusTab)
-      );
+      _statusPanel.querySelectorAll(".status-tab").forEach((b) => {
+        b.classList.toggle("status-tab--active", b.dataset.tab === _activeStatusTab);
+        b.setAttribute("aria-selected", b.dataset.tab === _activeStatusTab ? "true" : "false");
+      });
       const pane = _statusPanel.querySelector("#status-tab-pane");
-      if (pane) pane.innerHTML = contentMap[_activeStatusTab];
+      if (pane) {
+        pane.setAttribute("aria-labelledby", `tab-${_activeStatusTab}`);
+        if (_dirtyTabs[_activeStatusTab]) {
+          pane.innerHTML = buildTabHtml(_activeStatusTab, _lastEntries);
+          _dirtyTabs[_activeStatusTab] = false;
+        }
+        if (_activeStatusTab === "stats") applyStatFlashes();
+      }
       wireTabContent();
     });
   });
   wireTabContent();
-  entries.forEach((e) => {
-    if (e.type !== "stat" || !e.key) return;
-    const rawVal = parseFloat(String(playerState[e.key] ?? ""));
-    if (isNaN(rawVal)) return;
-    const prev = _prevStatValues.get(e.key);
-    _prevStatValues.set(e.key, rawVal);
-    if (prev !== void 0 && prev !== rawVal && _activeStatusTab === "stats") {
-      const row = _statusPanel.querySelector(`.status-row[data-stat-key="${e.key}"]`);
-      const valEl = row?.querySelector(".status-value");
-      if (valEl) {
-        const cls = rawVal > prev ? "stat-flash--up" : "stat-flash--down";
-        valEl.classList.add(cls);
-        valEl.addEventListener("animationend", () => valEl.classList.remove(cls), { once: true });
-      }
-    }
-  });
-  function wireTabContent() {
-    const skillsStoreBtn = _statusPanel.querySelector("#status-store-btn-skills");
-    if (skillsStoreBtn) skillsStoreBtn.addEventListener("click", () => showStore("skills"));
-    const invStoreBtn = _statusPanel.querySelector("#status-store-btn-inv");
-    if (invStoreBtn) invStoreBtn.addEventListener("click", () => showStore("items"));
-    _statusPanel.querySelectorAll(".skill-accordion-btn").forEach((btn) => {
-      const desc = btn.nextElementSibling;
-      if (!desc) return;
-      btn.addEventListener("click", () => {
-        const isOpen = desc.style.display !== "none";
-        desc.style.display = isOpen ? "none" : "block";
-        btn.classList.toggle("skill-accordion-btn--open", !isOpen);
-      });
-    });
-  }
+  if (_activeStatusTab === "stats") applyStatFlashes();
 }
-var _storeTrapRelease = null;
-var _storeActiveTab = "skills";
-var _preStoreTab = null;
 function showStore(tab = null) {
   if (!_storeOverlay) return;
   if (tab) _storeActiveTab = tab;
@@ -2324,6 +1705,1157 @@ function showEndingScreen(title, content) {
     window.location.reload();
   }, { once: true });
 }
+var _statusPanel, _endingOverlay, _endingTitle, _endingContent, _endingStats, _endingActionBtn, _storeOverlay, _fetchTextFile, _scheduleStats2, _trapFocus, _showToast, styleState, _activeStatusTab, EMPTY_SKILLS_SVG, EMPTY_INV_SVG, EMPTY_LOG_SVG, _prevStatValues, _statChanges, _dirtyTabs, _lastEntries, _storeTrapRelease, _storeActiveTab, _preStoreTab;
+var init_panels = __esm({
+  "src/ui/panels.ts"() {
+    "use strict";
+    init_state();
+    init_skills();
+    init_items();
+    init_inventory();
+    init_journal();
+    init_narrative();
+    init_glossary();
+    init_expression();
+    _endingOverlay = null;
+    _endingTitle = null;
+    _endingContent = null;
+    _endingStats = null;
+    _endingActionBtn = null;
+    _storeOverlay = null;
+    _trapFocus = null;
+    styleState = { colors: {}, icons: {} };
+    _activeStatusTab = "stats";
+    EMPTY_SKILLS_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <polygon points="24,3 42,13.5 42,34.5 24,45 6,34.5 6,13.5" stroke="var(--cyan)" stroke-width="1.5"/>
+  <circle cx="24" cy="24" r="9" stroke="var(--cyan)" stroke-width="1.2" opacity="0.5"/>
+  <line x1="24" y1="15" x2="24" y2="33" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <line x1="15.2" y1="19.5" x2="32.8" y2="28.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <line x1="32.8" y1="19.5" x2="15.2" y2="28.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+</svg>`;
+    EMPTY_INV_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M17 19 C14 23 12 29 12 35 C12 41 17 45 24 45 C31 45 36 41 36 35 C36 29 34 23 31 19 Z" stroke="var(--cyan)" stroke-width="1.5"/>
+  <path d="M19 19 C19 14 21 11 24 11 C27 11 29 14 29 19" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M21 13 C22 10 26 10 27 13" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="24" y1="29" x2="24" y2="38" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <line x1="19.5" y1="33.5" x2="28.5" y2="33.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+</svg>`;
+    EMPTY_LOG_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="8" y="6" width="30" height="37" rx="2" stroke="var(--cyan)" stroke-width="1.5"/>
+  <line x1="15" y1="6" x2="15" y2="43" stroke="var(--cyan)" stroke-width="1.5"/>
+  <line x1="20" y1="17" x2="33" y2="17" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
+  <line x1="20" y1="23" x2="33" y2="23" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
+  <line x1="20" y1="29" x2="33" y2="29" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
+  <line x1="20" y1="35" x2="28" y2="35" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <path d="M35 30 Q39 33 35 36" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+</svg>`;
+    _prevStatValues = /* @__PURE__ */ new Map();
+    _statChanges = /* @__PURE__ */ new Map();
+    _dirtyTabs = {
+      stats: true,
+      skills: true,
+      inventory: true,
+      achievements: true
+    };
+    _lastEntries = [];
+    _storeTrapRelease = null;
+    _storeActiveTab = "skills";
+    _preStoreTab = null;
+  }
+});
+
+// src/systems/undo.ts
+var undo_exports = {};
+__export(undo_exports, {
+  clearUndoStack: () => clearUndoStack,
+  initUndo: () => initUndo,
+  popUndo: () => popUndo,
+  pushUndoSnapshot: () => pushUndoSnapshot,
+  undoStackLength: () => undoStackLength,
+  updateUndoBtn: () => updateUndoBtn
+});
+function initUndo(opts) {
+  _chapterTitleEl = opts.chapterTitleEl;
+  _sceneCache2 = opts.sceneCache;
+  _labelsCache2 = opts.labelsCache;
+}
+function pushUndoSnapshot() {
+  _undoStack.push({
+    playerState: JSON.parse(JSON.stringify(playerState)),
+    tempState: JSON.parse(JSON.stringify(tempState)),
+    scene: currentScene,
+    ip: pageBreakIp ?? ip,
+    narrativeLog: JSON.parse(JSON.stringify(getNarrativeLog())),
+    chapterTitle: _chapterTitleEl?.textContent ?? null,
+    awaitingChoice: awaitingChoice ? JSON.parse(JSON.stringify(awaitingChoice)) : null
+  });
+  if (_undoStack.length > UNDO_MAX) _undoStack.shift();
+  updateUndoBtn();
+}
+async function popUndo() {
+  if (_undoStack.length === 0) return;
+  const snap = _undoStack.pop();
+  setPlayerState(JSON.parse(JSON.stringify(snap.playerState)));
+  setTempState(JSON.parse(JSON.stringify(snap.tempState)));
+  if (snap.scene) setCurrentScene(snap.scene);
+  if (snap.scene && _sceneCache2) {
+    const key = snap.scene.endsWith(".txt") ? snap.scene : `${snap.scene}.txt`;
+    const text = _sceneCache2.get(key);
+    if (text) {
+      setCurrentLines(parseLines(text));
+      indexLabels(snap.scene, currentLines, _labelsCache2);
+    }
+  }
+  setIp(snap.ip);
+  setAwaitingChoice(null);
+  setPageBreakIp(null);
+  if (_chapterTitleEl) _chapterTitleEl.textContent = snap.chapterTitle;
+  setChapterTitleState(snap.chapterTitle ?? "");
+  renderFromLog(snap.narrativeLog, { skipAnimations: true });
+  if (snap.awaitingChoice) {
+    setAwaitingChoice(snap.awaitingChoice);
+    renderChoices(snap.awaitingChoice.choices);
+  }
+  await runStatsScene();
+  updateUndoBtn();
+}
+function updateUndoBtn() {
+  const btn = document.getElementById("undo-btn");
+  if (!btn) return;
+  btn.disabled = _undoStack.length === 0;
+}
+function clearUndoStack() {
+  _undoStack.splice(0);
+  updateUndoBtn();
+}
+function undoStackLength() {
+  return _undoStack.length;
+}
+var _undoStack, UNDO_MAX, _chapterTitleEl, _sceneCache2, _labelsCache2;
+var init_undo = __esm({
+  "src/systems/undo.ts"() {
+    "use strict";
+    init_state();
+    init_parser();
+    init_narrative();
+    init_panels();
+    _undoStack = [];
+    UNDO_MAX = 10;
+    _chapterTitleEl = null;
+    _sceneCache2 = null;
+    _labelsCache2 = null;
+  }
+});
+
+// src/core/dom.ts
+init_state();
+function setChapterTitle(t) {
+  const el = document.getElementById("chapter-title");
+  const prev = el?.textContent ?? "";
+  if (el) el.textContent = t;
+  setChapterTitleState(t);
+  if (t && t !== prev && t !== "\u2014") showChapterCard(t);
+}
+function showChapterCard(title) {
+  document.querySelector(".chapter-card")?.remove();
+  const card = document.createElement("div");
+  card.className = "chapter-card";
+  const lbl = document.createElement("span");
+  lbl.className = "chapter-card-label";
+  lbl.textContent = "Chapter";
+  const ttl = document.createElement("span");
+  ttl.className = "chapter-card-title";
+  ttl.textContent = title;
+  card.appendChild(lbl);
+  card.appendChild(ttl);
+  const np = document.getElementById("narrative-panel");
+  if (np) np.insertBefore(card, np.firstChild);
+  card.addEventListener("animationend", () => card.remove(), { once: true });
+}
+function setGameTitle(t) {
+  const gt = document.getElementById("game-title");
+  const st = document.querySelector(".splash-title");
+  if (gt) gt.textContent = t;
+  if (st) st.textContent = t;
+  document.title = t;
+}
+function buildDom() {
+  function req(id) {
+    const el = document.getElementById(id);
+    if (!el) console.warn(`[dom] Missing element: "${id}" \u2014 check index.html IDs`);
+    return el;
+  }
+  return {
+    narrativeContent: req("narrative-content"),
+    choiceArea: req("choice-area"),
+    chapterTitle: req("chapter-title"),
+    narrativePanel: req("narrative-panel"),
+    statusPanel: req("status-panel"),
+    statusToggle: req("status-toggle"),
+    saveBtn: req("save-btn"),
+    gameTitle: req("game-title"),
+    splashTitle: document.querySelector(".splash-title"),
+    splashTagline: req("splash-tagline"),
+    splashOverlay: req("splash-overlay"),
+    splashNewBtn: req("splash-new-btn"),
+    splashLoadBtn: req("splash-load-btn"),
+    splashSlots: req("splash-slots"),
+    splashSlotsBack: req("splash-slots-back"),
+    saveOverlay: req("save-overlay"),
+    saveMenuClose: req("save-menu-close"),
+    charOverlay: req("char-creation-overlay"),
+    inputFirstName: req("input-first-name"),
+    inputLastName: req("input-last-name"),
+    counterFirst: req("counter-first"),
+    counterLast: req("counter-last"),
+    errorFirstName: req("error-first-name"),
+    errorLastName: req("error-last-name"),
+    charBeginBtn: req("char-begin-btn"),
+    endingOverlay: document.getElementById("ending-overlay"),
+    endingTitle: document.getElementById("ending-title"),
+    endingContent: document.getElementById("ending-content"),
+    endingStats: document.getElementById("ending-stats"),
+    endingActionBtn: document.getElementById("ending-action-btn"),
+    storeOverlay: document.getElementById("store-overlay"),
+    toast: req("toast")
+  };
+}
+
+// engine.ts
+init_state();
+init_expression();
+init_parser();
+
+// src/core/interpreter.ts
+init_state();
+init_expression();
+init_parser();
+init_inventory();
+
+// src/systems/saves.ts
+init_state();
+var SAVE_VERSION = 9;
+var SAVE_KEY_AUTO = "sa_save_auto";
+var SAVE_KEY_SLOTS = { 1: "sa_save_slot_1", 2: "sa_save_slot_2", 3: "sa_save_slot_3" };
+function saveKeyForSlot(slot) {
+  return slot === "auto" ? SAVE_KEY_AUTO : SAVE_KEY_SLOTS[slot] ?? null;
+}
+var _staleSaveFound = false;
+function clearStaleSaveFound() {
+  _staleSaveFound = false;
+}
+function setStaleSaveFound() {
+  _staleSaveFound = true;
+}
+function crc16(str) {
+  let crc = 65535;
+  for (let i = 0; i < str.length; i++) {
+    crc ^= str.charCodeAt(i);
+    for (let j = 0; j < 8; j++) {
+      crc = crc & 1 ? crc >>> 1 ^ 40961 : crc >>> 1;
+    }
+  }
+  return crc.toString(16).padStart(4, "0");
+}
+function buildSaveCodePayload(label, narrativeLog) {
+  const defaults = getStartupDefaults();
+  const ps = {};
+  for (const [k, v] of Object.entries(playerState)) {
+    if (JSON.stringify(v) !== JSON.stringify(defaults[k])) {
+      ps[k] = v;
+    }
+  }
+  const payload = {
+    v: SAVE_VERSION,
+    s: currentScene,
+    ip: pageBreakIp ?? ip,
+    ct: chapterTitle,
+    ps,
+    nl: narrativeLog || [],
+    ts: Date.now()
+  };
+  if (label) payload.lb = label;
+  if (awaitingChoice) payload.ac = JSON.parse(JSON.stringify(awaitingChoice));
+  if (statRegistry.length > 0) payload.sr = JSON.parse(JSON.stringify(statRegistry));
+  return payload;
+}
+function encodeSaveCode(narrativeLog, label = null) {
+  const json = JSON.stringify(buildSaveCodePayload(label, narrativeLog));
+  const compressed = btoa(unescape(encodeURIComponent(json)));
+  const checksum = crc16(compressed);
+  return `SA1|${compressed}|${checksum}`;
+}
+function decodeSaveCode(code) {
+  const trimmed = code.trim();
+  const parts = trimmed.split("|");
+  if (parts.length !== 3) {
+    return { ok: false, reason: "Invalid save code format." };
+  }
+  const [prefix, compressed, checksum] = parts;
+  if (prefix !== "SA1") {
+    return { ok: false, reason: `Unrecognized save code version: ${prefix}` };
+  }
+  if (crc16(compressed) !== checksum) {
+    return { ok: false, reason: "Save code is corrupted (checksum mismatch). Check for missing characters." };
+  }
+  let json;
+  try {
+    const decoded = decodeURIComponent(escape(atob(compressed)));
+    json = JSON.parse(decoded);
+  } catch (err) {
+    return { ok: false, reason: `Save code could not be decoded: ${err.message}` };
+  }
+  if (json.v !== SAVE_VERSION) {
+    return { ok: false, reason: `Save code is from a different game version (v${json.v}, expected v${SAVE_VERSION}).` };
+  }
+  const defaults = getStartupDefaults();
+  const fullPlayerState = { ...defaults, ...json.ps };
+  return {
+    ok: true,
+    save: {
+      version: json.v,
+      scene: json.s,
+      ip: json.ip,
+      chapterTitle: json.ct,
+      playerState: fullPlayerState,
+      narrativeLog: json.nl || [],
+      awaitingChoice: json.ac || null,
+      statRegistry: json.sr || JSON.parse(JSON.stringify(statRegistry)),
+      label: json.lb || null,
+      characterName: `${fullPlayerState.first_name || ""} ${fullPlayerState.last_name || ""}`.trim() || "Unknown",
+      timestamp: json.ts || Date.now()
+    }
+  };
+}
+function saveGameToSlot(slot, label = null, narrativeLog = []) {
+  const key = saveKeyForSlot(slot);
+  if (!key) {
+    console.warn(`[saves] Unknown save slot: "${slot}"`);
+    return;
+  }
+  try {
+    const code = encodeSaveCode(narrativeLog, label);
+    localStorage.setItem(key, code);
+  } catch (err) {
+    console.warn(`[saves] Save to slot "${slot}" failed:`, err);
+  }
+}
+function loadSaveFromSlot(slot) {
+  const key = saveKeyForSlot(slot);
+  if (!key) return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    if (raw.startsWith("SA1|")) {
+      const result = decodeSaveCode(raw);
+      if (result.ok) return result.save;
+      const reason = result.reason;
+      console.warn(`[saves] Slot "${slot}" decode failed: ${reason}`);
+      if (reason.includes("different game version")) {
+        setStaleSaveFound();
+      }
+      try {
+        localStorage.removeItem(key);
+      } catch (_) {
+      }
+      return null;
+    }
+    console.warn(`[saves] Slot "${slot}" contains legacy format \u2014 discarding.`);
+    setStaleSaveFound();
+    try {
+      localStorage.removeItem(key);
+    } catch (_) {
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+function deleteSaveSlot(slot) {
+  const key = saveKeyForSlot(slot);
+  if (key) try {
+    localStorage.removeItem(key);
+  } catch (_) {
+  }
+}
+function exportSaveSlot(slot) {
+  const save = loadSaveFromSlot(slot);
+  if (!save) return false;
+  const safeName = (save.characterName || "Unknown").replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "_");
+  const filename = `sa-save-slot${slot}-${safeName}.json`;
+  const blob = new Blob([JSON.stringify(save, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  return true;
+}
+function importSaveFromJSON(json, targetSlot) {
+  if (!json || typeof json !== "object" || Array.isArray(json))
+    return { ok: false, reason: "File is not a valid JSON object." };
+  if (json.version !== SAVE_VERSION)
+    return { ok: false, reason: `Save version mismatch (file is v${json.version}, engine expects v${SAVE_VERSION}).` };
+  if (!json.playerState || typeof json.playerState !== "object")
+    return { ok: false, reason: "Save file is missing playerState." };
+  if (!json.scene || typeof json.scene !== "string")
+    return { ok: false, reason: "Save file is missing scene name." };
+  const key = saveKeyForSlot(targetSlot);
+  if (!key) return { ok: false, reason: `Invalid target slot: "${targetSlot}".` };
+  const defaults = getStartupDefaults();
+  const deltaPs = {};
+  for (const [k, v] of Object.entries(json.playerState)) {
+    if (JSON.stringify(v) !== JSON.stringify(defaults[k])) {
+      deltaPs[k] = v;
+    }
+  }
+  const payload = {
+    v: SAVE_VERSION,
+    s: json.scene,
+    ip: json.ip ?? 0,
+    ct: json.chapterTitle || "",
+    ps: deltaPs,
+    nl: json.narrativeLog || [],
+    ts: json.timestamp || Date.now()
+  };
+  if (json.label) payload.lb = json.label;
+  if (json.awaitingChoice) payload.ac = json.awaitingChoice;
+  if (json.statRegistry) payload.sr = json.statRegistry;
+  try {
+    const jsonStr = JSON.stringify(payload);
+    const compressed = btoa(unescape(encodeURIComponent(jsonStr)));
+    const checksum = crc16(compressed);
+    const code = `SA1|${compressed}|${checksum}`;
+    localStorage.setItem(key, code);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: `localStorage write failed: ${err.message}` };
+  }
+}
+var CHECKPOINT_MAX = 5;
+var CHECKPOINT_PREFIX = "sa_checkpoint_";
+function saveCheckpoint(label, narrativeLog) {
+  try {
+    localStorage.removeItem(`${CHECKPOINT_PREFIX}${CHECKPOINT_MAX - 1}`);
+    for (let i = CHECKPOINT_MAX - 2; i >= 0; i--) {
+      const existing = localStorage.getItem(`${CHECKPOINT_PREFIX}${i}`);
+      if (existing) {
+        localStorage.setItem(`${CHECKPOINT_PREFIX}${i + 1}`, existing);
+        localStorage.removeItem(`${CHECKPOINT_PREFIX}${i}`);
+      }
+    }
+    const code = encodeSaveCode(narrativeLog, label);
+    localStorage.setItem(`${CHECKPOINT_PREFIX}0`, code);
+  } catch (err) {
+    console.warn("[saves] saveCheckpoint failed:", err);
+  }
+}
+function getCheckpoints() {
+  const results = [];
+  for (let i = 0; i < CHECKPOINT_MAX; i++) {
+    const raw = localStorage.getItem(`${CHECKPOINT_PREFIX}${i}`);
+    if (!raw) {
+      results.push(null);
+      continue;
+    }
+    const decoded = decodeSaveCode(raw);
+    if (!decoded.ok) {
+      results.push(null);
+      continue;
+    }
+    const save = decoded.save;
+    results.push({
+      slot: i,
+      label: save.label || save.chapterTitle || `Checkpoint ${i + 1}`,
+      timestamp: save.timestamp,
+      code: raw
+    });
+  }
+  return results;
+}
+async function restoreFromSave(save, {
+  runStatsScene: runStatsScene2,
+  renderFromLog: renderFromLog2,
+  renderChoices: renderChoices2,
+  runInterpreter: runInterpreter2,
+  clearNarrative: clearNarrative2,
+  applyTransition: applyTransition2,
+  setChapterTitle: setChapterTitle2,
+  setChoiceArea: setChoiceArea2,
+  parseAndCacheScene,
+  fetchTextFileFn,
+  evalValueFn
+}) {
+  await parseStartup(fetchTextFileFn, evalValueFn);
+  setPlayerState({ ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) });
+  clearTempState();
+  if (Array.isArray(save.statRegistry) && save.statRegistry.length > 0) {
+    const freshStatKeys = new Set(statRegistry.map((e) => e.key));
+    const extra = save.statRegistry.filter((e) => !freshStatKeys.has(e.key));
+    if (extra.length > 0) {
+      setStatRegistry([...statRegistry, ...extra]);
+    }
+  }
+  await parseAndCacheScene(save.scene);
+  setCurrentScene(save.scene);
+  setIp(save.ip ?? 0);
+  setAwaitingChoice(null);
+  setPageBreakIp(null);
+  if (save.chapterTitle) {
+    setChapterTitle2(save.chapterTitle);
+  }
+  clearNarrative2();
+  applyTransition2();
+  renderFromLog2(save.narrativeLog ?? [], { skipAnimations: true });
+  if (typeof setChoiceArea2 === "function") {
+    setChoiceArea2(document.getElementById("choice-area"));
+  }
+  await runStatsScene2();
+  if (save.awaitingChoice) {
+    setAwaitingChoice(save.awaitingChoice);
+    renderChoices2(save.awaitingChoice.choices);
+  } else {
+    await runInterpreter2({ suppressAutoSave: true });
+  }
+}
+
+// src/core/interpreter.ts
+init_skills();
+init_journal();
+
+// src/systems/procedures.ts
+init_parser();
+var procedureRegistry = /* @__PURE__ */ new Map();
+async function parseProcedures(fetchTextFileFn) {
+  let text;
+  try {
+    text = await fetchTextFileFn("procedures");
+  } catch {
+    console.warn("[procedures] procedures.txt not found \u2014 procedure system disabled.");
+    return;
+  }
+  const rawLines = text.split(/\r?\n/);
+  let currentName = null;
+  let currentBlock = [];
+  function saveProc() {
+    if (!currentName || currentBlock.length === 0) return;
+    procedureRegistry.set(currentName, {
+      name: currentName,
+      lines: parseLines(currentBlock.join("\n"))
+    });
+  }
+  for (const raw of rawLines) {
+    const trimmed = raw.trim();
+    if (!currentName && (!trimmed || trimmed.startsWith("//"))) continue;
+    const m = trimmed.match(/^\*procedure\s+([\w]+)\s*$/);
+    if (m) {
+      saveProc();
+      currentName = m[1].toLowerCase();
+      currentBlock = [];
+      continue;
+    }
+    if (currentName) currentBlock.push(raw);
+  }
+  saveProc();
+  console.log(`[procedures] Loaded ${procedureRegistry.size} procedure(s).`);
+}
+function getProcedure(name) {
+  return procedureRegistry.get(name.toLowerCase()) ?? null;
+}
+
+// src/core/interpreter.ts
+init_glossary();
+var cb = {};
+function registerCallbacks(callbacks) {
+  Object.assign(cb, callbacks);
+}
+var _sceneCache = null;
+var _labelsCache = null;
+function registerCaches(sceneCache2, labelsCache2) {
+  _sceneCache = sceneCache2;
+  _labelsCache = labelsCache2;
+}
+var _gosubStack = [];
+var _callStack = [];
+function returnFromProcedure() {
+  if (_callStack.length === 0) return;
+  const frame = _callStack.pop();
+  setCurrentScene(frame.scene);
+  setCurrentLines(frame.lines);
+  setIp(frame.ip);
+  _gosubStack.length = frame.gosubStackLength;
+  frame.onReturn();
+}
+function isDirective(trimmed, directive) {
+  if (!trimmed.startsWith(directive)) return false;
+  const rest = trimmed.slice(directive.length);
+  return rest === "" || /\s/.test(rest[0]);
+}
+function findBlockEnd2(fromIndex, parentIndent) {
+  let i = fromIndex;
+  while (i < currentLines.length) {
+    const l = currentLines[i];
+    if (l.trimmed && l.indent <= parentIndent) break;
+    i += 1;
+  }
+  return i;
+}
+function findIfChainEnd(fromIndex, indent) {
+  let i = fromIndex + 1;
+  while (i < currentLines.length) {
+    const line = currentLines[i];
+    if (!line.trimmed) {
+      i += 1;
+      continue;
+    }
+    if (line.indent < indent) break;
+    if (line.indent === indent) {
+      if (isDirective(line.trimmed, "*elseif")) {
+        i = findBlockEnd2(i + 1, indent);
+        continue;
+      }
+      if (isDirective(line.trimmed, "*else")) {
+        i = findBlockEnd2(i + 1, indent);
+        break;
+      }
+      break;
+    }
+    i += 1;
+  }
+  return i;
+}
+function evaluateCondition(raw) {
+  const condition = raw.replace(/^\*if\s*/, "").replace(/^\*elseif\s*/, "").replace(/^\*loop\s*/, "").trim();
+  return !!evalValue(condition);
+}
+async function executeBlock(start, end, resumeAfter = end) {
+  setIp(start);
+  while (ip < end) {
+    await executeCurrentLine();
+    if (awaitingChoice) {
+      const ac = awaitingChoice;
+      ac._blockEnd = end;
+      ac._savedIp = resumeAfter;
+      setAwaitingChoice(ac);
+      return "choice";
+    }
+    if (ip < start || ip >= end) {
+      return "goto";
+    }
+  }
+  setIp(resumeAfter);
+  return "normal";
+}
+async function gotoScene(name, label = null) {
+  let text;
+  try {
+    text = await cb.fetchTextFile(name);
+  } catch (err) {
+    cb.showEngineError(`Could not load scene "${name}".
+${err.message}`);
+    return;
+  }
+  const prevChapterTitle = chapterTitle;
+  clearTempState();
+  _gosubStack.length = 0;
+  _callStack.length = 0;
+  setCurrentScene(name);
+  setCurrentLines(parseLines(text));
+  indexLabels(name, currentLines, _labelsCache);
+  setIp(0);
+  cb.clearNarrative();
+  cb.applyTransition();
+  if (label) {
+    const labels = _labelsCache.get(name) || {};
+    setIp(labels[label] ?? 0);
+  }
+  setAwaitingChoice(null);
+  setPageBreakIp(null);
+  await runInterpreter();
+  if (chapterTitle === prevChapterTitle) {
+    const fallback = name.replace(/\.txt$/i, "").toUpperCase();
+    cb.setChapterTitle(fallback);
+  }
+}
+async function runInterpreter({ suppressAutoSave = false } = {}) {
+  while (ip < currentLines.length) {
+    await executeCurrentLine();
+    if (awaitingChoice) break;
+  }
+  cb.runStatsScene();
+  if (!suppressAutoSave && pageBreakIp === null && cb.getNarrativeLog) {
+    saveGameToSlot("auto", null, cb.getNarrativeLog());
+  }
+}
+var commands = /* @__PURE__ */ new Map();
+function registerCommand(directive, handler) {
+  commands.set(directive, handler);
+}
+async function executeCurrentLine() {
+  const line = currentLines[ip];
+  if (!line) return;
+  if (!line.trimmed || line.trimmed.startsWith("//")) {
+    advanceIp();
+    return;
+  }
+  const t = line.trimmed;
+  if (!t.startsWith("*")) {
+    cb.addParagraph(t);
+    advanceIp();
+    return;
+  }
+  for (const [directive, handler] of commands) {
+    if (isDirective(t, directive)) {
+      await handler(t, line);
+      return;
+    }
+  }
+  console.warn(`[interpreter] Unknown directive "${t.split(/\s/)[0]}" in "${currentScene}" at line ${ip} \u2014 skipping.`);
+  advanceIp();
+}
+registerCommand("*title", (t) => {
+  cb.setChapterTitle(t.replace(/^\*title\s*/, "").trim());
+  advanceIp();
+});
+registerCommand("*set_game_title", (t) => {
+  const m = t.match(/^\*set_game_title\s+"([^"]+)"$/);
+  const title = m ? m[1] : t.replace(/^\*set_game_title\s*/, "").trim();
+  if (title) {
+    playerState.game_title = title;
+    if (cb.setGameTitle) cb.setGameTitle(title);
+  }
+  advanceIp();
+});
+registerCommand("*set_game_byline", (t) => {
+  const m = t.match(/^\*set_game_byline\s+"([^"]+)"$/);
+  const byline = m ? m[1] : t.replace(/^\*set_game_byline\s*/, "").trim();
+  if (byline) {
+    playerState.game_byline = byline;
+    if (cb.setGameByline) cb.setGameByline(byline);
+  }
+  advanceIp();
+});
+registerCommand("*label", () => {
+  advanceIp();
+});
+registerCommand("*comment", () => {
+  advanceIp();
+});
+registerCommand("*goto_scene", async (t) => {
+  await gotoScene(t.replace(/^\*goto_scene\s*/, "").trim());
+});
+registerCommand("*goto", (t) => {
+  const label = t.replace(/^\*goto\s*/, "").trim();
+  const labels = _labelsCache.get(currentScene) || {};
+  if (labels[label] === void 0) {
+    cb.showEngineError(`Unknown label "${label}" in scene "${currentScene}".`);
+    setIp(currentLines.length);
+    return;
+  }
+  setIp(labels[label]);
+});
+registerCommand("*system", (t) => {
+  if (t.trimEnd() === "*system") {
+    const parsed = parseSystemBlock(ip, { currentLines });
+    if (!parsed.ok) {
+      cb.showEngineError(`Unclosed *system block in "${currentScene}". Add *end_system.`);
+      setIp(currentLines.length);
+      return;
+    }
+    cb.addSystem(parsed.text);
+    setIp(parsed.endIp);
+  } else {
+    cb.addSystem(t.replace(/^\*system\s*/, "").trim());
+    advanceIp();
+  }
+});
+registerCommand("*image", (t) => {
+  const fileMatch = t.match(/^\*image\s+"([^"]+)"/);
+  if (!fileMatch) {
+    cb.showEngineError(`*image requires: *image "filename.ext"
+Got: ${t}`);
+    advanceIp();
+    return;
+  }
+  const filename = fileMatch[1];
+  const altMatch = t.match(/alt:"([^"]+)"/);
+  const widthMatch = t.match(/width:(\d+)/);
+  const alt = altMatch ? altMatch[1] : "";
+  const width = widthMatch ? Number(widthMatch[1]) : null;
+  if (cb.addImage) cb.addImage(filename, alt, width);
+  advanceIp();
+});
+registerCommand("*set", (t) => {
+  setVar(t, evalValue);
+  advanceIp();
+});
+registerCommand("*set_stat", (t) => {
+  setStatClamped(t, evalValue);
+  advanceIp();
+});
+registerCommand("*create", (t) => {
+  const m = t.match(/^\*create\s+([a-zA-Z_][\w]*)\s+(.+)$/);
+  if (!m) {
+    advanceIp();
+    return;
+  }
+  const [, rawKey, rhs] = m;
+  const key = normalizeKey(rawKey);
+  playerState[key] = evalValue(rhs);
+  advanceIp();
+});
+registerCommand("*create_stat", (t) => {
+  const m = t.match(/^\*create_stat\s+([a-zA-Z_][\w]*)\s+"([^"]+)"\s+(.+)$/);
+  if (!m) {
+    advanceIp();
+    return;
+  }
+  const [, rawKey, label, rhs] = m;
+  const key = normalizeKey(rawKey);
+  const defaultVal = evalValue(rhs);
+  playerState[key] = defaultVal;
+  if (!statRegistry.find((e) => e.key === key)) {
+    setStatRegistry([...statRegistry, { key, label, defaultVal: Number(defaultVal) }]);
+  }
+  advanceIp();
+});
+registerCommand("*temp", (t) => {
+  declareTemp(t, evalValue);
+  advanceIp();
+});
+function _handleAddEssence(n) {
+  if (n > 0) {
+    playerState.essence = Number(playerState.essence || 0) + n;
+    cb.scheduleStatsRender();
+  }
+  advanceIp();
+}
+registerCommand("*award_essence", (t) => {
+  _handleAddEssence(Number(t.replace(/^\*award_essence\s*/, "").trim()) || 0);
+});
+registerCommand("*add_essence", (t) => {
+  _handleAddEssence(Number(t.replace(/^\*add_essence\s*/, "").trim()) || 0);
+});
+function stripItemName(raw) {
+  const s = raw.trim();
+  if (s.startsWith('"') && s.endsWith('"') || s.startsWith("'") && s.endsWith("'")) {
+    return s.slice(1, -1);
+  }
+  return s;
+}
+registerCommand("*add_item", (t) => {
+  addInventoryItem(stripItemName(t.replace(/^\*add_item\s*/, "")));
+  cb.scheduleStatsRender();
+  advanceIp();
+});
+registerCommand("*grant_item", (t) => {
+  addInventoryItem(stripItemName(t.replace(/^\*grant_item\s*/, "")));
+  cb.scheduleStatsRender();
+  advanceIp();
+});
+registerCommand("*remove_item", (t) => {
+  removeInventoryItem(stripItemName(t.replace(/^\*remove_item\s*/, "")));
+  cb.scheduleStatsRender();
+  advanceIp();
+});
+registerCommand("*check_item", (t) => {
+  const m = t.match(/^\*check_item\s+"([^"]+)"\s+([\w_]+)/);
+  if (!m) {
+    console.warn(`[interpreter] *check_item: malformed \u2014 expected: *check_item "Item Name" varName
+Got: ${t}`);
+    advanceIp();
+    return;
+  }
+  const itemName = m[1];
+  const varName = normalizeKey(m[2]);
+  const inv = Array.isArray(playerState.inventory) ? playerState.inventory : [];
+  const has = inv.some((i) => itemBaseName(i) === itemName);
+  const store = resolveStore(varName);
+  if (store) store[varName] = has;
+  else tempState[varName] = has;
+  advanceIp();
+});
+registerCommand("*grant_skill", (t) => {
+  grantSkill(t.replace(/^\*grant_skill\s*/, "").trim());
+  cb.scheduleStatsRender();
+  advanceIp();
+});
+registerCommand("*revoke_skill", (t) => {
+  revokeSkill(t.replace(/^\*revoke_skill\s*/, "").trim());
+  cb.scheduleStatsRender();
+  advanceIp();
+});
+registerCommand("*if_skill", async (t, line) => {
+  const key = normalizeKey(t.replace(/^\*if_skill\s*/, "").trim());
+  const cond = playerHasSkill(key);
+  if (cond) {
+    const bs = ip + 1, be = findBlockEnd2(bs, line.indent);
+    const reason = await executeBlock(bs, be, be);
+    if (reason === "choice" || reason === "goto") return;
+  } else {
+    setIp(findBlockEnd2(ip + 1, line.indent));
+  }
+});
+registerCommand("*journal", (t) => {
+  const text = t.replace(/^\*journal\s*/, "").trim();
+  if (text) {
+    addJournalEntry(text, "entry");
+    cb.scheduleStatsRender();
+  }
+  advanceIp();
+});
+registerCommand("*notify", (t) => {
+  const m = t.match(/^\*notify\s+"([^"]+)"(?:\s+(\d+))?/);
+  if (m) {
+    const raw = m[1];
+    const duration = m[2] ? Number(m[2]) : 2e3;
+    const message = cb.formatText ? cb.formatText(raw).replace(/<[^>]+>/g, "") : raw;
+    if (cb.showToast) cb.showToast(message, duration);
+  }
+  advanceIp();
+});
+registerCommand("*achievement", (t) => {
+  const text = t.replace(/^\*achievement\s*/, "").trim();
+  if (text) {
+    addJournalEntry(text, "achievement", true);
+    cb.scheduleStatsRender();
+  }
+  advanceIp();
+});
+registerCommand("*save_point", (t) => {
+  const label = t.replace(/^\*save_point\s*/, "").trim() || null;
+  if (cb.getNarrativeLog) saveGameToSlot("auto", label, cb.getNarrativeLog());
+  advanceIp();
+});
+registerCommand("*page_break", (t) => {
+  const btnText = t.replace(/^\*page_break\s*/, "").trim() || "Continue";
+  const resumeIp = ip + 1;
+  setPageBreakIp(ip);
+  if (cb.getNarrativeLog) saveGameToSlot("auto", null, cb.getNarrativeLog());
+  setIp(currentLines.length);
+  cb.showPageBreak(btnText, () => {
+    setPageBreakIp(null);
+    cb.clearNarrative();
+    setIp(resumeIp);
+    runInterpreter().catch((err) => cb.showEngineError(err instanceof Error ? err.message : String(err)));
+  });
+});
+registerCommand("*input", (t) => {
+  const m = t.match(/^\*input\s+([a-zA-Z_][\w]*)\s+"([^"]+)"$/);
+  if (!m) {
+    cb.showEngineError(`*input requires: *input varName "Prompt text"
+Got: ${t}`);
+    setIp(currentLines.length);
+    return;
+  }
+  const varName = normalizeKey(m[1]);
+  const prompt = m[2];
+  const resumeIp = ip + 1;
+  setIp(currentLines.length);
+  cb.showInputPrompt(varName, prompt, (value) => {
+    const store = resolveStore(varName);
+    if (!store) {
+      cb.showEngineError(`*input: variable "${varName}" is not declared. Add *create ${varName} or *temp ${varName} before using *input.`);
+      setIp(resumeIp);
+      runInterpreter().catch((err) => cb.showEngineError(err instanceof Error ? err.message : String(err)));
+      return;
+    }
+    store[varName] = value;
+    setIp(resumeIp);
+    runInterpreter().catch((err) => cb.showEngineError(err instanceof Error ? err.message : String(err)));
+  });
+});
+registerCommand("*choice", (t, line) => {
+  const parsed = parseChoice(ip, line.indent, {
+    currentLines,
+    evalValue,
+    showEngineError: cb.showEngineError
+  });
+  if (parsed.choices.length === 0) {
+    cb.showEngineError(`*choice at line ${ip} in "${currentScene}" produced no options. Check for missing or malformed # lines.`);
+    setIp(currentLines.length);
+    return;
+  }
+  setAwaitingChoice({ end: parsed.end, choices: parsed.choices });
+  cb.renderChoices(parsed.choices);
+});
+registerCommand("*random_choice", async (_, line) => {
+  const parsed = parseRandomChoice(ip, line.indent, { currentLines });
+  if (parsed.choices.length === 0) {
+    cb.showEngineError(`*random_choice at line ${ip} in "${currentScene}" produced no options. Check for missing N #Label lines.`);
+    setIp(currentLines.length);
+    return;
+  }
+  const totalWeight = parsed.choices.reduce((sum, c) => sum + c.weight, 0);
+  let roll = Math.random() * totalWeight;
+  let selected = parsed.choices[0];
+  for (const choice of parsed.choices) {
+    roll -= choice.weight;
+    if (roll <= 0) {
+      selected = choice;
+      break;
+    }
+  }
+  const reason = await executeBlock(selected.start, selected.end, parsed.end);
+  if (reason === "choice" || reason === "goto") return;
+});
+registerCommand("*ending", (t) => {
+  const args = [...t.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  const title = args[0] ?? "The End";
+  const content = args[1] ?? "Your path is complete.";
+  cb.showEndingScreen(title, content);
+  setIp(currentLines.length);
+});
+registerCommand("*if", async (t, line) => {
+  const chainEnd = findIfChainEnd(ip, line.indent);
+  let cursor = ip, executed = false;
+  while (cursor < chainEnd) {
+    const c = currentLines[cursor];
+    if (!c.trimmed) {
+      cursor += 1;
+      continue;
+    }
+    if (isDirective(c.trimmed, "*if") || isDirective(c.trimmed, "*elseif")) {
+      const bs = cursor + 1, be = findBlockEnd2(bs, c.indent);
+      if (!executed && evaluateCondition(c.trimmed)) {
+        const reason = await executeBlock(bs, be, chainEnd);
+        executed = true;
+        if (reason === "choice" || reason === "goto") return;
+      }
+      cursor = be;
+      continue;
+    }
+    if (isDirective(c.trimmed, "*else")) {
+      const bs = cursor + 1, be = findBlockEnd2(bs, c.indent);
+      if (!executed) {
+        const reason = await executeBlock(bs, be, chainEnd);
+        if (reason === "choice" || reason === "goto") return;
+      }
+      cursor = be;
+      continue;
+    }
+    cursor += 1;
+  }
+  setIp(chainEnd);
+});
+registerCommand("*loop", async (t, line) => {
+  const LOOP_GUARD = 1e4;
+  const blockStart = ip + 1, blockEnd = findBlockEnd2(blockStart, line.indent);
+  let guard = 0;
+  while (evaluateCondition(t) && guard < LOOP_GUARD) {
+    const reason = await executeBlock(blockStart, blockEnd);
+    if (reason === "choice") {
+      const ac = awaitingChoice;
+      if (ac) setAwaitingChoice({ ...ac, _savedIp: blockEnd });
+      return;
+    }
+    if (reason === "goto") return;
+    guard += 1;
+  }
+  if (guard >= LOOP_GUARD) {
+    cb.showEngineError(`*loop guard tripped in scene "${currentScene}" after ${LOOP_GUARD} iterations \u2014 possible infinite loop. Check that the loop condition can become false.`);
+  }
+  setIp(blockEnd);
+});
+registerCommand("*patch_state", (t) => {
+  const m = t.match(/^\*patch_state\s+([a-zA-Z_][\w]*)\s+(.+)$/);
+  if (!m) {
+    advanceIp();
+    return;
+  }
+  patchPlayerState({ [normalizeKey(m[1])]: evalValue(m[2]) });
+  advanceIp();
+});
+registerCommand("*call", async (t) => {
+  const name = t.replace(/^\*call\s*/, "").trim().toLowerCase();
+  const proc = getProcedure(name);
+  if (!proc) {
+    cb.showEngineError(`*call: Unknown procedure "${name}". Check procedures.txt.`);
+    advanceIp();
+    return;
+  }
+  let _returned = false;
+  _callStack.push({
+    scene: currentScene,
+    lines: currentLines,
+    // exact reference restored on return
+    ip: ip + 1,
+    // resume AFTER the *call line
+    gosubStackLength: _gosubStack.length,
+    onReturn: () => {
+      _returned = true;
+    }
+  });
+  setCurrentLines(proc.lines);
+  setIp(0);
+  while (ip < currentLines.length && !_returned) {
+    await executeCurrentLine();
+    if (awaitingChoice) return;
+  }
+  if (!_returned) {
+    returnFromProcedure();
+  }
+});
+registerCommand("*gosub", (t) => {
+  const label = t.replace(/^\*gosub\s*/, "").trim();
+  const labels = _labelsCache.get(currentScene) || {};
+  if (labels[label] === void 0) {
+    cb.showEngineError(`*gosub: Unknown label "${label}" in scene "${currentScene}".`);
+    setIp(currentLines.length);
+    return;
+  }
+  _gosubStack.push(ip + 1);
+  setIp(labels[label]);
+});
+registerCommand("*return", () => {
+  if (_callStack.length > 0) {
+    returnFromProcedure();
+    return;
+  }
+  if (_gosubStack.length === 0) {
+    cb.showEngineError(`*return without matching *gosub or *call in scene "${currentScene}".`);
+    setIp(currentLines.length);
+    return;
+  }
+  setIp(_gosubStack.pop());
+});
+registerCommand("*define_term", (t) => {
+  const m = t.match(/^\*define_term\s+"([^"]+)"\s+"([^"]+)"$/);
+  if (m) {
+    addGlossaryTerm(m[1], m[2]);
+    cb.scheduleStatsRender();
+  } else {
+    console.warn(`[interpreter] *define_term: expected *define_term "Term" "Description"
+Got: ${t}`);
+  }
+  advanceIp();
+});
+registerCommand("*checkpoint", (t) => {
+  const labelMatch = t.match(/^\*checkpoint\s+"([^"]+)"/);
+  const label = labelMatch ? labelMatch[1] : chapterTitle || null;
+  if (cb.getNarrativeLog) saveCheckpoint(label, cb.getNarrativeLog());
+  advanceIp();
+});
+registerCommand("*finish", async () => {
+  const list = startup.sceneList;
+  const currentIdx = list.indexOf(currentScene.replace(/\.txt$/i, ""));
+  const nextIdx = currentIdx + 1;
+  if (nextIdx >= list.length) {
+    cb.showEngineError(`*finish: no next scene after "${currentScene}" in scene_list.`);
+    setIp(currentLines.length);
+    return;
+  }
+  await gotoScene(list[nextIdx]);
+});
+
+// engine.ts
+init_skills();
+init_items();
+init_glossary();
+init_undo();
 
 // src/ui/overlays.ts
 var _splashOverlay;
@@ -2377,7 +2909,7 @@ function init3({
   setChapterTitle: setChapterTitle2,
   parseAndCacheScene,
   setChoiceArea: setChoiceArea2,
-  clearUndoStack,
+  clearUndoStack: clearUndoStack2,
   setGameTitle: setGameTitle2
 }) {
   _splashOverlay = splashOverlay;
@@ -2403,7 +2935,7 @@ function init3({
   _applyTransition = applyTransition2;
   _setChapterTitle = setChapterTitle2;
   _parseAndCacheScene = parseAndCacheScene;
-  _clearUndoStack = clearUndoStack || null;
+  _clearUndoStack = clearUndoStack2 || null;
   _setChoiceArea = setChoiceArea2 || null;
   _setGameTitle = setGameTitle2 || null;
 }
@@ -2576,8 +3108,52 @@ function hideSplash() {
   _splashOverlay.classList.add("hidden");
 }
 var _saveTrapRelease = null;
+function refreshCheckpoints() {
+  const list = document.getElementById("checkpoint-list");
+  const toggle = document.getElementById("checkpoint-toggle");
+  if (!list || !toggle) return;
+  const checkpoints = getCheckpoints().filter((cp) => cp !== null);
+  if (checkpoints.length === 0) {
+    list.innerHTML = '<div class="checkpoint-empty">No checkpoints yet.</div>';
+  } else {
+    const fmt = new Intl.DateTimeFormat(void 0, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    list.innerHTML = checkpoints.map((cp) => `
+      <div class="checkpoint-card" data-slot="${cp.slot}">
+        <span class="checkpoint-label">${escapeHtml2(cp.label)}</span>
+        <span class="checkpoint-time">${fmt.format(new Date(cp.timestamp))}</span>
+        <button class="slot-load-btn slot-load-btn--load checkpoint-load-btn" data-checkpoint="${cp.slot}">Load</button>
+      </div>`).join("");
+  }
+  list.classList.add("hidden");
+  toggle.textContent = "\u25B8 Checkpoints";
+  const newToggle = toggle.cloneNode(true);
+  toggle.replaceWith(newToggle);
+  newToggle.addEventListener("click", () => {
+    const isHidden = list.classList.toggle("hidden");
+    newToggle.textContent = isHidden ? "\u25B8 Checkpoints" : "\u25BE Checkpoints";
+  });
+  list.querySelectorAll(".checkpoint-load-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const slot = Number(btn.dataset.checkpoint);
+      const raw = localStorage.getItem(`${CHECKPOINT_PREFIX}${slot}`);
+      if (!raw) return;
+      const result = decodeSaveCode(raw);
+      if (!result.ok) {
+        showToast(`Checkpoint load failed: ${result.reason}`);
+        return;
+      }
+      hideSaveMenu();
+      await loadAndResume(result.save);
+      showToast("Checkpoint loaded.");
+    });
+  });
+}
+function escapeHtml2(val) {
+  return String(val ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
 function showSaveMenu() {
   refreshAllSlotCards();
+  refreshCheckpoints();
   _saveOverlay.classList.remove("hidden");
   _saveOverlay.style.opacity = "1";
   _saveTrapRelease = trapFocus(_saveOverlay, _saveBtn);
@@ -2711,163 +3287,17 @@ function showCharacterCreation() {
   });
 }
 
-// engine.ts
-var dom = {
-  narrativeContent: document.getElementById("narrative-content"),
-  choiceArea: document.getElementById("choice-area"),
-  chapterTitle: document.getElementById("chapter-title"),
-  narrativePanel: document.getElementById("narrative-panel"),
-  statusPanel: document.getElementById("status-panel"),
-  statusToggle: document.getElementById("status-toggle"),
-  saveBtn: document.getElementById("save-btn"),
-  gameTitle: document.getElementById("game-title"),
-  splashTitle: document.querySelector(".splash-title"),
-  splashTagline: document.getElementById("splash-tagline"),
-  splashOverlay: document.getElementById("splash-overlay"),
-  splashNewBtn: document.getElementById("splash-new-btn"),
-  splashLoadBtn: document.getElementById("splash-load-btn"),
-  splashSlots: document.getElementById("splash-slots"),
-  splashSlotsBack: document.getElementById("splash-slots-back"),
-  saveOverlay: document.getElementById("save-overlay"),
-  saveMenuClose: document.getElementById("save-menu-close"),
-  charOverlay: document.getElementById("char-creation-overlay"),
-  inputFirstName: document.getElementById("input-first-name"),
-  inputLastName: document.getElementById("input-last-name"),
-  counterFirst: document.getElementById("counter-first"),
-  counterLast: document.getElementById("counter-last"),
-  errorFirstName: document.getElementById("error-first-name"),
-  errorLastName: document.getElementById("error-last-name"),
-  charBeginBtn: document.getElementById("char-begin-btn"),
-  endingOverlay: document.getElementById("ending-overlay"),
-  endingTitle: document.getElementById("ending-title"),
-  endingContent: document.getElementById("ending-content"),
-  endingStats: document.getElementById("ending-stats"),
-  endingActionBtn: document.getElementById("ending-action-btn"),
-  storeOverlay: document.getElementById("store-overlay"),
-  toast: document.getElementById("toast")
-};
-Object.entries(dom).forEach(([key, el]) => {
-  if (!el) console.warn(`[engine] DOM element missing: "${key}" \u2014 check index.html IDs`);
-});
-var sceneCache = /* @__PURE__ */ new Map();
-var labelsCache = /* @__PURE__ */ new Map();
-function setChapterTitle(t) {
-  const prev = dom.chapterTitle?.textContent ?? "";
-  if (dom.chapterTitle) dom.chapterTitle.textContent = t;
-  setChapterTitleState(t);
-  if (t && t !== prev && t !== "\u2014") showChapterCard(t);
-}
-function showChapterCard(title) {
-  document.querySelector(".chapter-card")?.remove();
-  const card = document.createElement("div");
-  card.className = "chapter-card";
-  const lbl = document.createElement("span");
-  lbl.className = "chapter-card-label";
-  lbl.textContent = "Chapter";
-  const ttl = document.createElement("span");
-  ttl.className = "chapter-card-title";
-  ttl.textContent = title;
-  card.appendChild(lbl);
-  card.appendChild(ttl);
-  if (dom.narrativePanel) {
-    dom.narrativePanel.insertBefore(card, dom.narrativePanel.firstChild);
-  }
-  card.addEventListener("animationend", () => card.remove(), { once: true });
-}
-function setGameTitle(t) {
-  if (dom.gameTitle) dom.gameTitle.textContent = t;
-  if (dom.splashTitle) dom.splashTitle.textContent = t;
-  document.title = t;
-}
-var _statsRenderPending = false;
-function scheduleStatsRender() {
-  if (_statsRenderPending) return;
-  _statsRenderPending = true;
-  requestAnimationFrame(() => {
-    _statsRenderPending = false;
-    runStatsScene();
-    updateUndoBtn();
-  });
-}
-async function fetchTextFile(name) {
-  const key = name.endsWith(".txt") ? name : `${name}.txt`;
-  if (sceneCache.has(key)) return sceneCache.get(key);
-  const res = await fetch(key);
-  if (!res.ok) throw new Error(`Failed to load ${key}`);
-  const text = await res.text();
-  sceneCache.set(key, text);
-  return text;
-}
-function showEngineError(message) {
-  clearNarrative();
-  const div = document.createElement("div");
-  div.className = "system-block";
-  div.style.borderLeftColor = "var(--red)";
-  div.style.color = "var(--red)";
-  const label = document.createElement("span");
-  label.className = "system-block-label";
-  label.textContent = "[ ENGINE ERROR ]";
-  const text = document.createElement("span");
-  text.className = "system-block-text";
-  text.textContent = `${message}
-
-Use the Restart button to reload.`;
-  div.appendChild(label);
-  div.appendChild(text);
-  dom.narrativeContent?.insertBefore(div, dom.choiceArea);
-  if (dom.chapterTitle) dom.chapterTitle.textContent = "ERROR";
-}
-var _undoStack = [];
-var UNDO_MAX = 10;
-function pushUndoSnapshot() {
-  _undoStack.push({
-    playerState: JSON.parse(JSON.stringify(playerState)),
-    tempState: JSON.parse(JSON.stringify(tempState)),
-    scene: currentScene,
-    ip: pageBreakIp ?? ip,
-    narrativeLog: JSON.parse(JSON.stringify(getNarrativeLog())),
-    chapterTitle: dom.chapterTitle?.textContent ?? null,
-    awaitingChoice: awaitingChoice ? JSON.parse(JSON.stringify(awaitingChoice)) : null
-  });
-  if (_undoStack.length > UNDO_MAX) _undoStack.shift();
-  updateUndoBtn();
-}
-async function popUndo() {
-  if (_undoStack.length === 0) return;
-  const snap = _undoStack.pop();
-  setPlayerState(JSON.parse(JSON.stringify(snap.playerState)));
-  setTempState(JSON.parse(JSON.stringify(snap.tempState)));
-  if (snap.scene) setCurrentScene(snap.scene);
-  if (snap.scene) {
-    const text = sceneCache.get(snap.scene.endsWith(".txt") ? snap.scene : `${snap.scene}.txt`);
-    if (text) {
-      setCurrentLines(parseLines(text));
-      indexLabels(snap.scene, currentLines, labelsCache);
-    }
-  }
-  setIp(snap.ip);
-  setAwaitingChoice(null);
-  setPageBreakIp(null);
-  if (dom.chapterTitle) dom.chapterTitle.textContent = snap.chapterTitle;
-  setChapterTitleState(snap.chapterTitle ?? "");
-  renderFromLog(snap.narrativeLog, { skipAnimations: true });
-  if (snap.awaitingChoice) {
-    setAwaitingChoice(snap.awaitingChoice);
-    renderChoices(snap.awaitingChoice.choices);
-  }
-  runStatsScene();
-  updateUndoBtn();
-}
-function updateUndoBtn() {
-  const btn = document.getElementById("undo-btn");
-  if (!btn) return;
-  btn.disabled = _undoStack.length === 0;
-}
-function wireUI() {
+// src/systems/save-manager.ts
+init_narrative();
+init_panels();
+init_state();
+init_undo();
+function wireSaveUI(dom, opts) {
+  const { scheduleStatsRender: scheduleStatsRender2 } = opts;
   dom.statusToggle?.addEventListener("click", () => {
     const visible = dom.statusPanel?.classList.toggle("status-visible");
     dom.statusPanel?.classList.toggle("status-hidden", !visible);
-    runStatsScene();
+    scheduleStatsRender2();
   });
   document.addEventListener("click", (e) => {
     if (!dom.statusPanel?.contains(e.target) && e.target !== dom.statusToggle && !dom.storeOverlay?.contains(e.target)) {
@@ -2882,6 +3312,23 @@ function wireUI() {
   });
   dom.saveOverlay?.addEventListener("keydown", (e) => {
     if (e.key === "Escape") hideSaveMenu();
+  });
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+      e.preventDefault();
+      if (dom.saveOverlay.classList.contains("hidden")) {
+        showSaveMenu();
+      } else {
+        hideSaveMenu();
+      }
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+      const btn = document.getElementById("undo-btn");
+      if (btn && !btn.disabled) {
+        e.preventDefault();
+        popUndo();
+      }
+    }
   });
   [1, 2, 3].forEach((slot) => {
     const btn = document.getElementById(`save-to-${slot}`);
@@ -2940,8 +3387,7 @@ function wireUI() {
     });
     dom.saveBtn?.classList.remove("hidden");
     document.getElementById("undo-btn")?.classList.remove("hidden");
-    _undoStack.splice(0);
-    updateUndoBtn();
+    clearUndoStack();
     await runStatsScene();
     await gotoScene(startup.sceneList[0] || "prologue");
   });
@@ -2978,6 +3424,7 @@ function wireUI() {
   wireCharCreation();
   const undoBtn = document.getElementById("undo-btn");
   if (undoBtn) undoBtn.addEventListener("click", popUndo);
+  updateUndoBtn();
   [1, 2, 3].forEach((slot) => {
     const btn = document.getElementById(`save-export-${slot}`);
     if (!btn) return;
@@ -3054,8 +3501,53 @@ function wireUI() {
     });
   }
 }
+
+// engine.ts
+init_narrative();
+init_panels();
+var sceneCache = /* @__PURE__ */ new Map();
+var labelsCache = /* @__PURE__ */ new Map();
+async function fetchTextFile(name) {
+  const key = name.endsWith(".txt") ? name : `${name}.txt`;
+  if (sceneCache.has(key)) return sceneCache.get(key);
+  const res = await fetch(key);
+  if (!res.ok) throw new Error(`Failed to load ${key}`);
+  const text = await res.text();
+  sceneCache.set(key, text);
+  return text;
+}
+function showEngineError(message) {
+  clearNarrative();
+  const div = document.createElement("div");
+  div.className = "system-block";
+  div.style.borderLeftColor = div.style.color = "var(--red)";
+  const lbl = document.createElement("span");
+  lbl.className = "system-block-label";
+  lbl.textContent = "[ ENGINE ERROR ]";
+  const txt = document.createElement("span");
+  txt.className = "system-block-text";
+  txt.textContent = `${message}
+
+Use the Restart button to reload.`;
+  div.append(lbl, txt);
+  document.getElementById("narrative-content")?.insertBefore(div, document.getElementById("choice-area"));
+  const ct = document.getElementById("chapter-title");
+  if (ct) ct.textContent = "ERROR";
+}
+var _statsRenderPending = false;
+function scheduleStatsRender() {
+  if (_statsRenderPending) return;
+  _statsRenderPending = true;
+  requestAnimationFrame(() => {
+    _statsRenderPending = false;
+    runStatsScene();
+    Promise.resolve().then(() => (init_undo(), undo_exports)).then((m) => m.updateUndoBtn());
+  });
+}
 async function boot() {
+  const dom = buildDom();
   registerCaches(sceneCache, labelsCache);
+  initUndo({ chapterTitleEl: dom.chapterTitle, sceneCache, labelsCache });
   init({
     narrativeContent: dom.narrativeContent,
     choiceArea: dom.choiceArea,
@@ -3110,10 +3602,7 @@ async function boot() {
       dom.choiceArea = el;
       if (el) setChoiceArea(el);
     },
-    clearUndoStack: () => {
-      _undoStack.splice(0);
-      updateUndoBtn();
-    },
+    clearUndoStack,
     setGameTitle
   });
   registerCallbacks({
@@ -3136,22 +3625,24 @@ async function boot() {
     },
     runStatsScene,
     fetchTextFile,
-    getNarrativeLog
+    getNarrativeLog,
+    addImage
   });
-  wireUI();
+  wireSaveUI(dom, { scheduleStatsRender, setChapterTitle });
   try {
     await parseStartup(fetchTextFile, evalValue);
     captureStartupDefaults();
     await parseSkills(fetchTextFile);
     await parseItems(fetchTextFile);
     await parseProcedures(fetchTextFile);
-    const title = playerState.game_title || "";
-    const byline = playerState.game_byline || "";
-    setGameTitle(title);
-    if (dom.splashTagline && byline) dom.splashTagline.textContent = byline;
+    await parseGlossary(fetchTextFile);
+    setGameTitle(String(playerState.game_title || ""));
+    if (dom.splashTagline && playerState.game_byline)
+      dom.splashTagline.textContent = String(playerState.game_byline);
     showSplash();
   } catch (err) {
     showEngineError(`Boot failed: ${err.message}`);
   }
 }
 document.addEventListener("DOMContentLoaded", boot);
+//# sourceMappingURL=engine.js.map

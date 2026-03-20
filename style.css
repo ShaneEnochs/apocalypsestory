@@ -2484,3 +2484,117 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Narrative images — *image directive (Phase 5)
+   --------------------------------------------------------------------------- */
+
+.narrative-image-wrapper {
+  margin: 1.2em 0;
+  text-align: center;
+}
+
+.narrative-image {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-md);
+  display: block;
+  margin: 0 auto;
+}
+
+/* ---------------------------------------------------------------------------
+   Checkpoint section in save menu (Phase 7)
+   --------------------------------------------------------------------------- */
+
+.checkpoint-section {
+  margin-top: 12px;
+  border-top: 1px solid var(--border-dim);
+  padding-top: 10px;
+}
+
+.checkpoint-toggle {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  padding: 4px 0;
+  letter-spacing: var(--ls-tight);
+}
+.checkpoint-toggle:hover { color: var(--cyan); }
+
+.checkpoint-list {
+  margin-top: 6px;
+}
+
+.checkpoint-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.checkpoint-label {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.checkpoint-time {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.checkpoint-empty {
+  font-style: italic;
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+  padding: 8px 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Glossary / Lore-Term Tooltips (Phase 8)
+   --------------------------------------------------------------------------- */
+.lore-term {
+  border-bottom: 1px dotted var(--accent-cyan, #5eead4);
+  cursor: help;
+  position: relative;
+  color: inherit;
+}
+
+.lore-term:hover::after,
+.lore-term:focus::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-overlay, #1e293b);
+  color: var(--text-primary, #e2e8f0);
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: var(--text-xs, 0.75rem);
+  font-style: normal;
+  line-height: 1.4;
+  white-space: normal;
+  width: 240px;
+  max-width: 80vw;
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.lore-term:focus {
+  outline: 1px dotted var(--accent-cyan, #5eead4);
+  outline-offset: 2px;
+}

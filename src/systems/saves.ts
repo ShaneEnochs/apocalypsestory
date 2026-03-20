@@ -279,6 +279,59 @@ export function importSaveFromJSON(json: any, targetSlot: string | number): { ok
 }
 
 // ---------------------------------------------------------------------------
+// Checkpoint system — auto-bookmarks with FIFO rotation (max 5).
+// Checkpoints are stored under sa_checkpoint_0 … sa_checkpoint_4.
+// They use the same SA1 format as regular slots and are read-only from the
+// player's perspective (no manual overwrite; author-controlled via *checkpoint).
+// ---------------------------------------------------------------------------
+
+export const CHECKPOINT_MAX    = 5;
+export const CHECKPOINT_PREFIX = 'sa_checkpoint_';
+
+export function saveCheckpoint(label: string | null, narrativeLog: unknown[]): void {
+  // Rotate: oldest checkpoint (slot CHECKPOINT_MAX-1) is discarded, rest shift up
+  try {
+    localStorage.removeItem(`${CHECKPOINT_PREFIX}${CHECKPOINT_MAX - 1}`);
+    for (let i = CHECKPOINT_MAX - 2; i >= 0; i--) {
+      const existing = localStorage.getItem(`${CHECKPOINT_PREFIX}${i}`);
+      if (existing) {
+        localStorage.setItem(`${CHECKPOINT_PREFIX}${i + 1}`, existing);
+        localStorage.removeItem(`${CHECKPOINT_PREFIX}${i}`);
+      }
+    }
+    const code = encodeSaveCode(narrativeLog, label);
+    localStorage.setItem(`${CHECKPOINT_PREFIX}0`, code);
+  } catch (err) {
+    console.warn('[saves] saveCheckpoint failed:', err);
+  }
+}
+
+export interface CheckpointInfo {
+  slot:      number;
+  label:     string;
+  timestamp: number;
+  code:      string;
+}
+
+export function getCheckpoints(): Array<CheckpointInfo | null> {
+  const results: Array<CheckpointInfo | null> = [];
+  for (let i = 0; i < CHECKPOINT_MAX; i++) {
+    const raw = localStorage.getItem(`${CHECKPOINT_PREFIX}${i}`);
+    if (!raw) { results.push(null); continue; }
+    const decoded = decodeSaveCode(raw);
+    if (!decoded.ok) { results.push(null); continue; }
+    const save = (decoded as { ok: true; save: any }).save;
+    results.push({
+      slot:      i,
+      label:     save.label || save.chapterTitle || `Checkpoint ${i + 1}`,
+      timestamp: save.timestamp,
+      code:      raw,
+    });
+  }
+  return results;
+}
+
+// ---------------------------------------------------------------------------
 // restoreFromSave — applies a save object to live engine state.
 //
 // If the save was at a *choice point, restores the buttons directly.

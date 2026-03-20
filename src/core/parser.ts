@@ -143,6 +143,58 @@ export function parseSystemBlock(startIndex: number, ctx: ParseSystemBlockContex
 }
 
 // ---------------------------------------------------------------------------
+// parseRandomChoice — scans forward from a *random_choice line and collects
+// all weighted options.
+//
+// Each option line format: N #Label
+//   N      — positive integer weight (doesn't need to sum to 100)
+//   #Label — author-facing label, NOT shown to the player
+//
+// Returns the weighted option list and the line index past the entire block.
+// ---------------------------------------------------------------------------
+export interface RandomChoiceOption {
+  weight: number;
+  text:   string;   // author-facing label
+  start:  number;   // first line index of option body
+  end:    number;   // line index past option body
+}
+
+interface ParseRandomChoiceContext {
+  currentLines: ParsedLine[];
+}
+
+export function parseRandomChoice(
+  startIndex: number,
+  indent: number,
+  ctx: ParseRandomChoiceContext,
+): { choices: RandomChoiceOption[]; end: number } {
+  const { currentLines } = ctx;
+  const choices: RandomChoiceOption[] = [];
+  let i = startIndex + 1;
+
+  while (i < currentLines.length) {
+    const line = currentLines[i];
+    if (!line.trimmed) { i += 1; continue; }
+    if (line.indent <= indent) break;
+
+    const m = line.trimmed.match(/^(\d+)\s*#(.*)$/);
+    if (m) {
+      const weight       = Math.max(1, parseInt(m[1], 10));
+      const text         = m[2].trim();
+      const optionIndent = line.indent;
+      const start        = i + 1;
+      const end          = findBlockEnd(start, optionIndent, currentLines);
+      choices.push({ weight, text, start, end });
+      i = end;
+      continue;
+    }
+    i += 1;
+  }
+
+  return { choices, end: i };
+}
+
+// ---------------------------------------------------------------------------
 // findBlockEnd — returns the index of the first non-empty line whose indent
 // is <= parentIndent, starting from fromIndex. Local helper for parseChoice;
 // the interpreter has its own copy for the live execution pass.

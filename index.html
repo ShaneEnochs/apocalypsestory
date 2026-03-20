@@ -44,7 +44,7 @@
 
 <main id="game-main">
   <section id="narrative-panel">
-    <div id="narrative-content">
+    <div id="narrative-content" aria-live="polite" aria-atomic="false">
       <div id="choice-area"></div>
     </div>
   </section>
@@ -212,6 +212,10 @@
         <button id="save-code-load" class="overlay-btn overlay-btn--secondary save-code-btn">Load Code</button>
       </div>
       <textarea id="save-code-field" class="save-code-textarea" placeholder="Paste a save code here to load, or click Copy Code to generate one..." rows="3" spellcheck="false"></textarea>
+    </div>
+    <div class="checkpoint-section" id="checkpoint-section">
+      <button class="checkpoint-toggle" id="checkpoint-toggle">▸ Checkpoints</button>
+      <div class="checkpoint-list hidden" id="checkpoint-list"></div>
     </div>
     <div class="save-menu-footer">
       <button id="ingame-restart-btn" class="overlay-btn overlay-btn--danger">↺ Restart</button>
