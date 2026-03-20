@@ -1215,7 +1215,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
    13. SAVE MENU
    ============================================================ */
 
-.save-menu-box   { max-width: 480px; }
+.save-menu-box   { max-width: 480px; max-height: 85vh; overflow-y: auto; }
 .save-menu-title { font-size: var(--text-md); letter-spacing: var(--ls-wide); margin-bottom: 8px; }
 .save-menu-hint  { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-faint); letter-spacing: var(--ls-tight); margin-bottom: 18px; }
 
@@ -2780,4 +2780,33 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 /* Level-up confirmation buttons */
 [data-theme="light"] .levelup-again-btn--yes:hover {
   color: var(--text-primary);
+}
+
+/* ---------------------------------------------------------------------------
+   Light mode button font + base-state color polish
+   Switch overlay buttons from decorative Cinzel to mono font for a cleaner
+   look. Also fix base-state text color so buttons look intentional, not
+   just inverted dark-mode artifacts.
+   --------------------------------------------------------------------------- */
+[data-theme="light"] .overlay-btn {
+  font-family: var(--font-mono);
+  letter-spacing: var(--ls-tight);
+  color: #ffffff;
+}
+
+[data-theme="light"] .overlay-btn--secondary {
+  color: var(--text-dim);
+}
+
+[data-theme="light"] .overlay-btn--danger {
+  color: var(--red);
+}
+
+/* Slot save/load buttons — already mono font, just fix base text color */
+[data-theme="light"] .slot-load-btn {
+  color: #ffffff;
+}
+
+[data-theme="light"] .slot-load-btn--load {
+  color: var(--cyan-dim);
 }
