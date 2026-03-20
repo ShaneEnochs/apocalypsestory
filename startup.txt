@@ -19,6 +19,7 @@
 *comment --- Progress ---
 *create level 94
 *create essence 0
+*create timeline "original"
 
 *comment --- Skills and journal ---
 *create skills []
