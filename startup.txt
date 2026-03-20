@@ -14,16 +14,31 @@
 *create pronouns_possessive_pronoun "theirs"
 *create pronouns_reflexive          "themself"
 *create pronouns_label              "they/them"
-*create class_name "Shield of Humanity"
+*create class_name "[legendary]Shield of Humanity[/legendary]"
 
 *comment --- Progress ---
 *create level 94
-*create essence 0
+*create essence 68520
+*create next_lvl 15400000
+*create timeline "original"
 
 *comment --- Skills and journal ---
 *create skills []
 *create journal []
 *create inventory []
+
+*comment --- Grant all Shield of Humanity skills ---
+*grant_skill "last_shield_standing"
+*grant_skill "last_bastion"
+*grant_skill "interpenetration"
+*grant_skill "unbreakable"
+*grant_skill "absorbent"
+*grant_skill "defiant_stand"
+*grant_skill "intervention"
+*grant_skill "regeneration_of_purpose"
+*grant_skill "unwavering_conviction"
+*grant_skill "final_moment"
+*grant_skill "legacy_of_protection"
 
 *comment --- Vitals ---
 *create health "Healthy"
