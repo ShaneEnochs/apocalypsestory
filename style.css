@@ -1167,6 +1167,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 .splash-sigil-center svg {
   width: 50px; height: 50px;
+  color: var(--cyan);
   filter: drop-shadow(0 0 8px rgba(0,212,245,0.5))
           drop-shadow(0 0 22px rgba(0,212,245,0.2));
   animation: splashBreathe 4s ease-in-out infinite;
@@ -1486,13 +1487,26 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 /* Sigil ambient glow — teal tinted */
 [data-theme="light"] .splash-sigil-ambient {
-  background: radial-gradient(ellipse, rgba(0,122,138,0.08) 0%, transparent 65%);
+  background: radial-gradient(ellipse, rgba(0,96,112,0.12) 0%, transparent 65%);
 }
 
 /* Center sigil — use theme cyan */
 [data-theme="light"] .splash-sigil-center svg {
-  filter: drop-shadow(0 0 6px rgba(0,122,138,0.4))
-          drop-shadow(0 0 14px rgba(0,122,138,0.15));
+  color: var(--cyan);
+  filter: drop-shadow(0 0 6px rgba(0,96,112,0.5))
+          drop-shadow(0 0 14px rgba(0,96,112,0.25));
+}
+
+/* JS-generated sigil — override bright cyan for light backgrounds */
+[data-theme="light"] .splash-sigil-svg circle,
+[data-theme="light"] .splash-sigil-svg line,
+[data-theme="light"] .splash-sigil-svg path,
+[data-theme="light"] .splash-sigil-svg rect,
+[data-theme="light"] .splash-sigil-svg polyline {
+  stroke: rgba(0, 74, 85, 0.65);
+}
+[data-theme="light"] .splash-sigil-svg rect[fill^="rgba(0,212,245"] {
+  fill: rgba(0, 74, 85, 0.7);
 }
 
 /* Eyebrow */
@@ -1508,14 +1522,14 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 /* Ornament line + diamond */
 [data-theme="light"] .splash-orn-line {
-  background: linear-gradient(90deg, transparent, rgba(0,122,138,0.3));
+  background: linear-gradient(90deg, transparent, rgba(0,74,85,0.45));
 }
 [data-theme="light"] .splash-orn-line--rev {
-  background: linear-gradient(90deg, rgba(0,122,138,0.3), transparent);
+  background: linear-gradient(90deg, rgba(0,74,85,0.45), transparent);
 }
 [data-theme="light"] .splash-orn-diamond {
   background: var(--cyan);
-  box-shadow: 0 0 6px rgba(0,122,138,0.4);
+  box-shadow: 0 0 6px rgba(0,74,85,0.5);
 }
 
 /* Tagline */
@@ -1526,7 +1540,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 /* Stale notice */
 [data-theme="light"] .splash-stale-notice {
   color: var(--cyan);
-  background: rgba(0,122,138,0.08);
+  background: rgba(0,74,85,0.08);
   border-color: var(--cyan-dim);
 }
 
@@ -1542,14 +1556,14 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 /* Primary action button */
 [data-theme="light"] .splash-action-btn--primary {
-  background: rgba(0,122,138,0.08);
+  background: rgba(0,74,85,0.1);
   color: var(--cyan);
-  border-color: rgba(0,122,138,0.4);
+  border-color: rgba(0,74,85,0.5);
 }
 [data-theme="light"] .splash-action-btn--primary:hover {
-  background: rgba(0,122,138,0.14);
+  background: rgba(0,74,85,0.18);
   border-color: var(--cyan);
-  box-shadow: 0 0 14px rgba(0,122,138,0.12);
+  box-shadow: 0 0 14px rgba(0,74,85,0.18);
 }
 [data-theme="light"] .splash-action-btn--primary:hover .splash-btn-icon {
   background: var(--cyan);
@@ -1580,14 +1594,14 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 /* Stat track */
 [data-theme="light"] .splash-stat-track {
-  background: rgba(0,0,0,0.1);
+  background: rgba(0,0,0,0.14);
 }
 [data-theme="light"] .splash-stat-fill {
   background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
 }
 [data-theme="light"] .splash-stat-fill::after {
   background: var(--cyan);
-  box-shadow: 0 0 4px rgba(0,122,138,0.5);
+  box-shadow: 0 0 4px rgba(0,74,85,0.5);
 }
 
 /* Footer */
@@ -3169,43 +3183,43 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   --bg-system:     #e4dfd6;
 
   /* --- Borders --- */
-  --border-dim:    #c8c0b4;
-  --border-glow:   #a09484;
+  --border-dim:    #b0a898;
+  --border-glow:   #8a7e70;
 
   /* --- Accent colors (darkened for light-background contrast) --- */
-  --cyan:          #007a8a;
-  --cyan-dim:      #005a66;
-  --cyan-glow:     rgba(0, 122, 138, 0.1);
-  --cyan-glow-md:  rgba(0, 122, 138, 0.2);
+  --cyan:          #006070;
+  --cyan-dim:      #004a55;
+  --cyan-glow:     rgba(0, 96, 112, 0.14);
+  --cyan-glow-md:  rgba(0, 96, 112, 0.25);
 
-  --amber:         #b07800;
-  --amber-dim:     #8a5e00;
-  --amber-glow:    rgba(176, 120, 0, 0.12);
+  --amber:         #9a6800;
+  --amber-dim:     #7a5200;
+  --amber-glow:    rgba(154, 104, 0, 0.15);
 
-  --green:         #1a8a4a;
-  --green-glow:    rgba(26, 138, 74, 0.1);
+  --green:         #147040;
+  --green-glow:    rgba(20, 112, 64, 0.14);
 
-  --red:           #c04040;
-  --red-glow:      rgba(192, 64, 64, 0.12);
+  --red:           #a83535;
+  --red-glow:      rgba(168, 53, 53, 0.15);
 
   /* --- Rarity colors (darker for readability on light) --- */
   --rarity-common:    #2a2e3e;
-  --rarity-uncommon:  #1a8a4a;
-  --rarity-rare:      #2a6ecc;
-  --rarity-epic:      #7a40cc;
-  --rarity-legendary: #b07800;
+  --rarity-uncommon:  #147040;
+  --rarity-rare:      #2060b8;
+  --rarity-epic:      #6830b8;
+  --rarity-legendary: #9a6800;
 
   /* --- Named inline colors --- */
   --white:   #2a2e3e;
-  --blue:    #2a6ecc;
-  --purple:  #7a40cc;
-  --gold:    #b07800;
-  --silver:  #5a6278;
+  --blue:    #2060b8;
+  --purple:  #6830b8;
+  --gold:    #9a6800;
+  --silver:  #4a5468;
 
   /* --- Text --- */
   --text-primary:  #1a1e2e;
-  --text-dim:      #4a5068;
-  --text-faint:    #7a8098;
+  --text-dim:      #3e4458;
+  --text-faint:    #6a7088;
 }
 
 /* Hardcoded background overrides for light theme */
@@ -3222,18 +3236,18 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 }
 
 [data-theme="light"] .chapter-card {
-  border-top-color:    rgba(0, 122, 138, 0.2);
-  border-bottom-color: rgba(0, 122, 138, 0.2);
-  background: linear-gradient(180deg, transparent 0%, rgba(0, 122, 138, 0.05) 50%, transparent 100%);
+  border-top-color:    rgba(0, 74, 85, 0.3);
+  border-bottom-color: rgba(0, 74, 85, 0.3);
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 74, 85, 0.08) 50%, transparent 100%);
 }
 
 [data-theme="light"] .chapter-card-title {
-  text-shadow: 0 0 16px rgba(0, 122, 138, 0.3);
+  text-shadow: 0 0 16px rgba(0, 74, 85, 0.4);
 }
 
 [data-theme="light"] .char-portrait-frame {
   background: #e4dfd6;
-  border-color: rgba(0, 122, 138, 0.25);
+  border-color: rgba(0, 74, 85, 0.35);
 }
 
 /* Remove glow text-shadows that look muddy on light backgrounds */
@@ -3279,7 +3293,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 }
 
 [data-theme="light"] .store-card:hover:not(.store-card--owned):not(.store-card--unaffordable) {
-  background: rgba(0, 122, 138, 0.06);
+  background: rgba(0, 74, 85, 0.06);
 }
 
 /* ---------------------------------------------------------------------------
@@ -3290,10 +3304,22 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
    --------------------------------------------------------------------------- */
 [data-theme="light"] .overlay-btn:hover {
   color: var(--text-primary);
+  background: rgba(0, 74, 85, 0.12);
 }
 
 [data-theme="light"] .btn-primary:hover:not(:disabled) {
-  color: var(--text-primary);
+  color: #ffffff;
+  background: var(--cyan-dim);
+}
+
+[data-theme="light"] .btn-primary--amber:hover:not(:disabled) {
+  color: #ffffff;
+  background: var(--amber-dim);
+}
+
+[data-theme="light"] .btn-primary--green:hover:not(:disabled) {
+  color: #ffffff;
+  background: var(--green);
 }
 
 /* Choice buttons: hardcoded color:#fff on hover is invisible on light bg */
@@ -3304,6 +3330,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 /* Slot buttons: base Save variant uses color:var(--bg-deep) which is near-white */
 [data-theme="light"] .slot-load-btn:hover:not(:disabled) {
   color: var(--text-primary);
+  background: rgba(0, 74, 85, 0.12);
 }
 
 [data-theme="light"] .slot-load-btn--save {
@@ -3346,4 +3373,25 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 [data-theme="light"] .slot-load-btn--load {
   color: var(--cyan-dim);
+}
+
+/* Additional light-mode hover background fixes — prevent white-on-white */
+[data-theme="light"] .ending-inline-btn:hover {
+  color: #ffffff;
+  background: var(--cyan-dim);
+}
+
+[data-theme="light"] .levelup-confirm-btn:hover {
+  color: #ffffff;
+  background: var(--cyan-dim);
+}
+
+[data-theme="light"] .skill-purchase-btn:hover:not(:disabled) {
+  color: #ffffff;
+  background: var(--cyan-dim);
+}
+
+[data-theme="light"] .input-prompt-submit:hover:not(:disabled) {
+  color: #ffffff;
+  background: var(--cyan-dim);
 }
