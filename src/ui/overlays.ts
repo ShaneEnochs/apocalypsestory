@@ -13,6 +13,8 @@ import {
   getCheckpoints, CHECKPOINT_PREFIX, decodeSaveCode,
 } from '../systems/saves.js';
 
+import { playerState } from '../core/state.js';
+
 export interface CharacterData {
   firstName:                  string;
   lastName:                   string;
@@ -324,6 +326,42 @@ export function showSplash(): void {
       notice.classList.add('hidden');
     }
   }
+
+  // ── Last Session stat bars ─────────────────────────────────────────────────
+  const STAT_MAX = 250;
+  const statSlots: Array<{ key: string; valId: string; fillId: string }> = [
+    { key: 'body',   valId: 'splash-stat-body-val',   fillId: 'splash-stat-body-fill'   },
+    { key: 'mind',   valId: 'splash-stat-mind-val',   fillId: 'splash-stat-mind-fill'   },
+    { key: 'spirit', valId: 'splash-stat-spirit-val', fillId: 'splash-stat-spirit-fill' },
+  ];
+
+  statSlots.forEach(({ key, valId, fillId }) => {
+    const raw    = playerState[key];
+    const num    = typeof raw === 'number' ? raw : parseFloat(String(raw ?? ''));
+    const valEl  = document.getElementById(valId);
+    const fillEl = document.getElementById(fillId) as HTMLElement | null;
+
+    if (valEl) {
+      valEl.innerHTML = !isNaN(num)
+        ? `${Math.round(num)}<span class="splash-stat-max">/${STAT_MAX}</span>`
+        : '—';
+    }
+    if (fillEl) {
+      // Reset to zero first, then animate to the correct width on the next frame
+      fillEl.style.transform = 'scaleX(0)';
+      requestAnimationFrame(() => {
+        fillEl.style.transform = `scaleX(${!isNaN(num) ? Math.min(num / STAT_MAX, 1) : 0})`;
+      });
+    }
+  });
+
+  // ── Build number ───────────────────────────────────────────────────────────
+  const buildEl = document.getElementById('splash-build-number');
+  if (buildEl) {
+    const bn = playerState['build_number'];
+    if (bn && typeof bn === 'string') buildEl.textContent = bn;
+  }
+  // ──────────────────────────────────────────────────────────────────────────
 
   _splashOverlay.classList.remove('hidden');
   _splashOverlay.style.opacity = '1';
