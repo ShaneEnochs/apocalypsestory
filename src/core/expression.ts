@@ -144,14 +144,12 @@ function makeParser(tokens: Token[]): { parseExpr: () => unknown } {
     while (CMP.includes(peek().type)) {
       const op    = advance().type;
       const right = parseAddSub();
-      /* eslint-disable eqeqeq */
-      if (op === TT.LT)  left = (left as any) <  (right as any);
-      if (op === TT.GT)  left = (left as any) >  (right as any);
-      if (op === TT.LTE) left = (left as any) <= (right as any);
-      if (op === TT.GTE) left = (left as any) >= (right as any);
-      if (op === TT.EQ)  left = (left as any) == (right as any);
-      if (op === TT.NEQ) left = (left as any) != (right as any);
-      /* eslint-enable eqeqeq */
+      if (op === TT.LT)  left = (left as any) <   (right as any);
+      if (op === TT.GT)  left = (left as any) >   (right as any);
+      if (op === TT.LTE) left = (left as any) <=  (right as any);
+      if (op === TT.GTE) left = (left as any) >=  (right as any);
+      if (op === TT.EQ)  left = (left as any) === (right as any);
+      if (op === TT.NEQ) left = (left as any) !== (right as any);
     }
     return left;
   }

@@ -22,7 +22,7 @@ import { parseSkills }           from './src/systems/skills.js';
 import { parseItems }            from './src/systems/items.js';
 import { parseProcedures }       from './src/systems/procedures.js';
 import { parseGlossary }         from './src/systems/glossary.js';
-import { initUndo, pushUndoSnapshot, clearUndoStack } from './src/systems/undo.js';
+import { initUndo, pushUndoSnapshot, clearUndoStack, updateUndoBtn } from './src/systems/undo.js';
 import { wireSaveUI }            from './src/systems/save-manager.js';
 import {
   init as initNarrative, addParagraph, addSystem,
@@ -82,7 +82,7 @@ function scheduleStatsRender(): void {
   requestAnimationFrame(() => {
     _statsRenderPending = false;
     runStatsScene();
-    import('./src/systems/undo.js').then(m => m.updateUndoBtn());
+    updateUndoBtn();
   });
 }
 
@@ -130,6 +130,7 @@ async function boot(): Promise<void> {
       if (el) setChoiceArea(el);
     },
     clearUndoStack, setGameTitle,
+    showEngineError,
   });
   registerCallbacks({
     addParagraph, addSystem, clearNarrative, applyTransition,

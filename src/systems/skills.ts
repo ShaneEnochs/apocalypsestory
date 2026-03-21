@@ -61,7 +61,7 @@ export async function parseSkills(fetchTextFileFn: (name: string) => Promise<str
     // Format A: *skill key [Rarity] "Label" cost  (preferred)
     // Format B: *skill key "Label" cost [rarity]   (legacy)
     const mA = trimmed.match(/^\*skill\s+([\w]+)\s+\[([^\]]+)\]\s+"([^"]+)"\s+(\d+)\s*$/i);
-    const mB = !mA && trimmed.match(/^\*skill\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?\s*$/i);
+    const mB = !mA ? trimmed.match(/^\*skill\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?\s*$/i) : null;
     if (mA || mB) {
       if (current) parsed.push(current);
       if (mA) {

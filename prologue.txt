@@ -128,8 +128,6 @@ A singularity.
 
 Callie doesn't look up, and you instantly recognize the expression she gets when she's very close to the edge of something great. She's focused to the point where the rest of the world, and even her own health, has been downgraded to background noise, filed under *deal with it later,* and left on read.
 
-The dark rings under her eyes have deepend and evolved from exhaustion to something that looks more like a medical condition. Her hair is held back with a piece of wire, which you're pretty certain is one of the wires from your ward scrolls that she asked to borrow four days ago for *just a second.*
-
 You have known Callie Owens since your second year of college, which means you knew her before the [System], before the descent, before the long catastrophic sequence of events that transformed the two of you from people who argued about where the best place near campus to eat was into people who have watched the world end together and are now, improbably, preparing to actually do something about it.
 
 You knew her when she was *just* the most frighteningly capable person you'd ever met. Now the [System] has given her a Tier rating and a Legendary [Class] as a confirmation. But you already knew.
@@ -152,7 +150,7 @@ Well, that's not true. Thanks to a [Skill] you picked up in the early days, you 
 
 "What am I looking at?"
 
-Callie squinted, and the data arranged itself into a much simplier format.
+Callie squinted, and the data arranged itself into a much simpler format.
 
 *system
 MACHINE STATUS: 67% charge.
@@ -179,9 +177,9 @@ Two hours and ten minutes.
 
 You let yourself hold that number for a moment without immediately stress-testing it, which is actually harder than it sounds. You've had eight years of learning that good news generally came with lots and lots of fine print.
 
-For instance, four months ago, the portal mages had sealed the last entrance to the surface. There were no gates or tunnels; just a mile of solid rock between the city of Solace and the horrors above. It was the last coalition of surving nations, built in the earth's hollow because there was nowhere else to go but down. Legions of geomancers sheared the rock asunder, architecture mages laid the streets and buildings, and the most powerful illusionists created a false sky on the ceiling so the survivors could look up at something other than stone in dispair.
+For instance, four months ago, the portal mages had sealed the last entrance to the surface. There were no gates or tunnels; just a mile of solid rock between the city of Solace and the horrors above. It was the last coalition of surviving nations, built in the earth's hollow because there was nowhere else to go but down. Legions of geomancers sheared the rock asunder, architecture mages laid the streets and buildings, and the most powerful illusionists created a false sky on the ceiling so the survivors could look up at something other than stone in despair.
 
-Everyone dispaired, regardless. How could they not?
+Everyone despaired, regardless. How could they not?
 
 *page_break But it mostly worked, for all of four months.
 
@@ -199,218 +197,3 @@ But in two hours and ten minutes, none of it will matter anymore. You find, care
 *temp said_dont false
 *temp sat_with_matt false
 *temp went_to_door false
-
-*comment Variables for later class influence:
-*comment grief_carried — how the MC processes loss
-*comment trust_instinct — whether MC delegates or controls
-*comment carries_dead — whether MC holds onto the past
-
-*temp grief_carried 0
-*comment Negative = compartmentalizes, Positive = sits with it
-
-*temp trust_instinct 0
-*comment Negative = control, Positive = delegates/trusts others
-
-*temp carries_dead 0
-*comment Negative = lets go, Positive = carries them forward
-
-*system
-WARNING: Highest Demon Lord, Malphas (Tier-10 World Boss) has been detected within 10 miles of your location.
-*end_system
-
-You go very still.
-
-"They actually did it," Matt says quietly, reading the same notification in his HUD. "Tier-10."
-
-The strongest World boss you personally know to have existed and faced was a Tier-8. It had taken the combined efforts of every survivor in Solace, over two million of the strongest human beings left on the entire planet, nearly six hours to fully bring it low.
-
-The most insidious power that World Bosses had, besides their overwhelming strength and impossible durability, was their ability to summon lower-tier Commanders, who in turn could summon legions of monsters under their control. The battle was a nightmare that you try not to think about, resulting in the loss of nearly every inhabitant and the destruction of the majority of the city itself.
-
-The three people in this room were the only survivors out of two million.
-
-The difference in power between a Tier-8 and a Tier-10 is... well, it's hard to even comprehend. If a Tier-8 had nearly walked through the strongest that the human species had to offer, what would a Tier-10, the absolute pinnacle of monster evolution, be capable of?
-
-*choice
-  #Check the outer ward monitors one more time.
-    You move to the seismic station and pull up the outer ward readings. The green bars showing ward integrity are still solid. Still holding. The outer defenders have held this line for four months, through countless assaults, through horrors the Coalition never imagined. They're buying time. That's all they've ever been able to do.
-    *goto tremor_hits
-  #Go back to Callie.
-    You turn back toward the machine. Callie is still working, her focus absolute. You don't know what you'd say to her anyway. The time for words is already passing.
-    *goto tremor_hits
-  #Just wait.
-    *goto tremor_hits
-
-*label tremor_hits
-
-The first tremor hits hard enough to knock Callie's tools off the workbench.
-
-She catches one midair without looking up. The other clatters across the floor.
-
-"They're here," she says. Not a question.
-
-You move to the viewport, to the seismic sensors mounted on the far wall. The readout is a chaos of cascading red.
-
-Not one approach.
-
-All of them.
-
-The word arrives in your head fully formed: *convergence*.
-
-The monsters have finally stopped looking for you individually. They've sent everything.
-
-"How long?" you ask. Your voice sounds steady, which surprises you.
-
-Callie doesn't answer right away. You watch the charge bar increment. 71%. 72%.
-
-"Not long enough," she says finally.
-
-*choice
-  #"How bad is it up there?"
-    "How bad?" you ask. The word comes out more neutral than you feel.
-    Matt doesn't flinch. "Like they've all learned to swarm. Like something's teaching them. Like we're running out of time." He pauses. "So. Bad."
-    *goto acceleration_decision
-  #Look at Callie.
-    You turn to look at her. She's already running calculations, already thinking three steps ahead. She knows what this means. She's known it was coming.
-    *goto acceleration_decision
-  #Say nothing.
-    *goto acceleration_decision
-
-*label acceleration_decision
-
-Matt appears in the doorway. You don't remember seeing him leave the sleeping area, but he's here now, and he's already armored. The coin is gone from his hand.
-
-"The outer wards are failing," he says. "System estimates forty minutes before they breach the sanctuary."
-
-Forty minutes.
-
-Two hours and ten minutes until the machine is ready.
-
-The gap between the two numbers sits between all of you like a third person, heavy and immovable.
-
-"I can accelerate the stabilization," Callie says. It's the first time you've heard something like strain in her voice. "But if I do, there's a risk the singularity won't anchor properly. We could end up jumping wrong. End up... nowhere. Or nowhere *when*."
-
-Nobody says what everybody knows: that's still better than what's coming down that corridor.
-
-Another tremor. Dust falls from the ceiling in a steady stream now. The machine hums higher, working harder.
-
-You look between Matt and Callie. Between the two people who have fought beside you through the end of everything.
-
-"Do it," you say. "Accelerate it."
-
-Callie's fingers fly across her workstation. The charge rate spikes: 75%, 78%, 82%.
-
-"Matt, go check the inner door seals," she says. "Buy us as much time as possible."
-
-Matt nods. There's no doubt in his expression, no hesitation. He's made peace with what's about to happen.
-
-"Go," he says to you, and it takes you a moment to realize he means it. All the way through.
-
-He turns and leaves without waiting for a response.
-
-You want to follow. Everything in you wants to follow.
-
-But you stay.
-
-*choice
-  #"Tell me what to do. Let me help."
-    *goto help_callie
-  #"You're coming with me. I'm not leaving without you."
-    *goto refuse_leave
-  #Stand with her in silence.
-    *goto silent_support
-
-*label help_callie
-
-"Tell me what to do," you say. "Let me help."
-
-Callie's expression shifts, just slightly. It's something close to relief.
-
-"The resonance stabilizers," she says, pointing to a series of crystalline matrices arrayed along the machine's left side. "They need to be manually synchronized. When I give you the signal, press the center of each one in sequence. Fast. The machine will tell you if you get the timing right."
-
-You move into position without another word. The crystals hum against your palms, warm and alive.
-
-*goto final_countdown
-
-*label refuse_leave
-
-"You're coming with me," you say. "I'm not leaving without you."
-
-Callie's hands don't stop moving, but something about her shoulders tightens.
-
-"I can't," she says. The words are gentle, which somehow makes them worse. "The machine needs a controller. Someone has to be in the resonance field when you jump, or you'll drift. Someone has to hold it together from this end."
-
-"Then we hold it together from the other end. Together."
-
-She does look at you then. Her eyes are tired in a way that eight years of survival couldn't quite achieve.
-
-"We don't have enough time for both," she says quietly. "There's only room for one. And you—" She pauses. "You're the one who has to survive this."
-
-*goto final_countdown
-
-*label silent_support
-
-You don't say anything. You just move closer, positioning yourself so she knows you're there but won't distract from the work.
-
-It's what she needs. What you've both always needed from each other—presence without demand, company without distraction.
-
-The charge bar climbs: 85%, 88%, 91%.
-
-"The timing's going to be tight," she says after a moment. "When I say jump, you don't hesitate. Not even for a second."
-
-"I know," you say.
-
-"Promise me."
-
-"I promise."
-
-*goto final_countdown
-
-*label final_countdown
-
-The machine reaches critical mass. The singularity expands and contracts, a rhythm that makes your teeth ache.
-
-94%.
-
-97%.
-
-The outer door fails.
-
-You hear it—a sound like the world cracking. The wards flare bright, too bright, then guttered out one by one like candles in a wind.
-
-*choice
-  #"Callie, I'm sorry."
-    "Callie—" you start. You don't know how to finish.
-    "Don't," she says. Her voice is steady. Steady in a way that breaks you more than anything else could. "Don't apologize. Just go. Make it count."
-    *goto singularity_opens
-  #Look back at the door.
-    You can hear them now. On the other side of the vault. Thousands of things that used to be alive, all moving as one. The Sovereign's will made manifest.
-    *goto singularity_opens
-  #Wait for her signal.
-    *goto singularity_opens
-
-*label singularity_opens
-
-"Now!" Callie shouts. "Go!"
-
-You don't think. You move toward the singularity, toward the point of light that was never meant to exist and somehow does.
-
-The temperature changes as you approach. Your skin tingles. The air itself seems to thin.
-
-Behind you, Callie is singing. An old song, something you haven't heard in years. Her voice holds steady, holding the machine together through sheer force of will.
-
-The singularity opens.
-
-You step forward.
-
-For a fraction of a second, everything holds. Matt. Callie. The machine. The sanctuary. The moment.
-
-Then you fall through.
-
-And the world ends.
-
-*system
-JUMP INITIATED.
-Timeline: Original
-Destination: 8 years previous
-Status: SUCCESSFUL
-*end_system
