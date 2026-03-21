@@ -1393,6 +1393,153 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 
 /* ============================================================
+   LIGHT THEME OVERRIDES — Splash Screen
+   ============================================================ */
+
+/* Box: warm parchment background with visible border */
+[data-theme="light"] .splash-box {
+  background: linear-gradient(155deg, rgba(240,236,228,0.97) 0%, rgba(232,226,216,0.99) 100%);
+  border-color: var(--border-dim);
+}
+
+/* Top/bottom accent lines */
+[data-theme="light"] .splash-box::before {
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.5;
+}
+[data-theme="light"] .splash-box::after {
+  background: linear-gradient(90deg, transparent, var(--border-glow), transparent);
+  opacity: 0.6;
+}
+
+/* Background canvas vignette — lighter */
+[data-theme="light"] .splash-vignette {
+  background: radial-gradient(ellipse at 50% 40%, transparent 20%, rgba(232,226,216,0.75) 100%);
+}
+
+/* Sigil ambient glow — teal tinted */
+[data-theme="light"] .splash-sigil-ambient {
+  background: radial-gradient(ellipse, rgba(0,122,138,0.08) 0%, transparent 65%);
+}
+
+/* Center sigil — use theme cyan */
+[data-theme="light"] .splash-sigil-center svg {
+  filter: drop-shadow(0 0 6px rgba(0,122,138,0.4))
+          drop-shadow(0 0 14px rgba(0,122,138,0.15));
+}
+
+/* Eyebrow */
+[data-theme="light"] .splash-eyebrow {
+  color: var(--cyan-dim);
+}
+
+/* Title — dark text, teal glow removed */
+[data-theme="light"] .splash-title {
+  color: var(--text-primary) !important;
+  text-shadow: none !important;
+}
+
+/* Ornament line + diamond */
+[data-theme="light"] .splash-orn-line {
+  background: linear-gradient(90deg, transparent, rgba(0,122,138,0.3));
+}
+[data-theme="light"] .splash-orn-line--rev {
+  background: linear-gradient(90deg, rgba(0,122,138,0.3), transparent);
+}
+[data-theme="light"] .splash-orn-diamond {
+  background: var(--cyan);
+  box-shadow: 0 0 6px rgba(0,122,138,0.4);
+}
+
+/* Tagline */
+[data-theme="light"] .splash-tagline {
+  color: var(--text-dim);
+}
+
+/* Stale notice */
+[data-theme="light"] .splash-stale-notice {
+  color: var(--cyan);
+  background: rgba(0,122,138,0.08);
+  border-color: var(--cyan-dim);
+}
+
+/* Column labels */
+[data-theme="light"] .splash-col-label {
+  color: var(--text-faint);
+}
+
+/* Divider between columns */
+[data-theme="light"] .splash-btn-col {
+  border-right-color: rgba(0,0,0,0.1);
+}
+
+/* Primary action button */
+[data-theme="light"] .splash-action-btn--primary {
+  background: rgba(0,122,138,0.08);
+  color: var(--cyan);
+  border-color: rgba(0,122,138,0.4);
+}
+[data-theme="light"] .splash-action-btn--primary:hover {
+  background: rgba(0,122,138,0.14);
+  border-color: var(--cyan);
+  box-shadow: 0 0 14px rgba(0,122,138,0.12);
+}
+[data-theme="light"] .splash-action-btn--primary:hover .splash-btn-icon {
+  background: var(--cyan);
+  color: #f0ece4;
+}
+
+/* Secondary action button */
+[data-theme="light"] .splash-action-btn--secondary {
+  color: var(--text-dim);
+  border-color: var(--border-dim);
+}
+[data-theme="light"] .splash-action-btn--secondary:hover {
+  background: rgba(0,0,0,0.05);
+  border-color: #a09484;
+  color: var(--text-primary);
+}
+
+/* Stat labels and values */
+[data-theme="light"] .splash-stat-name {
+  color: var(--text-dim);
+}
+[data-theme="light"] .splash-stat-val {
+  color: var(--cyan-dim);
+}
+[data-theme="light"] .splash-stat-max {
+  color: var(--text-faint);
+}
+
+/* Stat track */
+[data-theme="light"] .splash-stat-track {
+  background: rgba(0,0,0,0.1);
+}
+[data-theme="light"] .splash-stat-fill {
+  background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+}
+[data-theme="light"] .splash-stat-fill::after {
+  background: var(--cyan);
+  box-shadow: 0 0 4px rgba(0,122,138,0.5);
+}
+
+/* Footer */
+[data-theme="light"] .splash-footer {
+  border-top-color: rgba(0,0,0,0.1);
+}
+[data-theme="light"] .splash-footer-text {
+  color: var(--text-faint);
+}
+[data-theme="light"] .splash-footer-text span {
+  color: var(--text-dim);
+}
+
+/* Save slots area */
+[data-theme="light"] .splash-slots-label {
+  color: var(--text-faint);
+}
+
+/* ============================================================
    12. SAVE SLOT CARDS
    ============================================================ */
 
