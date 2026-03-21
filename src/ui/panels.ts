@@ -192,6 +192,9 @@ function buildSkillsTabHtml(): string {
       active:  'Active Skills',
       passive: 'Passives',
     };
+    const RARITY_RANK: Record<string, number> = {
+      legendary: 0, epic: 1, rare: 2, uncommon: 3, common: 4,
+    };
 
     const grouped: Record<string, string[]> = { core: [], active: [], passive: [] };
     for (const k of ownedSkills) {
@@ -199,6 +202,15 @@ function buildSkillsTabHtml(): string {
       const cat   = entry?.category || 'active';
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push(k);
+    }
+
+    // Sort each group highest rarity first
+    for (const cat of CATEGORY_ORDER) {
+      grouped[cat]?.sort((a, b) => {
+        const ra = skillRegistry.find(s => s.key === a)?.rarity ?? 'common';
+        const rb = skillRegistry.find(s => s.key === b)?.rarity ?? 'common';
+        return (RARITY_RANK[ra] ?? 99) - (RARITY_RANK[rb] ?? 99);
+      });
     }
 
     const buildItem = (k: string) => {
