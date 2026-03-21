@@ -29,9 +29,9 @@
   Every time you stood between others and danger, this skill took shape. 
   Description: Designate a single threat: creature, force, or group. While active, that threat cannot advance past your position. Attacks aimed at allies behind you redirect to you; you teleport to intercept if necessary.
   Choose one of three modes:
-  Sentinel: Your defense quadruples. Your attack halves.
-  Bastion: You cannot attack. You cannot be moved or displaced by any means.
-  Bulwark: You become invulnerable for 0.5x skill level seconds.
+  Sentinel: Your defensive capabilities quadruple, but your attack power is halved.
+  Bastion: You cannot attack, but you cannot be moved or displaced by any means.
+  Bulwark: You become invulnerable for 0.5x skill level seconds and then the skill ends.
   Activation cost: 500 mana, with 10 mana per second upkeep.
   Switching modes costs an additional 50 mana.
 
