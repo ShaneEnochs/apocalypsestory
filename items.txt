@@ -25,15 +25,15 @@
 *item commonitem "Common Item" 1 common
   This item is very common! 
 
-*item uncommonitem "Uncommon Item" 1 uncommon
+*item uncommonitem "Uncommon Item" 1 uncommon 7
   This item is very uncommon! 
 
-*item rareitem "Rare Item" 1 rare
+*item rareitem "Rare Item" 1 rare 2
   This item is very rare! 
 
 
-*item epicitem "Epic Item" 1 epic
+*item epicitem "Epic Item" 1 epic 1
   This item is epic! 
 
-*item legendaryitem "Legendary Item" 1 legendary
+*item legendaryitem "Legendary Item" 1 legendary 1
   This item is legendary! 
