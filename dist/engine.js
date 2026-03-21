@@ -1687,14 +1687,14 @@ function renderSkillsTab(container, essence) {
       const rarCls = ` skill-rarity--${rarity}`;
       html += `
         <div class="store-card store-card--rarity-${rarity} ${cardCls}" data-key="${escapeHtml(skill.key)}" data-type="skill">
-          <div class="store-card-top">
+          <div class="store-card-body">
             <span class="store-card-name${rarCls}">${escapeHtml(skill.label)}</span>
-            <div class="store-card-actions">
-              <span class="store-cost-badge ${badgeCls}">${skill.essenceCost} Essence</span>
-              <button class="store-purchase-btn" ${canAfford ? "" : "disabled"} data-key="${escapeHtml(skill.key)}" data-type="skill">Unlock</button>
-            </div>
+            <div class="store-card-desc">${escapeDesc(skill.description)}</div>
           </div>
-          <div class="store-card-desc">${escapeDesc(skill.description)}</div>
+          <div class="store-card-actions">
+            <span class="store-cost-badge ${badgeCls}">${skill.essenceCost} Essence</span>
+            <button class="store-purchase-btn" ${canAfford ? "" : "disabled"} data-key="${escapeHtml(skill.key)}" data-type="skill">Unlock</button>
+          </div>
         </div>`;
     });
   }
@@ -1742,14 +1742,14 @@ function renderItemsTab(container, essence) {
     const rarCls = ` skill-rarity--${rarity}`;
     html += `
       <div class="store-card store-card--rarity-${rarity} ${cardCls}" data-key="${escapeHtml(item.key)}" data-type="item">
-        <div class="store-card-top">
+        <div class="store-card-body">
           <span class="store-card-name${rarCls}">${escapeHtml(item.label)}${escapeHtml(stockLabel)}</span>
-          <div class="store-card-actions">
-            <span class="store-cost-badge ${badgeCls}">${item.essenceCost} Essence</span>
-            <button class="store-purchase-btn" ${canAfford ? "" : "disabled"} data-key="${escapeHtml(item.key)}" data-type="item">Buy</button>
-          </div>
+          <div class="store-card-desc">${escapeDesc(item.description)}</div>
         </div>
-        <div class="store-card-desc">${escapeDesc(item.description)}</div>
+        <div class="store-card-actions">
+          <span class="store-cost-badge ${badgeCls}">${item.essenceCost} Essence</span>
+          <button class="store-purchase-btn" ${canAfford ? "" : "disabled"} data-key="${escapeHtml(item.key)}" data-type="item">Buy</button>
+        </div>
       </div>`;
   });
   container.innerHTML = html;
