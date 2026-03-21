@@ -98,3 +98,15 @@
   [rare]Rare[/rare]
   At the start of battle, gain additional health regeneration equal to 1% per skill level per conscious ally within 100 meters for five minutes, up to a maximum of 10% per skill level. The maximum skill level cap is 10.
   Cooldown: 1 day.
+
+*skill repair [Uncommon] "Repair" 0
+  [uncommon]Uncommon[/uncommon]
+  Description: Magically repair minor damage to weapons and armor without materials. Extensive damage requires appropriate crafting materials. Repair time depends on the severity of damage. Does not work on magical items.
+  Activation cost: None.
+  Cooldown: 1 day after repairing 1 item.
+
+*skill alchemy [Uncommon] "Alchemy" 0
+  [uncommon]Uncommon[/uncommon]
+  Description: Create basic potions through magical chemistry. Requires ingredients and knowledge of a recipe. Potions can be crafted on demand. Mana cost depends on the potion being created.
+  Activation cost: Variable, based on potion type.
+  Cooldown: None.
