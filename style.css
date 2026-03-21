@@ -1428,11 +1428,18 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
     z-index: 0;
     /* Override the fade-up animation to just fade in (no translate) */
     animation: splashSigilBgIn 1.2s ease 0.35s both;
+    /* GPU-promote for smooth compositing at low opacity */
+    will-change: opacity;
   }
 
   /* Disable the breathing ambient glow in bg mode — too distracting */
   .splash-sigil-ambient {
     display: none;
+  }
+
+  /* Stop the breathing pulse on center diamond — causes visible jitter at low opacity */
+  .splash-sigil-center svg {
+    animation: none;
   }
 
   .splash-content {

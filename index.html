@@ -561,13 +561,18 @@
       g.el.style.willChange = 'transform';
     });
 
+    // Landscape query — when the sigil is a faded bg, slow rotation to avoid shimmer
+    var landscapeMq = window.matchMedia('(orientation: landscape) and (min-width: 860px)');
+
     function tickSigil(ts) {
       if (!lastT) lastT = ts;
       // Clamp dt to max 50ms (handles tab backgrounding / first frame spikes)
       var dt = Math.min((ts - lastT) / 1000, 0.05);
       lastT = ts;
+      // In landscape bg mode, use much slower rotation to avoid aliasing shimmer
+      var speedScale = landscapeMq.matches ? 0.25 : 1;
       groups.forEach(function(g, i) {
-        angles[i] += g.dir * g.dps * dt;
+        angles[i] += g.dir * g.dps * dt * speedScale;
         // Use CSS transform instead of SVG attribute — lets GPU composite the layer
         g.el.style.transform = 'rotate(' + angles[i].toFixed(2) + 'deg)';
       });
