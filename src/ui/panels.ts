@@ -13,7 +13,7 @@ import {
 
 import { getAllocatableStatKeys } from '../systems/leveling.js';
 import { skillRegistry, playerHasSkill, purchaseSkill } from '../systems/skills.js';
-import { itemRegistry, purchaseItem } from '../systems/items.js';
+import { itemRegistry, purchaseItem, getItemStock } from '../systems/items.js';
 import { itemBaseName } from '../systems/inventory.js';
 import { getJournalEntries, getAchievements } from '../systems/journal.js';
 import { escapeHtml, formatText } from './narrative.js';
@@ -530,12 +530,10 @@ function renderSkillsTab(container: Element, essence: number): void {
   });
 
   const available = visible.filter(s => !playerHasSkill(s.key));
-  const owned     = visible.filter(s => playerHasSkill(s.key));
 
   let html = '';
 
   if (available.length > 0) {
-    html += `<div class="store-section-label">Available</div>`;
     available.forEach(skill => {
       const canAfford = essence >= skill.essenceCost;
       const cardCls   = canAfford ? '' : 'store-card--unaffordable';
@@ -556,25 +554,7 @@ function renderSkillsTab(container: Element, essence: number): void {
     });
   }
 
-  if (owned.length > 0) {
-    html += `<div class="store-section-label store-section-label--owned">Owned</div>`;
-    owned.forEach(skill => {
-      const rarity = skill.rarity || 'common';
-      const rarCls = ` skill-rarity--${rarity}`;
-      html += `
-        <div class="store-card store-card--rarity-${rarity} store-card--owned" data-key="${escapeHtml(skill.key)}">
-          <div class="store-card-top">
-            <span class="store-card-name${rarCls}">${escapeHtml(skill.label)}</span>
-            <div class="store-card-actions">
-              <span class="store-owned-badge">Owned</span>
-            </div>
-          </div>
-          <div class="store-card-desc">${escapeDesc(skill.description)}</div>
-        </div>`;
-    });
-  }
-
-  if (available.length === 0 && owned.length === 0) {
+  if (available.length === 0) {
     html = `<div class="store-empty">No skills available.</div>`;
   }
 
@@ -598,18 +578,23 @@ function renderItemsTab(container: Element, essence: number): void {
     return;
   }
 
-  const visible = itemRegistry.filter(item => {
-    if (!item.condition) return true;
-    try { return !!evalValue(item.condition); } catch { return true; }
+  // Filter by condition and remove sold-out limited items
+  const available = itemRegistry.filter(item => {
+    if (item.condition) {
+      try { if (!evalValue(item.condition)) return false; } catch { /* show by default */ }
+    }
+    return getItemStock(item.key) !== 0;
   });
 
-  if (visible.length === 0) {
+  if (available.length === 0) {
     container.innerHTML = `<div class="store-empty">No items available.</div>`;
     return;
   }
 
   let html = '';
-  visible.forEach(item => {
+  available.forEach(item => {
+    const stock     = getItemStock(item.key);
+    const stockLabel = stock === Infinity ? '' : ` (${stock})`;
     const canAfford = essence >= item.essenceCost;
     const cardCls   = canAfford ? '' : 'store-card--unaffordable';
     const badgeCls  = canAfford ? 'store-cost-badge--can-afford' : '';
@@ -618,7 +603,7 @@ function renderItemsTab(container: Element, essence: number): void {
     html += `
       <div class="store-card store-card--rarity-${rarity} ${cardCls}" data-key="${escapeHtml(item.key)}" data-type="item">
         <div class="store-card-top">
-          <span class="store-card-name${rarCls}">${escapeHtml(item.label)}</span>
+          <span class="store-card-name${rarCls}">${escapeHtml(item.label)}${escapeHtml(stockLabel)}</span>
           <div class="store-card-actions">
             <span class="store-cost-badge ${badgeCls}">${item.essenceCost} Essence</span>
             <button class="store-purchase-btn" ${canAfford ? '' : 'disabled'} data-key="${escapeHtml(item.key)}" data-type="item">Buy</button>
