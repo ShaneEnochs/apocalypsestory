@@ -1397,6 +1397,69 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 
 /* ============================================================
+   LANDSCAPE ORIENTATION — Splash Screen
+   Wide layout: sigil on the left, content on the right
+   ============================================================ */
+
+@media (orientation: landscape) and (min-width: 860px) {
+  .splash-box {
+    width: min(880px, 94vw);
+    max-height: 94vh;
+    padding: 32px 38px 24px;
+  }
+
+  #splash-main {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 32px;
+  }
+
+  .splash-sigil-wrap {
+    flex-shrink: 0;
+    margin: 0;
+    width: clamp(160px, 22vw, 200px);
+    height: clamp(160px, 22vw, 200px);
+    /* Vertically center sigil relative to content */
+    align-self: center;
+  }
+
+  .splash-content {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .splash-title {
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  /* In landscape, the lower section can go a bit wider */
+  .splash-lower {
+    gap: 22px;
+  }
+
+  .splash-footer {
+    margin-top: 14px;
+    padding-top: 10px;
+  }
+}
+
+/* Extra-wide landscape: even more room */
+@media (orientation: landscape) and (min-width: 1100px) {
+  .splash-box {
+    width: min(960px, 90vw);
+  }
+
+  .splash-sigil-wrap {
+    width: 210px;
+    height: 210px;
+  }
+}
+
+
+/* ============================================================
    LIGHT THEME OVERRIDES — Splash Screen
    ============================================================ */
 
