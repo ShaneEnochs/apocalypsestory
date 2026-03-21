@@ -26,7 +26,7 @@
 *category core
 
 *skill last_shield_standing [Legendary] "Last Shield Standing" 0
-  Legendary
+  [legendary]Legendary[/legendary]
   Every time you stood between others and danger, this skill took shape. 
   Description: Designate a single threat: creature, force, or group. While active, that threat cannot advance past your position. Attacks aimed at allies behind you redirect to you; you teleport to intercept if necessary.
   Choose one of three modes:
@@ -37,7 +37,7 @@
   Switching modes costs an additional 50 mana.
 
 *skill last_bastion [Legendary] "Last Bastion" 0
-  Legendary
+  [legendary]Legendary[/legendary]
   When the horde pressed in and retreat meant death for those behind you, you held the line. Bastions have served the same purpose for thousands of years: they are the places where the desperate make their stand, where supplies outlast siege engines, where time becomes a weapon. This skill is the answer to that ancient need.
   Description: Creates an underground bunker at the safest location within 2 kilometers, chosen by the [System]. The entrance is a 5-meter stairwell lined with wards and runes to damage intruders. Below it, an enchanted tunnel ends at a reinforced blast door. The chamber beyond provides 10 square meters per person, stocked with food, water, recycled air, and medical supplies for six months.
   Capacity: 10 per skill level. Only those you designate at the time of casting may enter and exit freely.
@@ -53,12 +53,12 @@
 *category active
 
 *skill interpose [Epic] "Interpose" 0
-  Epic
+  [epic]Epic[/epic]
   When an ally is about to take damage, activating this skill doubles your movement speed directly toward them, or you may choose to pay triple the mana activation cost to teleport to within five feet of their location. On arrival, you gain +50% reduction in damage for 1x skill level seconds. You cannot be slowed or obstructed while moving to protect an ally.
   Activation Cost: 100 mana per activation.
 
 *skill defiant_stand [Rare] "Defiant Stand" 0
-  Rare
+  [rare]Rare[/rare]
   Take a stance and hold your ground. For up to 60 seconds after activation of this skill, you gain +80% reduction in damage and become immune to displacement, knockback, and forced repositioning. When this skill ends, all absorbed damage is released as a shockwave that pushes any hostile creature within 30 meters away from you.
   Activation Cost: 500 mana.
   Cooldown: 10 minutes.
@@ -70,31 +70,31 @@
 *category passive
 
 *skill final_moment [Legendary] "Final Moment" 0
-  Legendary
+  [legendary]Legendary[/legendary]
   When your health drops below 25%, you automatically gain triple damage reduction and +50% movement speed. The next single attack that would normally kill you is negated, and your next attack does triple your normal damage.
   Cooldown: 1 day.
 
 *skill unbreakable [Legendary] "Unbreakable" 0
-  Legendary
+  [legendary]Legendary[/legendary]
   Gain +1% physical defense per ally currently within 50 meters up to a max of +50%. Gain bonus maximum health equal to 50% of your Body stat per person who depends on you, as tracked by your class (max 100 people). When an ally within 50 meters is killed, gain an additional +1% damage and defense for 60 seconds.
   Cooldown: 1 day.
 
 *skill legacy_of_protection [Epic] "Legacy of Protection" 0
-  Epic
+  [epic]Epic[/epic]
   Any location where you have held ground against a threat during a conflict lasting more than one hour becomes permanently altered: corruption there spreads 50% more slowly, and monsters native to that area are moderately weakened. Any person who directly witnesses you take damage to protect another while at that location gains +1% to all stats permanently. If you die while actively shielding others, the location is marked for one year, and all crafting and healing performed there is twice as effective.
   Diameter of effect is 100x skill level meters.
 
 *skill unwavering_conviction [Epic] "Unwavering Conviction" 0
-  Epic
+  [epic]Epic[/epic]
   When you witness an attack on an ally by a hostile creature, you gain +2% to all stats for each conscious ally within 100 meters for 10 minutes. During this time, you are immune to fear, demoralization, and any compulsion to abandon those you protect.
   Cooldown: 1 day.
 
 *skill intervention [Epic] "Intervention" 0
-  Epic
+  [epic]Epic[/epic]
   You sense threats to nearby allies within 10 meters 0.1x skill level seconds before an enemy strikes, giving you time to reposition. If you also have the [epic]Interpose[/epic] skill, you may automatically move to block an attack that would be lethal to an ally for 1/2 the mana activation cost.
   Cooldown: 1 minute.
 
 *skill regeneration_of_purpose [Rare] "Regeneration of Purpose" 0
-  Rare
+  [rare]Rare[/rare]
   At the start of battle, gain additional health regeneration equal to 1% per skill level per conscious ally within 100 meters for five minutes, up to a maximum of 10% per skill level. The maximum skill level cap is 10.
   Cooldown: 1 day.
