@@ -314,8 +314,7 @@ export async function loadAndResume(save: any): Promise<void> {
 // Splash screen
 // ---------------------------------------------------------------------------
 export function showSplash(): void {
-  ['auto', 1, 2, 3].forEach(loadSaveFromSlot);
-  refreshAllSlotCards();
+  refreshAllSlotCards(); // also triggers stale-save detection as a side effect
 
   const notice = document.getElementById('splash-stale-notice');
   if (notice) {
