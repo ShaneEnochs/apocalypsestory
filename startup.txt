@@ -3,6 +3,7 @@
 *comment --- Game metadata ---
 *create game_title "System: Year Zero"
 *create game_byline "The end is only the beginning."
+*create build_number "1.0.0"
 
 *comment --- Core identity ---
 *comment first_name, last_name, and pronouns are set by the character creation screen.
