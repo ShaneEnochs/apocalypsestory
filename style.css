@@ -1068,16 +1068,18 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 .splash-box {
   position: relative;
   width: min(520px, 96vw);
-  min-height: min(90vh, 840px);
+  /* On mobile: fill most of the screen. On desktop: cap height and allow scroll if needed. */
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: 40px 38px 32px;
+  justify-content: flex-start;
+  padding: 36px 38px 28px;
   background: linear-gradient(155deg, rgba(13,17,36,0.96) 0%, rgba(7,10,20,0.98) 100%);
   border: 1px solid var(--border-dim);
   backdrop-filter: blur(14px);
   text-align: center;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   /* Override .overlay-box max-width / padding */
   max-width: none;
 }
@@ -1133,10 +1135,12 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 /* ── Summoning circle ── */
 .splash-sigil-wrap {
   position: relative;
-  width: 220px; height: 220px;
-  margin: 0 auto 20px;
+  width: clamp(160px, 38vw, 210px);
+  height: clamp(160px, 38vw, 210px);
+  margin: 0 auto 16px;
   opacity: 0;
   animation: splashFadeUp 0.7s ease 0.35s both;
+  flex-shrink: 0;
 }
 
 .splash-sigil-ambient {
@@ -1171,9 +1175,16 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 /* ── Title (populated by engine) ── */
 /* .splash-title inherits from .overlay-title but we restyle it here */
 .splash-title {
-  font-size: clamp(1.8rem, 5vw, 2.4rem) !important;
+  font-size: clamp(1.6rem, 5vw, 2.2rem) !important;
   letter-spacing: 0.18em !important;
   margin-bottom: 4px !important;
+  /* Force natural wrap: "System:" on line 1, "Year Zero" on line 2 */
+  max-width: 11ch;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  line-height: 1.15 !important;
+  word-break: normal;
+  overflow-wrap: normal;
   opacity: 0;
   animation: splashFadeUp 0.6s ease 0.75s both;
 }
