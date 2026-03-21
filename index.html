@@ -470,79 +470,107 @@
     var gInnerRing = el('g', {id:'sgir'});
     SVG.append(gOuter, gRing2, gStar, gInner, gInnerRing);
 
-    // Layer 1: outer runic ring
-    var R_OUTER = 104;
-    gOuter.appendChild(el('circle', {cx:CX,cy:CY,r:R_OUTER+3,fill:'none',stroke:'rgba(0,212,245,0.75)','stroke-width':'2'}));
-    gOuter.appendChild(el('circle', {cx:CX,cy:CY,r:R_OUTER-3,fill:'none',stroke:'rgba(0,212,245,0.25)','stroke-width':'0.5'}));
+    // ── Build SVG layers in batches so we don't block the main thread ──
+    // Each layer function builds its elements into a DocumentFragment,
+    // then appends once — yielding between layers via requestAnimationFrame.
 
-    var GLYPH_COUNT = 24;
-    for (var i = 0; i < GLYPH_COUNT; i++) {
-      var angleDeg = (360 / GLYPH_COUNT) * i;
-      var gp = pt(CX, CY, R_OUTER - 1, angleDeg);
-      var glyph = GLYPHS[i % GLYPHS.length];
-      var polyPts = glyph.map(function(p) { return p.join(','); }).join(' ');
-      var pl = el('polyline', {
-        points: polyPts, fill: 'none',
-        stroke: 'rgba(0,212,245,0.7)', 'stroke-width': '0.8',
-        'stroke-linecap': 'round', 'stroke-linejoin': 'round',
-        transform: 'translate(' + gp[0].toFixed(2) + ',' + gp[1].toFixed(2) + ') rotate(' + angleDeg + ') scale(0.65)'
-      });
-      gOuter.appendChild(pl);
-    }
-    for (var i = 0; i < GLYPH_COUNT * 2; i++) {
-      var a2 = (360 / (GLYPH_COUNT * 2)) * i;
-      var t1 = pt(CX, CY, R_OUTER + 1, a2), t2 = pt(CX, CY, R_OUTER - 1, a2);
-      gOuter.appendChild(el('line', {x1:t1[0],y1:t1[1],x2:t2[0],y2:t2[1],stroke:'rgba(0,212,245,0.4)','stroke-width':'0.6'}));
-    }
-
-    // Layer 2: node ring
-    var R2 = 86;
-    gRing2.appendChild(el('circle', {cx:CX,cy:CY,r:R2,fill:'none',stroke:'rgba(0,212,245,0.35)','stroke-width':'0.7','stroke-dasharray':'4 3'}));
-    for (var i = 0; i < 12; i++) {
-      var a3 = (360/12)*i;
-      var np = pt(CX, CY, R2, a3);
-      var sz = i % 3 === 0 ? 4.2 : 2.4;
-      gRing2.appendChild(el('rect', {
-        x:(np[0]-sz/2).toFixed(2), y:(np[1]-sz/2).toFixed(2),
-        width:sz, height:sz,
-        fill: i%3===0 ? 'rgba(0,212,245,0.7)' : 'none',
-        stroke:'rgba(0,212,245,0.6)', 'stroke-width':'0.7',
-        transform:'rotate(45,' + np[0].toFixed(2) + ',' + np[1].toFixed(2) + ')'
-      }));
+    function buildLayer1() {
+      var R_OUTER = 104;
+      var frag = document.createDocumentFragment();
+      frag.appendChild(el('circle', {cx:CX,cy:CY,r:R_OUTER+3,fill:'none',stroke:'rgba(0,212,245,0.75)','stroke-width':'2'}));
+      frag.appendChild(el('circle', {cx:CX,cy:CY,r:R_OUTER-3,fill:'none',stroke:'rgba(0,212,245,0.25)','stroke-width':'0.5'}));
+      var GLYPH_COUNT = 24;
+      for (var i = 0; i < GLYPH_COUNT; i++) {
+        var angleDeg = (360 / GLYPH_COUNT) * i;
+        var gp = pt(CX, CY, R_OUTER - 1, angleDeg);
+        var glyph = GLYPHS[i % GLYPHS.length];
+        var polyPts = glyph.map(function(p) { return p.join(','); }).join(' ');
+        frag.appendChild(el('polyline', {
+          points: polyPts, fill: 'none',
+          stroke: 'rgba(0,212,245,0.7)', 'stroke-width': '0.8',
+          'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+          transform: 'translate(' + gp[0].toFixed(2) + ',' + gp[1].toFixed(2) + ') rotate(' + angleDeg + ') scale(0.65)'
+        }));
+      }
+      for (var i = 0; i < GLYPH_COUNT * 2; i++) {
+        var a2 = (360 / (GLYPH_COUNT * 2)) * i;
+        var t1 = pt(CX, CY, R_OUTER + 1, a2), t2 = pt(CX, CY, R_OUTER - 1, a2);
+        frag.appendChild(el('line', {x1:t1[0],y1:t1[1],x2:t2[0],y2:t2[1],stroke:'rgba(0,212,245,0.4)','stroke-width':'0.6'}));
+      }
+      gOuter.appendChild(frag);
     }
 
-    // Layer 3: star construction
-    var R3 = 74;
-    gStar.appendChild(el('path', {d:starPath(CX,CY,R3,R3*0.45,9,0), fill:'none', stroke:'rgba(0,212,245,0.45)', 'stroke-width':'0.8', 'stroke-linejoin':'round'}));
-    gStar.appendChild(el('path', {d:starPath(CX,CY,R3*0.65,R3*0.32,7,20), fill:'none', stroke:'rgba(0,212,245,0.35)', 'stroke-width':'0.7', 'stroke-linejoin':'round'}));
-    gStar.appendChild(el('circle', {cx:CX,cy:CY,r:R3+2,fill:'none',stroke:'rgba(0,212,245,0.22)','stroke-width':'0.5'}));
-
-    // Layer 4: hexagram framework
-    var R4 = 54;
-    gInner.appendChild(el('path', {d:regularPolyPath(CX,CY,R4,3,0), fill:'none', stroke:'rgba(0,212,245,0.5)', 'stroke-width':'0.9', 'stroke-linejoin':'round'}));
-    gInner.appendChild(el('path', {d:regularPolyPath(CX,CY,R4,3,180), fill:'none', stroke:'rgba(0,212,245,0.4)', 'stroke-width':'0.8', 'stroke-linejoin':'round'}));
-    gInner.appendChild(el('path', {d:regularPolyPath(CX,CY,R4*0.82,4,45), fill:'none', stroke:'rgba(0,212,245,0.3)', 'stroke-width':'0.7'}));
-    for (var i = 0; i < 6; i++) {
-      var sp = pt(CX, CY, R4, 60*i);
-      gInner.appendChild(el('line', {x1:CX,y1:CY,x2:sp[0].toFixed(2),y2:sp[1].toFixed(2),stroke:'rgba(0,212,245,0.18)','stroke-width':'0.5'}));
-    }
-    gInner.appendChild(el('circle', {cx:CX,cy:CY,r:R4+5,fill:'none',stroke:'rgba(0,212,245,0.28)','stroke-width':'0.6'}));
-    gInner.appendChild(el('circle', {cx:CX,cy:CY,r:R4-1,fill:'none',stroke:'rgba(0,212,245,0.15)','stroke-width':'0.5','stroke-dasharray':'2 4'}));
-
-    // Layer 5: innermost tick ring
-    var R5 = 33;
-    gInnerRing.appendChild(el('circle', {cx:CX,cy:CY,r:R5,fill:'none',stroke:'rgba(0,212,245,0.4)','stroke-width':'0.7'}));
-    for (var i = 0; i < 16; i++) {
-      var a4 = (360/16)*i;
-      var isMain = i % 4 === 0;
-      var r5a = pt(CX, CY, R5 - (isMain?5:2), a4), r5b = pt(CX, CY, R5 + (isMain?5:2), a4);
-      gInnerRing.appendChild(el('line', {
-        x1:r5a[0],y1:r5a[1],x2:r5b[0],y2:r5b[1],
-        stroke: isMain ? 'rgba(0,212,245,0.7)' : 'rgba(0,212,245,0.35)',
-        'stroke-width': isMain ? '0.9' : '0.5'
-      }));
+    function buildLayer2() {
+      var R2 = 86;
+      var frag = document.createDocumentFragment();
+      frag.appendChild(el('circle', {cx:CX,cy:CY,r:R2,fill:'none',stroke:'rgba(0,212,245,0.35)','stroke-width':'0.7','stroke-dasharray':'4 3'}));
+      for (var i = 0; i < 12; i++) {
+        var a3 = (360/12)*i;
+        var np = pt(CX, CY, R2, a3);
+        var sz = i % 3 === 0 ? 4.2 : 2.4;
+        frag.appendChild(el('rect', {
+          x:(np[0]-sz/2).toFixed(2), y:(np[1]-sz/2).toFixed(2),
+          width:sz, height:sz,
+          fill: i%3===0 ? 'rgba(0,212,245,0.7)' : 'none',
+          stroke:'rgba(0,212,245,0.6)', 'stroke-width':'0.7',
+          transform:'rotate(45,' + np[0].toFixed(2) + ',' + np[1].toFixed(2) + ')'
+        }));
+      }
+      gRing2.appendChild(frag);
     }
 
+    function buildLayer3() {
+      var R3 = 74;
+      gStar.appendChild(el('path', {d:starPath(CX,CY,R3,R3*0.45,9,0), fill:'none', stroke:'rgba(0,212,245,0.45)', 'stroke-width':'0.8', 'stroke-linejoin':'round'}));
+      gStar.appendChild(el('path', {d:starPath(CX,CY,R3*0.65,R3*0.32,7,20), fill:'none', stroke:'rgba(0,212,245,0.35)', 'stroke-width':'0.7', 'stroke-linejoin':'round'}));
+      gStar.appendChild(el('circle', {cx:CX,cy:CY,r:R3+2,fill:'none',stroke:'rgba(0,212,245,0.22)','stroke-width':'0.5'}));
+    }
+
+    function buildLayer4() {
+      var R4 = 54;
+      var frag = document.createDocumentFragment();
+      frag.appendChild(el('path', {d:regularPolyPath(CX,CY,R4,3,0), fill:'none', stroke:'rgba(0,212,245,0.5)', 'stroke-width':'0.9', 'stroke-linejoin':'round'}));
+      frag.appendChild(el('path', {d:regularPolyPath(CX,CY,R4,3,180), fill:'none', stroke:'rgba(0,212,245,0.4)', 'stroke-width':'0.8', 'stroke-linejoin':'round'}));
+      frag.appendChild(el('path', {d:regularPolyPath(CX,CY,R4*0.82,4,45), fill:'none', stroke:'rgba(0,212,245,0.3)', 'stroke-width':'0.7'}));
+      for (var i = 0; i < 6; i++) {
+        var sp = pt(CX, CY, R4, 60*i);
+        frag.appendChild(el('line', {x1:CX,y1:CY,x2:sp[0].toFixed(2),y2:sp[1].toFixed(2),stroke:'rgba(0,212,245,0.18)','stroke-width':'0.5'}));
+      }
+      frag.appendChild(el('circle', {cx:CX,cy:CY,r:R4+5,fill:'none',stroke:'rgba(0,212,245,0.28)','stroke-width':'0.6'}));
+      frag.appendChild(el('circle', {cx:CX,cy:CY,r:R4-1,fill:'none',stroke:'rgba(0,212,245,0.15)','stroke-width':'0.5','stroke-dasharray':'2 4'}));
+      gInner.appendChild(frag);
+    }
+
+    function buildLayer5() {
+      var R5 = 33;
+      var frag = document.createDocumentFragment();
+      frag.appendChild(el('circle', {cx:CX,cy:CY,r:R5,fill:'none',stroke:'rgba(0,212,245,0.4)','stroke-width':'0.7'}));
+      for (var i = 0; i < 16; i++) {
+        var a4 = (360/16)*i;
+        var isMain = i % 4 === 0;
+        var r5a = pt(CX, CY, R5 - (isMain?5:2), a4), r5b = pt(CX, CY, R5 + (isMain?5:2), a4);
+        frag.appendChild(el('line', {
+          x1:r5a[0],y1:r5a[1],x2:r5b[0],y2:r5b[1],
+          stroke: isMain ? 'rgba(0,212,245,0.7)' : 'rgba(0,212,245,0.35)',
+          'stroke-width': isMain ? '0.9' : '0.5'
+        }));
+      }
+      gInnerRing.appendChild(frag);
+    }
+
+    // Build layers across multiple frames so CSS entry animations stay smooth
+    var layers = [buildLayer1, buildLayer2, buildLayer3, buildLayer4, buildLayer5];
+    var layerIdx = 0;
+    function buildNextLayer() {
+      if (layerIdx < layers.length) {
+        layers[layerIdx]();
+        layerIdx++;
+        requestAnimationFrame(buildNextLayer);
+      }
+    }
+    requestAnimationFrame(buildNextLayer);
+
+    // ── Deferred rotation start ──
     // Animation — use CSS transform on wrapper divs for GPU compositing
     // This avoids SVG attribute reflow which causes jank on desktop
     var groups = [
@@ -578,7 +606,9 @@
       });
       requestAnimationFrame(tickSigil);
     }
-    requestAnimationFrame(tickSigil);
+
+    // Defer rotation start until after CSS entry animations settle (~1.7s)
+    setTimeout(function() { requestAnimationFrame(tickSigil); }, 1700);
   }
 
   // ── Background canvas: circuit nodes + binary rain ────────────────────────
@@ -679,15 +709,18 @@
     requestAnimationFrame(drawBg);
   }
 
-  // Run both once DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-      initSplashSigil();
-      initSplashBackground();
-    });
-  } else {
+  // Run once DOM is ready — stagger heavy work so CSS animations stay smooth
+  function bootSplash() {
+    // Build sigil SVG in batched layers (yields between frames)
     initSplashSigil();
-    initSplashBackground();
+    // Defer canvas background until after CSS entry animations settle (~1.8s)
+    setTimeout(initSplashBackground, 1800);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootSplash);
+  } else {
+    bootSplash();
   }
 })();
 </script>
