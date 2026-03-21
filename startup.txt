@@ -30,9 +30,8 @@
 *comment --- Grant all Shield of Humanity skills ---
 *grant_skill "last_shield_standing"
 *grant_skill "last_bastion"
-*grant_skill "interpenetration"
+*grant_skill "interpose"
 *grant_skill "unbreakable"
-*grant_skill "absorbent"
 *grant_skill "defiant_stand"
 *grant_skill "intervention"
 *grant_skill "regeneration_of_purpose"
