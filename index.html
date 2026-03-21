@@ -538,7 +538,8 @@
       }));
     }
 
-    // Animation
+    // Animation — use CSS transform on wrapper divs for GPU compositing
+    // This avoids SVG attribute reflow which causes jank on desktop
     var groups = [
       {el:gOuter,     dps: 6,  dir:  1},
       {el:gRing2,     dps: 9,  dir: -1},
@@ -549,13 +550,21 @@
     var angles = [0,0,0,0,0];
     var lastT  = null;
 
+    // Pre-apply will-change so the browser promotes each layer upfront
+    groups.forEach(function(g) {
+      g.el.style.transformOrigin = CX + 'px ' + CY + 'px';
+      g.el.style.willChange = 'transform';
+    });
+
     function tickSigil(ts) {
       if (!lastT) lastT = ts;
-      var dt = (ts - lastT) / 1000;
+      // Clamp dt to max 50ms (handles tab backgrounding / first frame spikes)
+      var dt = Math.min((ts - lastT) / 1000, 0.05);
       lastT = ts;
       groups.forEach(function(g, i) {
         angles[i] += g.dir * g.dps * dt;
-        g.el.setAttribute('transform', 'rotate(' + angles[i].toFixed(3) + ',' + CX + ',' + CY + ')');
+        // Use CSS transform instead of SVG attribute — lets GPU composite the layer
+        g.el.style.transform = 'rotate(' + angles[i].toFixed(2) + 'deg)';
       });
       requestAnimationFrame(tickSigil);
     }
@@ -620,7 +629,12 @@
     buildBin();
     window.addEventListener('resize', buildBin);
 
+    var bgLastT = null;
     function drawBg(ts) {
+      if (!bgLastT) bgLastT = ts;
+      var bgDt = Math.min((ts - bgLastT) / 1000, 0.05);
+      bgLastT = ts;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       var t = ts * 0.001;
 
@@ -643,7 +657,7 @@
       ctx.font = '10px Inconsolata, monospace';
       for (var i = 0; i < bCols.length; i++) {
         var col = bCols[i];
-        col.y += col.speed * 0.016;
+        col.y += col.speed * bgDt;
         if (col.y > canvas.height + col.len*13) { col.y = -col.len*13; col.alpha = Math.random()*0.05+0.01; }
         for (var j = 0; j < col.len; j++) {
           ctx.fillStyle = 'rgba(0,212,245,'+(col.alpha*(1-j/col.len))+')';
