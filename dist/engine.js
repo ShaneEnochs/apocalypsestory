@@ -1360,12 +1360,26 @@ function buildSkillsTabHtml() {
       active: "Active Skills",
       passive: "Passives"
     };
+    const RARITY_RANK = {
+      legendary: 0,
+      epic: 1,
+      rare: 2,
+      uncommon: 3,
+      common: 4
+    };
     const grouped = { core: [], active: [], passive: [] };
     for (const k of ownedSkills) {
       const entry = skillRegistry.find((s) => s.key === k);
       const cat = entry?.category || "active";
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push(k);
+    }
+    for (const cat of CATEGORY_ORDER) {
+      grouped[cat]?.sort((a, b) => {
+        const ra = skillRegistry.find((s) => s.key === a)?.rarity ?? "common";
+        const rb = skillRegistry.find((s) => s.key === b)?.rarity ?? "common";
+        return (RARITY_RANK[ra] ?? 99) - (RARITY_RANK[rb] ?? 99);
+      });
     }
     const buildItem = (k) => {
       const entry = skillRegistry.find((s) => s.key === k);
