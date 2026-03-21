@@ -16,6 +16,7 @@ export interface ItemEntry {
   rarity:      string;
   description: string;
   condition:   string | null;
+  stock:       number;  // -1 = unlimited; ≥0 = limited quantity
 }
 
 // ---------------------------------------------------------------------------
@@ -50,7 +51,7 @@ export async function parseItems(fetchTextFileFn: (name: string) => Promise<stri
 
     if (!trimmed || trimmed.startsWith('//')) continue;
 
-    const m = trimmed.match(/^\*item\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?\s*$/i);
+    const m = trimmed.match(/^\*item\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?(?:\s+(\d+))?\s*$/i);
     if (m) {
       if (current) parsed.push(current);
       current = {
@@ -60,6 +61,7 @@ export async function parseItems(fetchTextFileFn: (name: string) => Promise<stri
         rarity:       m[4] ? m[4].toLowerCase() : 'common',
         description:  '',
         condition:    null,
+        stock:        m[5] !== undefined ? Number(m[5]) : -1,
       };
       continue;
     }
@@ -84,8 +86,25 @@ export async function parseItems(fetchTextFileFn: (name: string) => Promise<stri
 }
 
 // ---------------------------------------------------------------------------
+// getItemStock — returns the current remaining stock for an item.
+// Reads from playerState if a purchase has already decremented it;
+// otherwise falls back to the registry's initial stock value.
+// Returns Infinity for unlimited items (stock === -1).
+// ---------------------------------------------------------------------------
+export function getItemStock(key: string): number {
+  const k     = normalizeKey(key);
+  const entry = itemRegistry.find(i => i.key === k);
+  if (!entry) return 0;
+  if (entry.stock === -1) return Infinity;
+  const stateKey = `__stock_${k}`;
+  return Object.prototype.hasOwnProperty.call(playerState, stateKey)
+    ? (playerState[stateKey] as number)
+    : entry.stock;
+}
+
+// ---------------------------------------------------------------------------
 // purchaseItem — deducts Essence, then adds the item to inventory.
-// Returns true on success, false if can't afford. Items stack on repeat buys.
+// Decrements limited stock in playerState. Returns false if out of stock.
 // ---------------------------------------------------------------------------
 export function purchaseItem(key: string): boolean {
   const k     = normalizeKey(key);
@@ -94,12 +113,20 @@ export function purchaseItem(key: string): boolean {
     console.warn(`[items] purchaseItem: "${k}" not found in itemRegistry.`);
     return false;
   }
+  const remaining = getItemStock(k);
+  if (remaining === 0) {
+    console.warn(`[items] purchaseItem: "${k}" is out of stock.`);
+    return false;
+  }
   const essence = Number(playerState.essence || 0);
   if (essence < entry.essenceCost) {
     console.warn(`[items] purchaseItem: not enough Essence (have ${essence}, need ${entry.essenceCost}).`);
     return false;
   }
   playerState.essence = essence - entry.essenceCost;
+  if (entry.stock !== -1) {
+    playerState[`__stock_${k}`] = (remaining as number) - 1;
+  }
   addInventoryItem(entry.label);
   return true;
 }

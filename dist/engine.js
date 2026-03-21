@@ -887,7 +887,7 @@ async function parseItems(fetchTextFileFn) {
   for (const raw of lines) {
     const trimmed = raw.trim();
     if (!trimmed || trimmed.startsWith("//")) continue;
-    const m = trimmed.match(/^\*item\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?\s*$/i);
+    const m = trimmed.match(/^\*item\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?(?:\s+(\d+))?\s*$/i);
     if (m) {
       if (current) parsed.push(current);
       current = {
@@ -896,7 +896,8 @@ async function parseItems(fetchTextFileFn) {
         essenceCost: Number(m[3]),
         rarity: m[4] ? m[4].toLowerCase() : "common",
         description: "",
-        condition: null
+        condition: null,
+        stock: m[5] !== void 0 ? Number(m[5]) : -1
       };
       continue;
     }
@@ -914,11 +915,24 @@ async function parseItems(fetchTextFileFn) {
     console.warn("[items] No *item entries found in items.txt.");
   }
 }
+function getItemStock(key) {
+  const k = normalizeKey(key);
+  const entry = itemRegistry.find((i) => i.key === k);
+  if (!entry) return 0;
+  if (entry.stock === -1) return Infinity;
+  const stateKey = `__stock_${k}`;
+  return Object.prototype.hasOwnProperty.call(playerState, stateKey) ? playerState[stateKey] : entry.stock;
+}
 function purchaseItem(key) {
   const k = normalizeKey(key);
   const entry = itemRegistry.find((i) => i.key === k);
   if (!entry) {
     console.warn(`[items] purchaseItem: "${k}" not found in itemRegistry.`);
+    return false;
+  }
+  const remaining = getItemStock(k);
+  if (remaining === 0) {
+    console.warn(`[items] purchaseItem: "${k}" is out of stock.`);
     return false;
   }
   const essence = Number(playerState.essence || 0);
@@ -927,6 +941,9 @@ function purchaseItem(key) {
     return false;
   }
   playerState.essence = essence - entry.essenceCost;
+  if (entry.stock !== -1) {
+    playerState[`__stock_${k}`] = remaining - 1;
+  }
   addInventoryItem(entry.label);
   return true;
 }
@@ -1660,10 +1677,8 @@ function renderSkillsTab(container, essence) {
     }
   });
   const available = visible.filter((s) => !playerHasSkill(s.key));
-  const owned = visible.filter((s) => playerHasSkill(s.key));
   let html = "";
   if (available.length > 0) {
-    html += `<div class="store-section-label">Available</div>`;
     available.forEach((skill) => {
       const canAfford = essence >= skill.essenceCost;
       const cardCls = canAfford ? "" : "store-card--unaffordable";
@@ -1683,24 +1698,7 @@ function renderSkillsTab(container, essence) {
         </div>`;
     });
   }
-  if (owned.length > 0) {
-    html += `<div class="store-section-label store-section-label--owned">Owned</div>`;
-    owned.forEach((skill) => {
-      const rarity = skill.rarity || "common";
-      const rarCls = ` skill-rarity--${rarity}`;
-      html += `
-        <div class="store-card store-card--rarity-${rarity} store-card--owned" data-key="${escapeHtml(skill.key)}">
-          <div class="store-card-top">
-            <span class="store-card-name${rarCls}">${escapeHtml(skill.label)}</span>
-            <div class="store-card-actions">
-              <span class="store-owned-badge">Owned</span>
-            </div>
-          </div>
-          <div class="store-card-desc">${escapeDesc(skill.description)}</div>
-        </div>`;
-    });
-  }
-  if (available.length === 0 && owned.length === 0) {
+  if (available.length === 0) {
     html = `<div class="store-empty">No skills available.</div>`;
   }
   container.innerHTML = html;
@@ -1720,20 +1718,23 @@ function renderItemsTab(container, essence) {
     container.innerHTML = `<div class="store-empty">No items available.</div>`;
     return;
   }
-  const visible = itemRegistry.filter((item) => {
-    if (!item.condition) return true;
-    try {
-      return !!evalValue(item.condition);
-    } catch {
-      return true;
+  const available = itemRegistry.filter((item) => {
+    if (item.condition) {
+      try {
+        if (!evalValue(item.condition)) return false;
+      } catch {
+      }
     }
+    return getItemStock(item.key) !== 0;
   });
-  if (visible.length === 0) {
+  if (available.length === 0) {
     container.innerHTML = `<div class="store-empty">No items available.</div>`;
     return;
   }
   let html = "";
-  visible.forEach((item) => {
+  available.forEach((item) => {
+    const stock = getItemStock(item.key);
+    const stockLabel = stock === Infinity ? "" : ` (${stock})`;
     const canAfford = essence >= item.essenceCost;
     const cardCls = canAfford ? "" : "store-card--unaffordable";
     const badgeCls = canAfford ? "store-cost-badge--can-afford" : "";
@@ -1742,7 +1743,7 @@ function renderItemsTab(container, essence) {
     html += `
       <div class="store-card store-card--rarity-${rarity} ${cardCls}" data-key="${escapeHtml(item.key)}" data-type="item">
         <div class="store-card-top">
-          <span class="store-card-name${rarCls}">${escapeHtml(item.label)}</span>
+          <span class="store-card-name${rarCls}">${escapeHtml(item.label)}${escapeHtml(stockLabel)}</span>
           <div class="store-card-actions">
             <span class="store-cost-badge ${badgeCls}">${item.essenceCost} Essence</span>
             <button class="store-purchase-btn" ${canAfford ? "" : "disabled"} data-key="${escapeHtml(item.key)}" data-type="item">Buy</button>
