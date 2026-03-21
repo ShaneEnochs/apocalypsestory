@@ -26,14 +26,21 @@
 *category core
 
 *skill last_shield_standing [Legendary] "Last Shield Standing" 0
-  You stood between others and death — not once, but until it became what you are. Every time you chose another's survival over your own retreat, this skill took shape. It is not a power given. It is a shape your will carved.
-  Designate a single threat (a creature, a force, or a group). While designated, that threat cannot advance past your position. Every attack aimed at allies behind you redirects to you; you teleport to intercept if necessary. Your health regeneration is halved while active. Each intercepted attack adds 1 Shield Mark. At 100 Marks: defense quintuples, offense drops to 10%. At 200 Marks: you cannot attack, but cannot be moved or displaced by any means. At 300 Marks: you become invulnerable — but your time is measured in minutes, not hours. Marks fade at 1 per minute of rest.
-  Mana Cost: 500 to designate. 50 per minute while active.
+  Every time you stood between others and danger, this skill took shape. 
+  Description: Designate a single threat: creature, force, or group. While active, that threat cannot advance past your position. Attacks aimed at allies behind you redirect to you; you teleport to intercept if necessary.
+  Choose one of three modes:
+  Sentinel: Your defense quadruples. Your attack halves.
+  Bastion: You cannot attack. You cannot be moved or displaced by any means.
+  Bulwark: You become invulnerable for 0.5x skill level seconds.
+  Activation cost: 500 mana, with 10 mana per second upkeep.
+  Switching modes costs an additional 50 mana.
 
 *skill last_bastion [Legendary] "Last Bastion" 0
-  You have endured a siege — not by overpowering it, but by refusing to let it win long enough for others to survive. This skill is the [System]'s acknowledgment of that.
-  Creates an underground bunker at the safest location within 1 mile, chosen by the [System]. The entrance is a 15-foot stairwell that automatically destroys any non-human intruder. Below it, an enchanted tunnel ends at a reinforced blast door. The chamber beyond provides 1,000 square feet per person brought with you, stocked with food, water, recycled air, and medical supplies for six months. Capacity: 10 × skill level. Only those you designate at casting may enter and exit freely. The bunker draws from a dedicated mana reserve that charges at 5% of your maximum mana per hour, but only while your personal mana is full. Allies may contribute their mana directly to the reserve. Mana stones add 1,000,000 each.
-  Mana Cost: 2,000,000 (from dedicated reserve only; personal mana cannot cover this directly).
+  When the horde pressed in and retreat meant death for those behind you, you held the line. Bastions have served the same purpose for thousands of years: they are the places where the desperate make their stand, where supplies outlast siege engines, where time becomes a weapon. This skill is the answer to that ancient need.
+  Description: Creates an underground bunker at the safest location within 1 mile, chosen by the [System]. The entrance is a 15-foot stairwell that destroys any non-human intruder. Below it, an enchanted tunnel ends at a reinforced blast door. The chamber beyond provides 1,000 square feet per person, stocked with food, water, recycled air, and medical supplies for six months. 
+  Capacity: 10 per skill level. Only those you designate at the time of casting may enter and exit freely.
+  The bunker draws from a separate and dedicated mana reserve that charges at the speed of your mana regeneration, but only when your personal mana pool is full. Allies may contribute their mana directly to the reserve, and mana stones may be used to add up to 1,000,000 mana per year.
+  Activation cost: 2,000,000 mana from dedicated reserve only.
   Cooldown: 1 year.
 
 // ─────────────────────────────────────────────────────────────
