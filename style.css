@@ -1404,30 +1404,40 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 @media (orientation: landscape) and (min-width: 860px) {
   .splash-box {
-    width: min(880px, 94vw);
+    width: min(720px, 94vw);
     max-height: 94vh;
     padding: 32px 38px 24px;
   }
 
+  /* Keep vertical (column) layout — sigil becomes a background element */
   #splash-main {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 32px;
+    position: relative;
   }
 
   .splash-sigil-wrap {
-    flex-shrink: 0;
+    /* Position as a centered background watermark */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 320px;
+    height: 320px;
     margin: 0;
-    width: clamp(160px, 22vw, 200px);
-    height: clamp(160px, 22vw, 200px);
-    /* Vertically center sigil relative to content */
-    align-self: center;
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: 0;
+    /* Override the fade-up animation to just fade in (no translate) */
+    animation: splashSigilBgIn 1.2s ease 0.35s both;
+  }
+
+  /* Disable the breathing ambient glow in bg mode — too distracting */
+  .splash-sigil-ambient {
+    display: none;
   }
 
   .splash-content {
-    flex: 1;
-    min-width: 0;
+    position: relative;
+    z-index: 1;
     text-align: center;
   }
 
@@ -1436,7 +1446,6 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
     margin-right: auto !important;
   }
 
-  /* In landscape, the lower section can go a bit wider */
   .splash-lower {
     gap: 22px;
   }
@@ -1447,15 +1456,20 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   }
 }
 
+@keyframes splashSigilBgIn {
+  from { opacity: 0; }
+  to   { opacity: 0.15; }
+}
+
 /* Extra-wide landscape: even more room */
 @media (orientation: landscape) and (min-width: 1100px) {
   .splash-box {
-    width: min(960px, 90vw);
+    width: min(780px, 90vw);
   }
 
   .splash-sigil-wrap {
-    width: 210px;
-    height: 210px;
+    width: 380px;
+    height: 380px;
   }
 }
 
@@ -1618,6 +1632,18 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 /* Save slots area */
 [data-theme="light"] .splash-slots-label {
   color: var(--text-faint);
+}
+
+/* Light-theme landscape: sigil bg slightly more visible (dark strokes on light bg) */
+@media (orientation: landscape) and (min-width: 860px) {
+  [data-theme="light"] .splash-sigil-wrap {
+    opacity: 0.1;
+    animation: splashSigilBgInLight 1.2s ease 0.35s both;
+  }
+}
+@keyframes splashSigilBgInLight {
+  from { opacity: 0; }
+  to   { opacity: 0.1; }
 }
 
 /* ============================================================
