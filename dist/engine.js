@@ -1783,7 +1783,7 @@ function showEndingScreen(title, content) {
     window.location.reload();
   }, { once: true });
 }
-var escapeDesc, _statusPanel, _endingOverlay, _endingTitle, _endingContent, _endingStats, _endingActionBtn, _storeOverlay, _fetchTextFile, _scheduleStats2, _trapFocus, _showToast, styleState, _activeStatusTab, EMPTY_SKILLS_SVG, EMPTY_INV_SVG, EMPTY_LOG_SVG, _prevStatValues, _statChanges, _dirtyTabs, _lastEntries, _storeTrapRelease, _storeActiveTab, _preStoreTab;
+var _RARITY_TAG, escapeDesc, _statusPanel, _endingOverlay, _endingTitle, _endingContent, _endingStats, _endingActionBtn, _storeOverlay, _fetchTextFile, _scheduleStats2, _trapFocus, _showToast, styleState, _activeStatusTab, EMPTY_SKILLS_SVG, EMPTY_INV_SVG, EMPTY_LOG_SVG, _prevStatValues, _statChanges, _dirtyTabs, _lastEntries, _storeTrapRelease, _storeActiveTab, _preStoreTab;
 var init_panels = __esm({
   "src/ui/panels.ts"() {
     "use strict";
@@ -1795,7 +1795,8 @@ var init_panels = __esm({
     init_narrative();
     init_glossary();
     init_expression();
-    escapeDesc = (s) => escapeHtml(s).replace(/\n/g, "<br>");
+    _RARITY_TAG = /\[(common|uncommon|rare|epic|legendary)\]([\s\S]*?)\[\/\1\]/gi;
+    escapeDesc = (s) => escapeHtml(s).replace(_RARITY_TAG, (_, r, text) => `<span class="skill-rarity--${r.toLowerCase()}">${text}</span>`).replace(/\n/g, "<br>");
     _endingOverlay = null;
     _endingTitle = null;
     _endingContent = null;

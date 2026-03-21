@@ -18,8 +18,12 @@ import { itemBaseName } from '../systems/inventory.js';
 import { getJournalEntries, getAchievements } from '../systems/journal.js';
 import { escapeHtml, formatText } from './narrative.js';
 
-/** Escape for HTML and convert newlines to <br> (for multi-line skill/item descriptions). */
-const escapeDesc = (s: string): string => escapeHtml(s).replace(/\n/g, '<br>');
+/** Escape for HTML, convert [rarity]...[/rarity] tags to styled spans, then newlines to <br>. */
+const _RARITY_TAG = /\[(common|uncommon|rare|epic|legendary)\]([\s\S]*?)\[\/\1\]/gi;
+const escapeDesc = (s: string): string =>
+  escapeHtml(s)
+    .replace(_RARITY_TAG, (_, r, text) => `<span class="skill-rarity--${r.toLowerCase()}">${text}</span>`)
+    .replace(/\n/g, '<br>');
 import { glossaryRegistry } from '../systems/glossary.js';
 import { evalValue } from '../core/expression.js';
 import type { SkillEntry } from '../systems/skills.js';
