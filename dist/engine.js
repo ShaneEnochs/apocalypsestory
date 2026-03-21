@@ -2974,6 +2974,7 @@ init_glossary();
 init_undo();
 
 // src/ui/overlays.ts
+init_state();
 var _splashOverlay;
 var _splashSlots;
 var _saveOverlay;
@@ -3215,10 +3216,38 @@ function showSplash() {
       notice.classList.add("hidden");
     }
   }
+  const STAT_MAX = 250;
+  const statSlots = [
+    { key: "body", valId: "splash-stat-body-val", fillId: "splash-stat-body-fill" },
+    { key: "mind", valId: "splash-stat-mind-val", fillId: "splash-stat-mind-fill" },
+    { key: "spirit", valId: "splash-stat-spirit-val", fillId: "splash-stat-spirit-fill" }
+  ];
+  const saveForStats = ["auto", 1, 2, 3].map((slot) => loadSaveFromSlot(slot)).filter(Boolean).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))[0];
+  const statsSource = saveForStats?.playerState ?? playerState;
+  statSlots.forEach(({ key, valId, fillId }) => {
+    const raw = statsSource[key];
+    const num = typeof raw === "number" ? raw : parseFloat(String(raw ?? ""));
+    const valEl = document.getElementById(valId);
+    const fillEl = document.getElementById(fillId);
+    if (valEl) {
+      valEl.innerHTML = !isNaN(num) ? `${Math.round(num)}<span class="splash-stat-max">/${STAT_MAX}</span>` : "\u2014";
+    }
+    if (fillEl) {
+      fillEl.style.transform = "scaleX(0)";
+      requestAnimationFrame(() => {
+        fillEl.style.transform = `scaleX(${!isNaN(num) ? Math.min(num / STAT_MAX, 1) : 0})`;
+      });
+    }
+  });
+  const buildEl = document.getElementById("splash-build-number");
+  if (buildEl) {
+    const bn = playerState["build_number"];
+    if (bn && typeof bn === "string") buildEl.textContent = bn;
+  }
   _splashOverlay.classList.remove("hidden");
   _splashOverlay.style.opacity = "1";
   _splashSlots.classList.add("hidden");
-  _splashOverlay.querySelector(".splash-btn-col")?.classList.remove("hidden");
+  document.getElementById("splash-main")?.classList.remove("hidden");
 }
 function hideSplash() {
   _splashOverlay.classList.add("hidden");
@@ -3508,13 +3537,13 @@ function wireSaveUI(dom, opts) {
     await gotoScene(startup.sceneList[0] || "prologue");
   });
   dom.splashLoadBtn?.addEventListener("click", () => {
-    dom.splashOverlay?.querySelector(".splash-btn-col")?.classList.add("hidden");
+    document.getElementById("splash-main")?.classList.add("hidden");
     dom.splashSlots?.classList.remove("hidden");
     refreshAllSlotCards();
   });
   dom.splashSlotsBack?.addEventListener("click", () => {
     dom.splashSlots?.classList.add("hidden");
-    dom.splashOverlay?.querySelector(".splash-btn-col")?.classList.remove("hidden");
+    document.getElementById("splash-main")?.classList.remove("hidden");
   });
   ["auto", 1, 2, 3].forEach((slot) => {
     const btn = document.getElementById(`slot-load-${slot}`);
@@ -3608,12 +3637,12 @@ function wireSaveUI(dom, opts) {
       }
       const result = decodeSaveCode(code);
       if (!result.ok) {
-        showToast(`Load failed: ${result.reason}`);
+        showToast(`Invalid save code: ${result.reason}`);
         return;
       }
       hideSaveMenu();
       await loadAndResume(result.save);
-      showToast("Save code loaded successfully.");
+      showToast("Save code loaded.");
     });
   }
 }
