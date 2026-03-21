@@ -130,6 +130,7 @@ async function boot(): Promise<void> {
       if (el) setChoiceArea(el);
     },
     clearUndoStack, setGameTitle,
+    showEngineError,
   });
   registerCallbacks({
     addParagraph, addSystem, clearNarrative, applyTransition,

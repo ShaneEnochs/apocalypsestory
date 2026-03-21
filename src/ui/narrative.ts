@@ -18,6 +18,24 @@ import {
 import type { ChoiceOption } from '../core/state.js';
 import { glossaryRegistry } from '../systems/glossary.js';
 
+// ---------------------------------------------------------------------------
+// Glossary regex cache — compiled once per unique registry snapshot.
+// Invalidated whenever the glossary length changes (entries are append-only).
+// ---------------------------------------------------------------------------
+interface CompiledGlossaryEntry { re: RegExp; span: string }
+let _glossaryCache:    CompiledGlossaryEntry[] = [];
+let _glossaryCacheLen = -1;
+
+function getGlossaryRegexes(): CompiledGlossaryEntry[] {
+  if (glossaryRegistry.length === _glossaryCacheLen) return _glossaryCache;
+  _glossaryCache = glossaryRegistry.map(entry => ({
+    re:   new RegExp(`\\b(${entry.term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'gi'),
+    span: `<span class="lore-term" tabindex="0" data-tooltip="${escapeHtml(entry.description)}">`,
+  }));
+  _glossaryCacheLen = glossaryRegistry.length;
+  return _glossaryCache;
+}
+
 export interface NarrativeLogEntry {
   type:     string;
   text?:    string;
@@ -122,16 +140,14 @@ export function formatText(text: unknown): string {
   // 0. Glossary term wrapping — runs FIRST on raw text, using placeholder tokens
   // that survive all subsequent processing steps (variables, markdown, colors).
   // Tokens are restored to <span> elements at the very end.
+  // Regexes are pre-compiled and cached; recompiled only when the glossary grows.
   const _glossaryTokens: string[] = [];
   if (glossaryRegistry.length > 0) {
-    for (const entry of glossaryRegistry) {
-      const escaped = entry.term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex   = new RegExp(`\\b(${escaped})\\b`, 'gi');
-      result = result.replace(regex, (match) => {
+    for (const { re, span } of getGlossaryRegexes()) {
+      re.lastIndex = 0; // reset stateful 'g' flag before each use
+      result = result.replace(re, (match) => {
         const idx = _glossaryTokens.length;
-        _glossaryTokens.push(
-          `<span class="lore-term" tabindex="0" data-tooltip="${escapeHtml(entry.description)}">${match}</span>`
-        );
+        _glossaryTokens.push(`${span}${match}</span>`);
         return `\x00LTERM${idx}\x00`;
       });
     }

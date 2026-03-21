@@ -223,7 +223,12 @@ export async function gotoScene(name: string, label: string|null = null): Promis
 
   if (label) {
     const labels = _labelsCache!.get(name) || {};
-    setIp(labels[label] ?? 0);
+    if (labels[label] === undefined) {
+      cb.showEngineError(`*goto_scene: Unknown label "${label}" in scene "${name}".`);
+      setIp(currentLines.length);
+      return;
+    }
+    setIp(labels[label]);
   }
 
   setAwaitingChoice(null);
