@@ -2068,6 +2068,9 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   padding: 12px 14px;
   border-bottom: 1px solid var(--border-dim);
   transition: background var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .store-card:last-child { border-bottom: none; }
@@ -2075,12 +2078,9 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 .store-card--unaffordable { opacity: 0.45; }
 .store-card--owned        { opacity: 0.55; }
 
-.store-card-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 7px;
+.store-card-body {
+  flex: 1;
+  min-width: 0;
 }
 
 .store-card-name {
@@ -2088,14 +2088,14 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   font-size: var(--text-sm);
   color: var(--cyan);
   letter-spacing: var(--ls-tight);
-  flex: 1;
-  min-width: 0;
+  display: block;
+  margin-bottom: 5px;
 }
-
 
 .store-card-actions {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 8px;
   flex-shrink: 0;
 }
@@ -2446,8 +2446,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
   /* Store */
   .store-modal-box         { max-width: 100%; max-height: 85vh; }
-  .store-card-top          { flex-wrap: wrap; gap: 8px; }
-  .store-card-actions      { width: 100%; justify-content: flex-end; }
+  .store-card-actions      { flex-direction: row; }
   .store-card              { padding: 10px 12px; }
   .store-header            { padding: 10px 12px; }
   .store-tab               { font-size: var(--text-2xs); padding: 8px 12px; }
