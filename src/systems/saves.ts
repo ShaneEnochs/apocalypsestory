@@ -349,6 +349,7 @@ export async function restoreFromSave(save: any, {
   parseAndCacheScene,
   fetchTextFileFn,
   evalValueFn,
+  showEngineError,
 }: {
   runStatsScene:      () => Promise<void>;
   renderFromLog:      (log: unknown[], options?: { skipAnimations?: boolean }) => void;
@@ -361,8 +362,16 @@ export async function restoreFromSave(save: any, {
   parseAndCacheScene: (name: string) => Promise<void>;
   fetchTextFileFn:    (name: string) => Promise<string>;
   evalValueFn:        (expr: string) => unknown;
+  showEngineError?:   (msg: string) => void;
 }): Promise<void> {
-  await parseStartup(fetchTextFileFn, evalValueFn);
+  try {
+    await parseStartup(fetchTextFileFn, evalValueFn);
+  } catch (err) {
+    const msg = `Load failed: could not re-initialise startup.txt — ${(err as Error).message}`;
+    if (showEngineError) showEngineError(msg);
+    else console.error('[saves]', msg);
+    return;
+  }
 
   setPlayerState({ ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) });
 

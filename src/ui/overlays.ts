@@ -14,6 +14,7 @@ import {
 } from '../systems/saves.js';
 
 import { playerState } from '../core/state.js';
+import { escapeHtml } from './narrative.js';
 
 export interface CharacterData {
   firstName:                  string;
@@ -65,6 +66,7 @@ let _parseAndCacheScene!: (name: string) => Promise<void>;
 let _clearUndoStack:      (() => void) | null = null;
 let _setChoiceArea:       ((el: HTMLElement | null) => void) | null = null;
 let _setGameTitle:        ((t: string) => void) | null = null;
+let _showEngineError:     ((msg: string) => void) | null = null;
 
 export function init({
   splashOverlay, splashSlots,
@@ -79,6 +81,7 @@ export function init({
   parseAndCacheScene, setChoiceArea,
   clearUndoStack,
   setGameTitle,
+  showEngineError,
 }: {
   splashOverlay:       HTMLElement;
   splashSlots:         HTMLElement;
@@ -106,6 +109,7 @@ export function init({
   setChoiceArea:       ((el: HTMLElement | null) => void) | null;
   clearUndoStack:      (() => void) | null;
   setGameTitle:        ((t: string) => void) | null;
+  showEngineError?:    ((msg: string) => void) | null;
 }): void {
   _splashOverlay  = splashOverlay;
   _splashSlots    = splashSlots;
@@ -138,6 +142,7 @@ export function init({
   _clearUndoStack     = clearUndoStack || null;
   _setChoiceArea      = setChoiceArea || null;
   _setGameTitle       = setGameTitle || null;
+  _showEngineError    = showEngineError || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -301,6 +306,7 @@ export async function loadAndResume(save: any): Promise<void> {
     parseAndCacheScene: _parseAndCacheScene,
     fetchTextFileFn:    _fetchTextFile,
     evalValueFn:        _evalValue,
+    showEngineError:    _showEngineError ?? undefined,
   });
 
   if (_setGameTitle) {
@@ -314,8 +320,7 @@ export async function loadAndResume(save: any): Promise<void> {
 // Splash screen
 // ---------------------------------------------------------------------------
 export function showSplash(): void {
-  ['auto', 1, 2, 3].forEach(loadSaveFromSlot);
-  refreshAllSlotCards();
+  refreshAllSlotCards(); // also triggers stale-save detection as a side effect
 
   const notice = document.getElementById('splash-stale-notice');
   if (notice) {
@@ -439,14 +444,6 @@ function refreshCheckpoints(): void {
   });
 }
 
-function escapeHtml(val: unknown): string {
-  return String(val ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 export function showSaveMenu(): void {
   refreshAllSlotCards();
   refreshCheckpoints();
@@ -550,14 +547,14 @@ export function wireCharCreation(): void {
     }
     if (typeof overlay._resolve === 'function') {
       overlay._resolve({
-        firstName:                _inputFirstName.value.trim(),
-        lastName:                 _inputLastName.value.trim(),
-        pronouns_subject:         selected.dataset.subject,
-        pronouns_object:          selected.dataset.object,
-        pronouns_possessive:      selected.dataset.possessive,
-        pronouns_possessive_pronoun: selected.dataset.possessivePronoun,
-        pronouns_reflexive:       selected.dataset.reflexive,
-        pronouns_label:           selected.dataset.pronouns,
+        firstName:                   _inputFirstName.value.trim(),
+        lastName:                    _inputLastName.value.trim(),
+        pronouns_subject:            selected.dataset.subject            ?? '',
+        pronouns_object:             selected.dataset.object             ?? '',
+        pronouns_possessive:         selected.dataset.possessive         ?? '',
+        pronouns_possessive_pronoun: selected.dataset.possessivePronoun  ?? '',
+        pronouns_reflexive:          selected.dataset.reflexive          ?? '',
+        pronouns_label:              selected.dataset.pronouns           ?? '',
       });
     }
   });
