@@ -1175,7 +1175,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 /* ── Title (populated by engine) ── */
 /* .splash-title inherits from .overlay-title but we restyle it here */
 .splash-title {
-  font-size: clamp(1.6rem, 5vw, 2.2rem) !important;
+  font-size: clamp(1.75rem, 5.5vw, 2.4rem) !important;
   letter-spacing: 0.18em !important;
   margin-bottom: 4px !important;
   /* Force natural wrap: "System:" on line 1, "Year Zero" on line 2 */
@@ -1192,7 +1192,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 /* ── Eyebrow ── */
 .splash-eyebrow {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   letter-spacing: 0.34em;
   text-transform: uppercase;
   color: var(--cyan-dim);
@@ -1226,7 +1226,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 /* ── Tagline (populated by engine) ── */
 .splash-tagline {
   font-family: var(--font-body);
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   font-style: italic;
   color: var(--text-dim);
   line-height: 1.7;
@@ -1261,7 +1261,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 .splash-col-label {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--text-faint);
@@ -1277,12 +1277,14 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 }
 
 .splash-action-btn {
-  width: 100%; padding: 13px 13px;
+  width: 100%; padding: 14px 16px;
   font-family: var(--font-mono);
-  font-size: 0.72rem; letter-spacing: 0.18em;
+  font-size: 0.78rem; letter-spacing: 0.18em;
   text-transform: uppercase; cursor: pointer;
   transition: all 0.18s ease;
-  text-align: left; display: flex; align-items: center; gap: 10px;
+  /* Center icon + label as a unit */
+  text-align: center; display: flex; align-items: center;
+  justify-content: center; gap: 12px;
   position: relative; overflow: hidden;
 }
 .splash-action-btn::after {
@@ -1293,10 +1295,10 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 .splash-action-btn:hover::after { opacity: 1; }
 
 .splash-btn-icon {
-  width: 19px; height: 19px;
+  width: 22px; height: 22px;
   border: 1px solid currentColor;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.52rem; flex-shrink: 0;
+  font-size: 0.62rem; flex-shrink: 0;
   transition: all 0.18s ease;
 }
 
@@ -1337,15 +1339,15 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 }
 .splash-stat-name {
   font-family: var(--font-mono);
-  font-size: 0.66rem; letter-spacing: 0.15em;
+  font-size: 0.73rem; letter-spacing: 0.15em;
   text-transform: uppercase; color: var(--text-dim);
 }
 .splash-stat-val {
   font-family: var(--font-mono);
-  font-size: 0.68rem; color: var(--cyan-dim);
+  font-size: 0.75rem; color: var(--cyan-dim);
 }
 .splash-stat-max {
-  font-size: 0.54rem; color: var(--text-faint); margin-left: 1px;
+  font-size: 0.6rem; color: var(--text-faint); margin-left: 1px;
 }
 
 .splash-stat-track {
@@ -1380,7 +1382,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 .splash-footer-text {
   font-family: var(--font-mono);
-  font-size: 0.62rem; letter-spacing: 0.14em;
+  font-size: 0.7rem; letter-spacing: 0.14em;
   color: var(--text-faint); text-transform: uppercase; line-height: 1.8;
 }
 .splash-footer-text span { color: var(--text-dim); }
