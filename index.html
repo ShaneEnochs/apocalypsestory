@@ -65,6 +65,9 @@
     <canvas id="splash-bg-canvas" class="splash-bg-canvas"></canvas>
     <div class="splash-vignette"></div>
 
+    <!-- Main content — hidden as a unit when save slots are shown -->
+    <div id="splash-main">
+
     <!-- Summoning circle -->
     <div class="splash-sigil-wrap" id="splashSigilWrap">
       <div class="splash-sigil-ambient"></div>
@@ -154,6 +157,16 @@
       </div>
     </div><!-- /.splash-lower -->
 
+    <!-- Footer -->
+    <div class="splash-footer">
+      <div class="splash-footer-text">
+        Build <span id="splash-build-number">1.0.0</span> · System: Year Zero<br>
+        Developed &amp; Authored by <span>Shane Enochs</span>
+      </div>
+    </div>
+
+    </div><!-- /#splash-main -->
+
     <!-- Save slots (shown when Continue is clicked) -->
     <div id="splash-slots" class="splash-slots hidden">
       <div class="splash-slots-header">
@@ -210,14 +223,6 @@
         </div>
       </div>
     </div><!-- /#splash-slots -->
-
-    <!-- Footer -->
-    <div class="splash-footer">
-      <div class="splash-footer-text">
-        Build <span id="splash-build-number">1.0.0</span> · System: Year Zero<br>
-        Developed &amp; Authored by <span>Shane Enochs</span>
-      </div>
-    </div>
 
   </div><!-- /.splash-box -->
 </div><!-- /#splash-overlay -->
