@@ -1062,12 +1062,169 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
    11. SPLASH SCREEN
    ============================================================ */
 
-.splash-box     { max-width: 480px; padding: 48px 40px 40px; }
-.splash-icon    { font-size: 2.2rem; color: var(--cyan); text-shadow: 0 0 30px var(--cyan-glow-md); margin-bottom: 16px; }
-.splash-title   { font-size: var(--text-xl); letter-spacing: 0.25em; margin-bottom: 10px; }
-.splash-tagline { font-family: var(--font-body); font-size: 0.95rem; color: var(--text-dim); line-height: 1.7; margin-bottom: 32px; font-style: italic; }
-.splash-btn-col { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+/* The overlay itself uses .overlay base styles (fixed, centered, blurred bg).
+   We override the inner box entirely with .splash-box.               */
 
+.splash-box {
+  position: relative;
+  width: min(520px, 96vw);
+  min-height: min(90vh, 840px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 40px 38px 32px;
+  background: linear-gradient(155deg, rgba(13,17,36,0.96) 0%, rgba(7,10,20,0.98) 100%);
+  border: 1px solid var(--border-dim);
+  backdrop-filter: blur(14px);
+  text-align: center;
+  overflow: hidden;
+  /* Override .overlay-box max-width / padding */
+  max-width: none;
+}
+
+/* Top cyan accent line */
+.splash-box::before {
+  content: '';
+  position: absolute; top: 0; left: 8%; right: 8%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.75;
+}
+/* Bottom accent line */
+.splash-box::after {
+  content: '';
+  position: absolute; bottom: 0; left: 12%; right: 12%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-glow), transparent);
+  opacity: 0.5;
+}
+
+/* Background canvas — fills the splash box */
+.splash-bg-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Vignette over the canvas */
+.splash-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 40%, transparent 20%, rgba(4,6,14,0.82) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* All content sits above canvas + vignette */
+.splash-box > *:not(.splash-bg-canvas):not(.splash-vignette) {
+  position: relative;
+  z-index: 2;
+}
+
+/* Entry animation */
+.splash-box {
+  animation: splashBoxIn 1s cubic-bezier(0.16,1,0.3,1) both;
+}
+@keyframes splashBoxIn {
+  from { opacity: 0; transform: scale(0.96) translateY(14px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Summoning circle ── */
+.splash-sigil-wrap {
+  position: relative;
+  width: 220px; height: 220px;
+  margin: 0 auto 20px;
+  opacity: 0;
+  animation: splashFadeUp 0.7s ease 0.35s both;
+}
+
+.splash-sigil-ambient {
+  position: absolute; inset: -20px; border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0,212,245,0.11) 0%, transparent 65%);
+  animation: splashBreathe 4s ease-in-out infinite;
+}
+
+@keyframes splashBreathe {
+  0%,100% { opacity: 0.5; transform: scale(0.93); }
+  50%      { opacity: 1;   transform: scale(1.07); }
+}
+
+.splash-sigil-svg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  overflow: hidden;          /* runes stay inside outer ring */
+}
+
+.splash-sigil-center {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.splash-sigil-center svg {
+  width: 50px; height: 50px;
+  filter: drop-shadow(0 0 8px rgba(0,212,245,0.5))
+          drop-shadow(0 0 22px rgba(0,212,245,0.2));
+  animation: splashBreathe 4s ease-in-out infinite;
+}
+
+/* ── Title (populated by engine) ── */
+/* .splash-title inherits from .overlay-title but we restyle it here */
+.splash-title {
+  font-size: clamp(1.8rem, 5vw, 2.4rem) !important;
+  letter-spacing: 0.18em !important;
+  margin-bottom: 4px !important;
+  opacity: 0;
+  animation: splashFadeUp 0.6s ease 0.75s both;
+}
+
+/* ── Eyebrow ── */
+.splash-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--cyan-dim);
+  margin-bottom: 8px;
+  opacity: 0;
+  animation: splashFadeUp 0.6s ease 0.6s both;
+}
+
+/* ── Ornament divider ── */
+.splash-ornament {
+  display: flex; align-items: center; gap: 10px;
+  margin: 13px 0;
+  opacity: 0;
+  animation: splashFadeUp 0.6s ease 0.88s both;
+}
+
+.splash-orn-line {
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,212,245,0.22));
+}
+.splash-orn-line--rev {
+  background: linear-gradient(90deg, rgba(0,212,245,0.22), transparent);
+}
+
+.splash-orn-diamond {
+  width: 6px; height: 6px;
+  background: var(--cyan); transform: rotate(45deg);
+  box-shadow: 0 0 8px var(--cyan); flex-shrink: 0;
+}
+
+/* ── Tagline (populated by engine) ── */
+.splash-tagline {
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--text-dim);
+  line-height: 1.7;
+  margin-bottom: 22px;
+  opacity: 0;
+  animation: splashFadeUp 0.6s ease 0.98s both;
+}
+
+/* ── Stale save notice ── */
 .splash-stale-notice {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -1079,6 +1236,148 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   margin-bottom: 20px;
   text-align: center;
   line-height: 1.5;
+}
+
+/* ── Lower two-column split ── */
+.splash-lower {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+  opacity: 0;
+  animation: splashFadeUp 0.6s ease 1.1s both;
+}
+
+.splash-col-label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+/* ── Action buttons column ── */
+.splash-btn-col {
+  display: flex; flex-direction: column; gap: 10px;
+  border-right: 1px solid rgba(42,47,74,0.4);
+  padding-right: 18px;
+}
+
+.splash-action-btn {
+  width: 100%; padding: 13px 13px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem; letter-spacing: 0.18em;
+  text-transform: uppercase; cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: left; display: flex; align-items: center; gap: 10px;
+  position: relative; overflow: hidden;
+}
+.splash-action-btn::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 50%, rgba(0,212,245,0.04));
+  opacity: 0; transition: opacity 0.18s;
+}
+.splash-action-btn:hover::after { opacity: 1; }
+
+.splash-btn-icon {
+  width: 19px; height: 19px;
+  border: 1px solid currentColor;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.52rem; flex-shrink: 0;
+  transition: all 0.18s ease;
+}
+
+.splash-action-btn--primary {
+  background: rgba(0,212,245,0.07);
+  color: var(--cyan);
+  border: 1px solid rgba(0,212,245,0.35);
+}
+.splash-action-btn--primary:hover {
+  background: rgba(0,212,245,0.13);
+  border-color: var(--cyan);
+  box-shadow: 0 0 18px rgba(0,212,245,0.12);
+}
+.splash-action-btn--primary:hover .splash-btn-icon {
+  background: var(--cyan); color: var(--bg-deep);
+}
+
+.splash-action-btn--secondary {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid rgba(42,47,74,0.7);
+}
+.splash-action-btn--secondary:hover {
+  border-color: var(--border-dim);
+  color: var(--text-primary);
+  background: rgba(42,47,74,0.2);
+}
+
+/* ── Session stats column ── */
+.splash-session-col { text-align: left; }
+
+.splash-stat-item { margin-bottom: 11px; }
+.splash-stat-item:last-child { margin-bottom: 0; }
+
+.splash-stat-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 4px;
+}
+.splash-stat-name {
+  font-family: var(--font-mono);
+  font-size: 0.66rem; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.splash-stat-val {
+  font-family: var(--font-mono);
+  font-size: 0.68rem; color: var(--cyan-dim);
+}
+.splash-stat-max {
+  font-size: 0.54rem; color: var(--text-faint); margin-left: 1px;
+}
+
+.splash-stat-track {
+  height: 3px; background: rgba(42,47,74,0.65);
+}
+.splash-stat-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+  transform-origin: left; transform: scaleX(0);
+  transition: transform 0.9s cubic-bezier(0.16,1,0.3,1);
+  position: relative;
+}
+.splash-stat-fill::after {
+  content: ''; position: absolute; right: -1px; top: -2px;
+  width: 3px; height: 7px;
+  background: var(--cyan); box-shadow: 0 0 5px var(--cyan);
+}
+
+/* ── Save slots (shown on Continue) ── */
+.splash-slots        { width: 100%; margin-top: 8px; }
+.splash-slots-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.splash-slots-label  { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: var(--ls-wide); color: var(--text-faint); }
+
+/* ── Footer ── */
+.splash-footer {
+  margin-top: 20px; padding-top: 14px;
+  border-top: 1px solid rgba(42,47,74,0.3);
+  text-align: center;
+  opacity: 0;
+  animation: splashFadeUp 0.6s ease 1.55s both;
+}
+
+.splash-footer-text {
+  font-family: var(--font-mono);
+  font-size: 0.62rem; letter-spacing: 0.14em;
+  color: var(--text-faint); text-transform: uppercase; line-height: 1.8;
+}
+.splash-footer-text span { color: var(--text-dim); }
+
+/* ── Shared splash animation ── */
+@keyframes splashFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 
