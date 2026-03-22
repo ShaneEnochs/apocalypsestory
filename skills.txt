@@ -63,6 +63,42 @@
   Activation Cost: 500 mana.
   Cooldown: 10 minutes.
 
+*skill repair [Uncommon] "Repair" 0
+  [uncommon]Uncommon[/uncommon]
+  Magically repair minor damage to weapons and armor without materials. Extensive damage requires appropriate crafting materials. Repair time depends on the severity of damage. Does not work on magical items.
+  Activation cost: None.
+  Cooldown: 1 day after repairing 1 item.
+
+*skill alchemy [Uncommon] "Alchemy" 0
+  [uncommon]Uncommon[/uncommon]
+  Create basic potions through magical chemistry. Requires ingredients and knowledge of a recipe. Potions can be crafted on demand. Mana cost depends on the potion being created.
+  Activation cost: Variable, based on potion type.
+  Cooldown: None.
+
+*skill arcane_blast [Uncommon] "Arcane Blast" 0
+  [uncommon]Uncommon[/uncommon]
+  Release a wave of arcane energy that damages all enemies in a 20-meter radius cone. Damage scales with Soul stat.
+  Activation cost: 150 mana.
+  Cooldown: 8 seconds.
+
+*skill soul_lance [Uncommon] "Soul Lance" 0
+  [uncommon]Uncommon[/uncommon]
+  Fire a concentrated beam of soul energy at a single target. Damage scales with Soul stat. Pierces through multiple enemies in a line.
+  Activation cost: 100 mana.
+  Cooldown: 5 seconds.
+
+*skill spectral_missile [Rare] "Spectral Missile" 0
+  [rare]Rare[/rare]
+  Launch a homing missile of spectral force at a target. Damage scales with Soul stat. The missile tracks the target and detonates on impact, applying a 5-second slow effect to the target.
+  Activation cost: 200 mana.
+  Cooldown: 6 seconds.
+
+*skill mend [Rare] "Mend" 0
+  [rare]Rare[/rare]
+  Restore health to a single target. Healing scales with Soul stat. Can be cast on yourself or allies.
+  Activation cost: 250 mana.
+  Cooldown: 3 seconds.
+
 // ─────────────────────────────────────────────────────────────
 // SHIELD OF HUMANITY — PASSIVES
 // ─────────────────────────────────────────────────────────────
@@ -99,14 +135,8 @@
   At the start of battle, gain additional health regeneration equal to 1% per skill level per conscious ally within 100 meters for five minutes, up to a maximum of 10% per skill level. The maximum skill level cap is 10.
   Cooldown: 1 day.
 
-*skill repair [Uncommon] "Repair" 0
+*skill polyglot [Uncommon] "Polyglot" 0
   [uncommon]Uncommon[/uncommon]
-  Description: Magically repair minor damage to weapons and armor without materials. Extensive damage requires appropriate crafting materials. Repair time depends on the severity of damage. Does not work on magical items.
+  Passively understand and infer human languages through exposure. After listening to a conversation for a few minutes or reading written text, you begin to comprehend the language. The more exposure you have, the faster your comprehension grows. This skill is always active and cannot be turned off.
   Activation cost: None.
-  Cooldown: 1 day after repairing 1 item.
-
-*skill alchemy [Uncommon] "Alchemy" 0
-  [uncommon]Uncommon[/uncommon]
-  Description: Create basic potions through magical chemistry. Requires ingredients and knowledge of a recipe. Potions can be crafted on demand. Mana cost depends on the potion being created.
-  Activation cost: Variable, based on potion type.
   Cooldown: None.
