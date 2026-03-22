@@ -41,6 +41,11 @@
 *grant_skill "legacy_of_protection"
 *grant_skill "repair"
 *grant_skill "alchemy"
+*great_skill "arcane_blast"
+*great_skill "soul_lance"
+*great_skill "spectral_missile"
+*great_skill "mend"
+*great_skill "polyglot"
 
 *comment --- Vitals ---
 *create health "Healthy"
