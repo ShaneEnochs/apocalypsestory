@@ -1890,6 +1890,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 .char-input:focus     { border-color: var(--cyan-dim); box-shadow: 0 0 0 2px var(--cyan-glow); }
 .char-input--error    { border-color: var(--red); box-shadow: 0 0 0 2px var(--red-glow); }
+.char-input--default  { color: var(--amber); }
 .char-counter         { position: absolute; right: 12px; font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--text-faint); pointer-events: none; user-select: none; }
 .char-error           { display: block; font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: var(--ls-tight); color: var(--red); margin-top: 5px; }
 
