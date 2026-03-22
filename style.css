@@ -693,7 +693,6 @@ body {
   font-size: var(--text-sm);
   letter-spacing: var(--ls-normal);
   color: var(--cyan);
-  margin-bottom: 6px;
   opacity: 1;
 }
 
