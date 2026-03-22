@@ -475,6 +475,7 @@ export function validateName(value: string, label: string): string | null {
 
 export function wireCharCreation(): void {
   function handleInput(inputEl: HTMLInputElement, counterEl: HTMLElement, errorEl: HTMLElement, fieldLabel: string): void {
+    inputEl.classList.remove('char-input--default');
     const cleaned = inputEl.value.replace(/[^\p{L}\p{M}'\- ]/gu, '');
     if (cleaned !== inputEl.value) {
       const pos = Math.max(0, (inputEl.selectionStart ?? 0) - (inputEl.value.length - cleaned.length));
@@ -489,6 +490,18 @@ export function wireCharCreation(): void {
     errorEl.classList.toggle('hidden', !err);
     updateBeginBtn();
   }
+
+  function clearIfDefault(inputEl: HTMLInputElement, counterEl: HTMLElement): void {
+    if (inputEl.classList.contains('char-input--default')) {
+      inputEl.value = '';
+      inputEl.classList.remove('char-input--default');
+      counterEl.textContent = String(NAME_MAX);
+      updateBeginBtn();
+    }
+  }
+
+  _inputFirstName.addEventListener('focus', () => clearIfDefault(_inputFirstName, _counterFirst));
+  _inputLastName.addEventListener('focus',  () => clearIfDefault(_inputLastName,  _counterLast));
 
   _inputFirstName.addEventListener('input', () =>
     handleInput(_inputFirstName, _counterFirst, _errorFirstName, 'First name'));
@@ -563,15 +576,19 @@ export function wireCharCreation(): void {
 // showCharacterCreation — resets and shows the overlay; returns a Promise
 // that resolves with character data when the user submits.
 export function showCharacterCreation(): Promise<CharacterData> {
-  _inputFirstName.value = '';
-  _inputLastName.value  = '';
-  _counterFirst.textContent = String(NAME_MAX);
-  _counterLast.textContent  = String(NAME_MAX);
+  const DEFAULT_FIRST = 'Charlie';
+  const DEFAULT_LAST  = 'McKinley';
+  _inputFirstName.value = DEFAULT_FIRST;
+  _inputLastName.value  = DEFAULT_LAST;
+  _counterFirst.textContent = String(NAME_MAX - DEFAULT_FIRST.length);
+  _counterLast.textContent  = String(NAME_MAX - DEFAULT_LAST.length);
   _errorFirstName.classList.add('hidden');
   _errorLastName.classList.add('hidden');
   _inputFirstName.classList.remove('char-input--error');
   _inputLastName.classList.remove('char-input--error');
-  _charBeginBtn.disabled = true;
+  _inputFirstName.classList.add('char-input--default');
+  _inputLastName.classList.add('char-input--default');
+  _charBeginBtn.disabled = false;
 
   _charOverlay.querySelectorAll<HTMLElement>('.pronoun-card').forEach((c: HTMLElement) => {
     const def = c.dataset.pronouns === 'they/them';
