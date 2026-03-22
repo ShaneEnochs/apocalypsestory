@@ -1,17 +1,17 @@
-var __defProp = Object.defineProperty;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __esm = (fn, res) => function __init() {
-  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
-};
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
-
 // src/core/state.ts
+var playerState = {};
+var tempState = {};
+var statRegistry = [];
+var currentScene = null;
+var currentLines = [];
+var ip = 0;
+var awaitingChoice = null;
+var pageBreakIp = null;
 function setPageBreakIp(n) {
   pageBreakIp = n;
 }
+var startup = { sceneList: [] };
+var chapterTitle = "\u2014";
 function setChapterTitleState(t) {
   chapterTitle = t;
 }
@@ -53,6 +53,7 @@ function resolveStore(key) {
   if (Object.prototype.hasOwnProperty.call(playerState, key)) return playerState;
   return null;
 }
+var _startupDefaults = {};
 function captureStartupDefaults() {
   _startupDefaults = JSON.parse(JSON.stringify(playerState));
 }
@@ -111,6 +112,7 @@ function declareTemp(command, evalValueFn) {
   const [, rawKey, rhs] = m;
   tempState[normalizeKey(rawKey)] = rhs !== void 0 ? evalValueFn(rhs) : 0;
 }
+var _statRegistryWarningFired = false;
 async function parseStartup(fetchTextFileFn, evalValueFn) {
   const text = await fetchTextFileFn("startup");
   const lines = text.split(/\r?\n/).map((raw) => ({
@@ -168,26 +170,142 @@ async function parseStartup(fetchTextFileFn, evalValueFn) {
     _statRegistryWarningFired = true;
   }
 }
-var playerState, tempState, statRegistry, currentScene, currentLines, ip, awaitingChoice, pageBreakIp, startup, chapterTitle, _startupDefaults, _statRegistryWarningFired;
-var init_state = __esm({
-  "src/core/state.ts"() {
-    "use strict";
-    playerState = {};
-    tempState = {};
-    statRegistry = [];
-    currentScene = null;
-    currentLines = [];
-    ip = 0;
-    awaitingChoice = null;
-    pageBreakIp = null;
-    startup = { sceneList: [] };
-    chapterTitle = "\u2014";
-    _startupDefaults = {};
-    _statRegistryWarningFired = false;
+
+// src/core/dom.ts
+var _pushChapterCardLog = null;
+function registerChapterCardLog(fn) {
+  _pushChapterCardLog = fn;
+}
+function setChapterTitle(t) {
+  const m = t.match(/^\[([^\]]+)\]\s+(.+)$/);
+  const label = m ? m[1] : "Chapter";
+  const cleanTitle = m ? m[2] : t;
+  const el = document.getElementById("chapter-title");
+  const prev = el?.textContent ?? "";
+  if (el) el.textContent = cleanTitle;
+  setChapterTitleState(cleanTitle);
+  if (cleanTitle && cleanTitle !== prev && cleanTitle !== "\u2014") showChapterCard(cleanTitle, label);
+}
+function showChapterCard(title, label = "Chapter") {
+  document.querySelector(".chapter-card")?.remove();
+  const card = document.createElement("div");
+  card.className = "chapter-card";
+  const lbl = document.createElement("span");
+  lbl.className = "chapter-card-label";
+  lbl.textContent = label;
+  const ttl = document.createElement("span");
+  ttl.className = "chapter-card-title";
+  ttl.textContent = title;
+  card.appendChild(lbl);
+  card.appendChild(ttl);
+  const nc = document.getElementById("narrative-content");
+  const ca = document.getElementById("choice-area");
+  if (nc && ca) nc.insertBefore(card, ca);
+  if (_pushChapterCardLog) _pushChapterCardLog({ type: "chapter-card", text: title, label });
+}
+function initThemeToggle() {
+  const btn = document.getElementById("theme-toggle-btn");
+  if (!btn) return;
+  const applyTheme = (light) => {
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (light) {
+      document.documentElement.setAttribute("data-theme", "light");
+      btn.textContent = "\u263D";
+      btn.setAttribute("title", "Switch to dark mode");
+      if (metaTheme) metaTheme.content = "#f0ece4";
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+      btn.textContent = "\u2600";
+      btn.setAttribute("title", "Switch to light mode");
+      if (metaTheme) metaTheme.content = "#0d0f1a";
+    }
+  };
+  const saved = localStorage.getItem("sa_theme");
+  const isLight = saved === "light" || !saved && window.matchMedia("(prefers-color-scheme: light)").matches;
+  applyTheme(isLight);
+  if (!saved && isLight) localStorage.setItem("sa_theme", "light");
+  btn.addEventListener("click", () => {
+    const currentlyLight = document.documentElement.getAttribute("data-theme") === "light";
+    const next = !currentlyLight;
+    applyTheme(next);
+    localStorage.setItem("sa_theme", next ? "light" : "dark");
+  });
+}
+function setGameTitle(t) {
+  const gt = document.getElementById("game-title");
+  const st = document.querySelector(".splash-title");
+  if (gt) gt.textContent = t;
+  if (st) st.textContent = t;
+  document.title = t;
+}
+function buildDom() {
+  function req(id) {
+    const el = document.getElementById(id);
+    if (!el) console.warn(`[dom] Missing element: "${id}" \u2014 check index.html IDs`);
+    return el;
   }
-});
+  return {
+    narrativeContent: req("narrative-content"),
+    choiceArea: req("choice-area"),
+    chapterTitle: req("chapter-title"),
+    narrativePanel: req("narrative-panel"),
+    statusPanel: req("status-panel"),
+    statusToggle: req("status-toggle"),
+    saveBtn: req("save-btn"),
+    gameTitle: req("game-title"),
+    splashTitle: document.querySelector(".splash-title"),
+    splashTagline: req("splash-tagline"),
+    splashOverlay: req("splash-overlay"),
+    splashNewBtn: req("splash-new-btn"),
+    splashLoadBtn: req("splash-load-btn"),
+    splashSlots: req("splash-slots"),
+    splashSlotsBack: req("splash-slots-back"),
+    saveOverlay: req("save-overlay"),
+    saveMenuClose: req("save-menu-close"),
+    charOverlay: req("char-creation-overlay"),
+    inputFirstName: req("input-first-name"),
+    inputLastName: req("input-last-name"),
+    counterFirst: req("counter-first"),
+    counterLast: req("counter-last"),
+    errorFirstName: req("error-first-name"),
+    errorLastName: req("error-last-name"),
+    charBeginBtn: req("char-begin-btn"),
+    endingOverlay: document.getElementById("ending-overlay"),
+    endingTitle: document.getElementById("ending-title"),
+    endingContent: document.getElementById("ending-content"),
+    endingStats: document.getElementById("ending-stats"),
+    endingActionBtn: document.getElementById("ending-action-btn"),
+    storeOverlay: document.getElementById("store-overlay"),
+    toast: req("toast")
+  };
+}
 
 // src/core/expression.ts
+var TT = {
+  NUM: "NUM",
+  STR: "STR",
+  BOOL: "BOOL",
+  IDENT: "IDENT",
+  LBRACKET: "[",
+  RBRACKET: "]",
+  LPAREN: "(",
+  RPAREN: ")",
+  PLUS: "+",
+  MINUS: "-",
+  STAR: "*",
+  SLASH: "/",
+  LT: "<",
+  GT: ">",
+  LTE: "<=",
+  GTE: ">=",
+  EQ: "=",
+  NEQ: "!=",
+  AND: "AND",
+  OR: "OR",
+  NOT: "NOT",
+  COMMA: ",",
+  EOF: "EOF"
+};
 function tokenise(src) {
   const tokens = [];
   let i = 0;
@@ -355,8 +473,8 @@ function makeParser(tokens) {
       if (op === TT.GT) left = left > right;
       if (op === TT.LTE) left = left <= right;
       if (op === TT.GTE) left = left >= right;
-      if (op === TT.EQ) left = left == right;
-      if (op === TT.NEQ) left = left != right;
+      if (op === TT.EQ) left = left === right;
+      if (op === TT.NEQ) left = left !== right;
     }
     return left;
   }
@@ -493,38 +611,6 @@ function evalValue(expr) {
     return 0;
   }
 }
-var TT;
-var init_expression = __esm({
-  "src/core/expression.ts"() {
-    "use strict";
-    init_state();
-    TT = {
-      NUM: "NUM",
-      STR: "STR",
-      BOOL: "BOOL",
-      IDENT: "IDENT",
-      LBRACKET: "[",
-      RBRACKET: "]",
-      LPAREN: "(",
-      RPAREN: ")",
-      PLUS: "+",
-      MINUS: "-",
-      STAR: "*",
-      SLASH: "/",
-      LT: "<",
-      GT: ">",
-      LTE: "<=",
-      GTE: ">=",
-      EQ: "=",
-      NEQ: "!=",
-      AND: "AND",
-      OR: "OR",
-      NOT: "NOT",
-      COMMA: ",",
-      EOF: "EOF"
-    };
-  }
-});
 
 // src/core/parser.ts
 function parseLines(text) {
@@ -638,11 +724,6 @@ function findBlockEnd(fromIndex, parentIndent, currentLines2) {
   }
   return i;
 }
-var init_parser = __esm({
-  "src/core/parser.ts"() {
-    "use strict";
-  }
-});
 
 // src/systems/inventory.ts
 function extractStackCount(itemStr) {
@@ -680,1376 +761,8 @@ function removeInventoryItem(item) {
   else playerState.inventory[idx] = `${normalized} (${qty - 1})`;
   return true;
 }
-var init_inventory = __esm({
-  "src/systems/inventory.ts"() {
-    "use strict";
-    init_state();
-  }
-});
-
-// src/systems/skills.ts
-async function parseSkills(fetchTextFileFn) {
-  let text;
-  try {
-    text = await fetchTextFileFn("skills");
-  } catch (err) {
-    console.warn("[skills] skills.txt not found \u2014 skill system disabled.", err.message);
-    skillRegistry = [];
-    return;
-  }
-  const lines = text.split(/\r?\n/);
-  const parsed = [];
-  let current = null;
-  let currentCategory = "active";
-  for (const raw of lines) {
-    const trimmed = raw.trim();
-    if (!trimmed || trimmed.startsWith("//")) continue;
-    const mCat = trimmed.match(/^\*category\s+(core|active|passive)\s*$/i);
-    if (mCat) {
-      currentCategory = mCat[1].toLowerCase();
-      continue;
-    }
-    const mA = trimmed.match(/^\*skill\s+([\w]+)\s+\[([^\]]+)\]\s+"([^"]+)"\s+(\d+)\s*$/i);
-    const mB = !mA && trimmed.match(/^\*skill\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?\s*$/i);
-    if (mA || mB) {
-      if (current) parsed.push(current);
-      if (mA) {
-        current = {
-          key: normalizeKey(mA[1]),
-          label: mA[3],
-          essenceCost: Number(mA[4]),
-          rarity: mA[2].toLowerCase(),
-          description: "",
-          condition: null,
-          category: currentCategory
-        };
-      } else {
-        current = {
-          key: normalizeKey(mB[1]),
-          label: mB[2],
-          essenceCost: Number(mB[3]),
-          rarity: mB[4] ? mB[4].toLowerCase() : "common",
-          description: "",
-          condition: null,
-          category: currentCategory
-        };
-      }
-      continue;
-    }
-    if (current && trimmed.startsWith("*require ")) {
-      current.condition = trimmed.replace(/^\*require\s+/, "").trim();
-      continue;
-    }
-    if (current && raw.match(/^\s+/) && trimmed) {
-      current.description += (current.description ? "\n" : "") + trimmed;
-    }
-  }
-  if (current) parsed.push(current);
-  skillRegistry = parsed;
-  if (skillRegistry.length === 0) {
-    console.warn("[skills] No *skill entries found in skills.txt.");
-  }
-}
-function playerHasSkill(key) {
-  const k = normalizeKey(key);
-  return Array.isArray(playerState.skills) && playerState.skills.includes(k);
-}
-function grantSkill(key) {
-  const k = normalizeKey(key);
-  if (!Array.isArray(playerState.skills)) playerState.skills = [];
-  if (!playerState.skills.includes(k)) {
-    playerState.skills.push(k);
-  }
-}
-function revokeSkill(key) {
-  const k = normalizeKey(key);
-  if (!Array.isArray(playerState.skills)) return;
-  const idx = playerState.skills.indexOf(k);
-  if (idx === -1) {
-    console.warn(`[skills] *revoke_skill: "${k}" not owned \u2014 nothing to remove.`);
-    return;
-  }
-  playerState.skills.splice(idx, 1);
-}
-function purchaseSkill(key) {
-  const k = normalizeKey(key);
-  const entry = skillRegistry.find((s) => s.key === k);
-  if (!entry) {
-    console.warn(`[skills] purchaseSkill: "${k}" not found in skillRegistry.`);
-    return false;
-  }
-  if (playerHasSkill(k)) {
-    console.warn(`[skills] purchaseSkill: "${k}" already owned.`);
-    return false;
-  }
-  const essence = Number(playerState.essence || 0);
-  if (essence < entry.essenceCost) {
-    console.warn(`[skills] purchaseSkill: not enough Essence (have ${essence}, need ${entry.essenceCost}).`);
-    return false;
-  }
-  playerState.essence = essence - entry.essenceCost;
-  grantSkill(k);
-  return true;
-}
-var skillRegistry;
-var init_skills = __esm({
-  "src/systems/skills.ts"() {
-    "use strict";
-    init_state();
-    skillRegistry = [];
-  }
-});
-
-// src/systems/journal.ts
-function addJournalEntry(text, type = "entry", unique = false) {
-  if (!Array.isArray(playerState.journal)) playerState.journal = [];
-  const normalised = text.trim();
-  if (unique && playerState.journal.some((e) => e.text === normalised && e.type === type)) {
-    return false;
-  }
-  playerState.journal.push({ text: normalised, type, timestamp: Date.now() });
-  return true;
-}
-function getJournalEntries() {
-  return Array.isArray(playerState.journal) ? playerState.journal : [];
-}
-function getAchievements() {
-  return getJournalEntries().filter((e) => e.type === "achievement");
-}
-var init_journal = __esm({
-  "src/systems/journal.ts"() {
-    "use strict";
-    init_state();
-  }
-});
-
-// src/systems/glossary.ts
-async function parseGlossary(fetchTextFileFn) {
-  let text;
-  try {
-    text = await fetchTextFileFn("glossary");
-  } catch {
-    return;
-  }
-  const lines = text.split(/\r?\n/);
-  let currentTerm = null;
-  const descLines = [];
-  function flush() {
-    if (currentTerm !== null) {
-      const description = descLines.map((l) => l.trim()).filter(Boolean).join(" ");
-      addGlossaryTerm(currentTerm, description);
-    }
-    currentTerm = null;
-    descLines.length = 0;
-  }
-  for (const raw of lines) {
-    const trimmed = raw.trim();
-    if (!trimmed || trimmed.startsWith("//")) continue;
-    const m = trimmed.match(/^\*term\s+"([^"]+)"/);
-    if (m) {
-      flush();
-      currentTerm = m[1];
-    } else if (currentTerm !== null && trimmed) {
-      descLines.push(trimmed);
-    }
-  }
-  flush();
-}
-function addGlossaryTerm(term, description) {
-  const existing = glossaryRegistry.findIndex((e) => e.term.toLowerCase() === term.toLowerCase());
-  if (existing !== -1) {
-    glossaryRegistry[existing] = { term, description };
-  } else {
-    glossaryRegistry.push({ term, description });
-  }
-}
-var glossaryRegistry;
-var init_glossary = __esm({
-  "src/systems/glossary.ts"() {
-    "use strict";
-    glossaryRegistry = [];
-  }
-});
-
-// src/systems/items.ts
-async function parseItems(fetchTextFileFn) {
-  let text;
-  try {
-    text = await fetchTextFileFn("items");
-  } catch (err) {
-    console.warn("[items] items.txt not found \u2014 item store disabled.", err.message);
-    itemRegistry = [];
-    return;
-  }
-  const lines = text.split(/\r?\n/);
-  const parsed = [];
-  let current = null;
-  for (const raw of lines) {
-    const trimmed = raw.trim();
-    if (!trimmed || trimmed.startsWith("//")) continue;
-    const m = trimmed.match(/^\*item\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?(?:\s+(\d+))?\s*$/i);
-    if (m) {
-      if (current) parsed.push(current);
-      current = {
-        key: normalizeKey(m[1]),
-        label: m[2],
-        essenceCost: Number(m[3]),
-        rarity: m[4] ? m[4].toLowerCase() : "common",
-        description: "",
-        condition: null,
-        stock: m[5] !== void 0 ? Number(m[5]) : -1
-      };
-      continue;
-    }
-    if (current && trimmed.startsWith("*require ")) {
-      current.condition = trimmed.replace(/^\*require\s+/, "").trim();
-      continue;
-    }
-    if (current && raw.match(/^\s+/) && trimmed) {
-      current.description += (current.description ? " " : "") + trimmed;
-    }
-  }
-  if (current) parsed.push(current);
-  itemRegistry = parsed;
-  if (itemRegistry.length === 0) {
-    console.warn("[items] No *item entries found in items.txt.");
-  }
-}
-function getItemStock(key) {
-  const k = normalizeKey(key);
-  const entry = itemRegistry.find((i) => i.key === k);
-  if (!entry) return 0;
-  if (entry.stock === -1) return Infinity;
-  const stateKey = `__stock_${k}`;
-  return Object.prototype.hasOwnProperty.call(playerState, stateKey) ? playerState[stateKey] : entry.stock;
-}
-function purchaseItem(key) {
-  const k = normalizeKey(key);
-  const entry = itemRegistry.find((i) => i.key === k);
-  if (!entry) {
-    console.warn(`[items] purchaseItem: "${k}" not found in itemRegistry.`);
-    return false;
-  }
-  const remaining = getItemStock(k);
-  if (remaining === 0) {
-    console.warn(`[items] purchaseItem: "${k}" is out of stock.`);
-    return false;
-  }
-  const essence = Number(playerState.essence || 0);
-  if (essence < entry.essenceCost) {
-    console.warn(`[items] purchaseItem: not enough Essence (have ${essence}, need ${entry.essenceCost}).`);
-    return false;
-  }
-  playerState.essence = essence - entry.essenceCost;
-  if (entry.stock !== -1) {
-    playerState[`__stock_${k}`] = remaining - 1;
-  }
-  addInventoryItem(entry.label);
-  return true;
-}
-var itemRegistry;
-var init_items = __esm({
-  "src/systems/items.ts"() {
-    "use strict";
-    init_state();
-    init_inventory();
-    itemRegistry = [];
-  }
-});
-
-// src/ui/narrative.ts
-function escapeHtml(val) {
-  return String(val ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-function init({
-  narrativeContent,
-  choiceArea,
-  narrativePanel,
-  scheduleStatsRender: scheduleStatsRender2,
-  onBeforeChoice,
-  executeBlock: executeBlock2,
-  runInterpreter: runInterpreter2
-}) {
-  _narrativeContent = narrativeContent;
-  _choiceArea = choiceArea;
-  _narrativePanel = narrativePanel;
-  _scheduleStats = scheduleStatsRender2 || (() => {
-  });
-  _onBeforeChoice = onBeforeChoice || (() => {
-  });
-  _executeBlock = executeBlock2 || null;
-  _runInterpreter = runInterpreter2 || null;
-}
-function setChoiceArea(el) {
-  _choiceArea = el;
-}
-function getNarrativeLog() {
-  return _narrativeLog;
-}
-function pushNarrativeLogEntry(e) {
-  _narrativeLog.push(e);
-}
-function resolvePronoun(lower, isCapital) {
-  const map = {
-    they: playerState.pronouns_subject || "they",
-    them: playerState.pronouns_object || "them",
-    their: playerState.pronouns_possessive || "their",
-    theirs: playerState.pronouns_possessive_pronoun || "theirs",
-    themself: playerState.pronouns_reflexive || "themself"
-  };
-  const resolved = escapeHtml(map[lower] || lower);
-  return isCapital ? resolved.charAt(0).toUpperCase() + resolved.slice(1) : resolved;
-}
-function formatText(text) {
-  if (!text) return "";
-  let result = String(text);
-  const _glossaryTokens = [];
-  if (glossaryRegistry.length > 0) {
-    for (const entry of glossaryRegistry) {
-      const escaped = entry.term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const regex = new RegExp(`\\b(${escaped})\\b`, "gi");
-      result = result.replace(regex, (match) => {
-        const idx = _glossaryTokens.length;
-        _glossaryTokens.push(
-          `<span class="lore-term" tabindex="0" data-tooltip="${escapeHtml(entry.description)}">${match}</span>`
-        );
-        return `\0LTERM${idx}\0`;
-      });
-    }
-  }
-  result = result.replace(/\$\{([a-zA-Z_][\w]*)\}/g, (_, v) => {
-    const k = normalizeKey(v);
-    const store = resolveStore(k);
-    return escapeHtml(store ? store[k] : "").replace(/\*/g, "&#42;");
-  });
-  result = result.replace(
-    /\{(They|Them|Their|Theirs|Themself|they|them|their|theirs|themself)\}/g,
-    (_, token) => {
-      const lower = token.toLowerCase();
-      const isCapital = token.charCodeAt(0) >= 65 && token.charCodeAt(0) <= 90;
-      return resolvePronoun(lower, isCapital).replace(/\*/g, "&#42;");
-    }
-  );
-  result = result.replace(/\[b\](.*?)\[\/b\]/g, "<strong>$1</strong>").replace(/\[i\](.*?)\[\/i\]/g, "<em>$1</em>");
-  const COLOR_TAGS = [
-    "cyan",
-    "amber",
-    "green",
-    "red",
-    "common",
-    "uncommon",
-    "rare",
-    "epic",
-    "legendary",
-    "white",
-    "blue",
-    "purple",
-    "gold",
-    "silver",
-    "dim",
-    "faint"
-  ];
-  for (const color of COLOR_TAGS) {
-    const open = new RegExp(`\\[${color}\\]`, "g");
-    const close = new RegExp(`\\[\\/${color}\\]`, "g");
-    result = result.replace(open, `<span class="inline-accent-${color}">`).replace(close, "</span>");
-  }
-  if (_glossaryTokens.length > 0) {
-    result = result.replace(/\x00LTERM(\d+)\x00/g, (_, i) => _glossaryTokens[Number(i)] ?? "");
-  }
-  return result;
-}
-function addImage(filename, alt, width) {
-  const img = document.createElement("img");
-  img.src = `media/${filename}`;
-  img.alt = alt;
-  img.className = "narrative-image";
-  img.loading = "lazy";
-  if (width) img.style.maxWidth = `${width}px`;
-  const wrapper = document.createElement("div");
-  wrapper.className = "narrative-image-wrapper";
-  wrapper.appendChild(img);
-  _narrativeContent.insertBefore(wrapper, _choiceArea);
-  _narrativeLog.push({ type: "image", text: filename, alt, width });
-}
-function addParagraph(text, cls = "narrative-paragraph") {
-  const p = document.createElement("p");
-  p.className = cls;
-  p.innerHTML = formatText(text);
-  _narrativeContent.insertBefore(p, _choiceArea);
-  _narrativeLog.push({ type: "paragraph", text });
-}
-function addSystem(text) {
-  const div = document.createElement("div");
-  const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(text);
-  const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(text);
-  div.className = `system-block${isEssence ? " essence-block" : ""}${isLevelUp ? " levelup-block" : ""}`;
-  const formatted = formatText(text).replace(/\\n/g, "\n").replace(/\n/g, "<br>");
-  div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
-  _narrativeContent.insertBefore(div, _choiceArea);
-  _narrativeLog.push({ type: "system", text });
-}
-function clearNarrative() {
-  for (const el of [..._narrativeContent.children]) {
-    if (el !== _choiceArea) el.remove();
-  }
-  _choiceArea.innerHTML = "";
-  _narrativeContent.scrollTo({ top: 0, behavior: "instant" });
-  _narrativeLog = [];
-}
-function applyTransition() {
-  if (!_narrativePanel) return;
-  _narrativePanel.classList.remove("scene-fade");
-  void _narrativePanel.offsetWidth;
-  _narrativePanel.classList.add("scene-fade");
-  _narrativePanel.addEventListener("animationend", () => {
-    _narrativePanel.classList.remove("scene-fade");
-  }, { once: true });
-}
-function renderChoices(choices) {
-  _choiceArea.innerHTML = "";
-  _choiceArea.setAttribute("role", "group");
-  _choiceArea.setAttribute("aria-label", "Story choices");
-  let choiceMade = false;
-  choices.forEach((choice, index) => {
-    const btn = document.createElement("button");
-    btn.className = "choice-btn";
-    btn.innerHTML = `<span>${formatText(choice.text)}</span>`;
-    const plainText = choice.text.replace(/<[^>]+>/g, "");
-    btn.setAttribute("aria-label", `Choice ${index + 1} of ${choices.length}: ${plainText}`);
-    if (choice.statTag) {
-      const { label, requirement } = choice.statTag;
-      const key = normalizeKey(label.replace(/\s+/g, "_"));
-      const store = resolveStore(key);
-      const val = store ? store[key] : null;
-      const met = val !== null && Number(val) >= requirement;
-      const badge = document.createElement("span");
-      badge.className = `choice-stat-badge ${met ? "choice-stat-badge--met" : "choice-stat-badge--unmet"}`;
-      badge.textContent = `${label} ${requirement}`;
-      btn.appendChild(badge);
-    }
-    if (!choice.selectable) {
-      btn.disabled = true;
-      btn.classList.add("choice-btn--disabled");
-      btn.dataset.unselectable = "true";
-      btn.setAttribute("aria-disabled", "true");
-    } else {
-      btn.addEventListener("click", () => {
-        if (choiceMade) return;
-        choiceMade = true;
-        _onBeforeChoice();
-        clearNarrative();
-        const choiceBlockEnd = awaitingChoice?.end ?? choice.end;
-        const savedIp = awaitingChoice?._savedIp ?? choiceBlockEnd;
-        setAwaitingChoice(null);
-        _executeBlock(choice.start, choice.end, savedIp).then(() => _runInterpreter()).catch((err) => {
-          console.error("[narrative] choice execution error:", err);
-        });
-      });
-    }
-    _choiceArea.appendChild(btn);
-  });
-  requestAnimationFrame(() => {
-    const firstEnabled = _choiceArea.querySelector(".choice-btn:not(:disabled)");
-    if (firstEnabled) firstEnabled.focus({ preventScroll: true });
-  });
-  if (!_choiceAreaArrowHandler) {
-    _choiceAreaArrowHandler = (e) => {
-      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-      e.preventDefault();
-      const btns = [..._choiceArea.querySelectorAll(".choice-btn:not(:disabled)")];
-      const current = document.activeElement;
-      const idx = btns.indexOf(current);
-      if (idx === -1) return;
-      const next = e.key === "ArrowDown" ? (idx + 1) % btns.length : (idx - 1 + btns.length) % btns.length;
-      btns[next].focus();
-    };
-    _choiceArea.addEventListener("keydown", _choiceAreaArrowHandler);
-  }
-}
-function showPageBreak(btnText, onContinue) {
-  const btn = document.createElement("button");
-  btn.className = "choice-btn page-break-btn";
-  btn.textContent = btnText || "Continue";
-  btn.addEventListener("click", () => {
-    btn.disabled = true;
-    onContinue();
-  });
-  _choiceArea.appendChild(btn);
-}
-function showInputPrompt(varName, prompt, onSubmit) {
-  const logEntry = { type: "input", varName, prompt, value: null };
-  _narrativeLog.push(logEntry);
-  const wrapper = document.createElement("div");
-  wrapper.className = "input-prompt-block";
-  wrapper.innerHTML = `
-    <span class="system-block-label">[ INPUT ]</span>
-    <label class="input-prompt-label">${formatText(prompt)}</label>
-    <div class="input-prompt-row">
-      <input type="text" class="input-prompt-field" autocomplete="off" spellcheck="false" maxlength="60" />
-      <button class="input-prompt-submit" disabled>Submit</button>
-    </div>`;
-  _narrativeContent.insertBefore(wrapper, _choiceArea);
-  const field = wrapper.querySelector(".input-prompt-field");
-  const submit = wrapper.querySelector(".input-prompt-submit");
-  field.addEventListener("input", () => {
-    submit.disabled = !field.value.trim();
-  });
-  function doSubmit() {
-    const value = field.value.trim();
-    if (!value) return;
-    logEntry.value = value;
-    wrapper.classList.add("input-prompt-block--submitted");
-    wrapper.innerHTML = `
-      <span class="system-block-label">[ INPUT ]</span>
-      <span class="input-prompt-label">${formatText(prompt)}</span>
-      <span class="input-prompt-submitted-value">${escapeHtml(value)}</span>`;
-    onSubmit(value);
-  }
-  submit.addEventListener("click", doSubmit);
-  field.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") doSubmit();
-  });
-  requestAnimationFrame(() => field.focus({ preventScroll: true }));
-}
-function renderFromLog(log, { skipAnimations = true } = {}) {
-  for (const el of [..._narrativeContent.children]) {
-    if (el !== _choiceArea) el.remove();
-  }
-  _choiceArea.innerHTML = "";
-  _narrativeContent.scrollTo({ top: 0, behavior: "instant" });
-  for (const entry of log) {
-    switch (entry.type) {
-      case "paragraph": {
-        const p = document.createElement("p");
-        p.className = "narrative-paragraph";
-        p.innerHTML = formatText(entry.text);
-        _narrativeContent.insertBefore(p, _choiceArea);
-        break;
-      }
-      case "system": {
-        const div = document.createElement("div");
-        const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(entry.text ?? "");
-        const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(entry.text ?? "");
-        div.className = `system-block${isEssence ? " essence-block" : ""}${isLevelUp ? " levelup-block" : ""}`;
-        const formatted = formatText(entry.text).replace(/\\n/g, "\n").replace(/\n/g, "<br>");
-        div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
-        _narrativeContent.insertBefore(div, _choiceArea);
-        break;
-      }
-      case "input": {
-        const wrapper = document.createElement("div");
-        wrapper.className = "input-prompt-block input-prompt-block--submitted";
-        const safe = escapeHtml(entry.value ?? "\u2014");
-        wrapper.innerHTML = `
-          <span class="system-block-label">[ INPUT ]</span>
-          <span class="input-prompt-label">${formatText(entry.prompt)}</span>
-          <span class="input-prompt-submitted-value">${safe}</span>`;
-        _narrativeContent.insertBefore(wrapper, _choiceArea);
-        break;
-      }
-      case "chapter-card": {
-        const card = document.createElement("div");
-        card.className = "chapter-card";
-        card.style.opacity = "1";
-        card.style.animation = "none";
-        const lbl = document.createElement("span");
-        lbl.className = "chapter-card-label";
-        lbl.textContent = entry.label ?? "Chapter";
-        const ttl = document.createElement("span");
-        ttl.className = "chapter-card-title";
-        ttl.textContent = entry.text ?? "";
-        card.appendChild(lbl);
-        card.appendChild(ttl);
-        _narrativeContent.insertBefore(card, _choiceArea);
-        break;
-      }
-      case "image": {
-        const img = document.createElement("img");
-        img.src = `media/${entry.text ?? ""}`;
-        img.alt = entry.alt ?? "";
-        img.className = "narrative-image";
-        img.loading = "lazy";
-        if (entry.width) img.style.maxWidth = `${entry.width}px`;
-        const wrapper = document.createElement("div");
-        wrapper.className = "narrative-image-wrapper";
-        wrapper.appendChild(img);
-        _narrativeContent.insertBefore(wrapper, _choiceArea);
-        break;
-      }
-      default:
-        console.warn("[narrative] renderFromLog: unknown entry type:", entry.type);
-    }
-  }
-  _narrativeLog = [...log];
-}
-var _narrativeContent, _choiceArea, _narrativePanel, _scheduleStats, _onBeforeChoice, _executeBlock, _runInterpreter, _choiceAreaArrowHandler, _narrativeLog;
-var init_narrative = __esm({
-  "src/ui/narrative.ts"() {
-    "use strict";
-    init_state();
-    init_glossary();
-    _choiceAreaArrowHandler = null;
-    _narrativeLog = [];
-  }
-});
-
-// src/ui/panels.ts
-function init2({
-  statusPanel,
-  endingOverlay,
-  endingTitle,
-  endingContent,
-  endingStats,
-  endingActionBtn,
-  storeOverlay,
-  fetchTextFile: fetchTextFile2,
-  scheduleStatsRender: scheduleStatsRender2,
-  trapFocus: trapFocus2,
-  showToast: showToast2
-}) {
-  _statusPanel = statusPanel;
-  _endingOverlay = endingOverlay;
-  _endingTitle = endingTitle;
-  _endingContent = endingContent;
-  _endingStats = endingStats;
-  _endingActionBtn = endingActionBtn;
-  _storeOverlay = storeOverlay;
-  _fetchTextFile = fetchTextFile2;
-  _scheduleStats2 = scheduleStatsRender2;
-  _trapFocus = trapFocus2;
-  _showToast = showToast2 ?? (() => {
-  });
-}
-function buildStatsTabHtml(entries) {
-  let html = "";
-  let inGroup = false;
-  entries.forEach((e) => {
-    if (e.type === "group") {
-      if (inGroup) html += `</div>`;
-      html += `<div class="status-section"><div class="status-label status-section-header">${escapeHtml(e.name)}</div>`;
-      inGroup = true;
-    }
-    if (e.type === "stat" && e.key) {
-      const cc = styleState.colors[e.key] || "";
-      const ic = styleState.icons[e.key] ?? "";
-      const rawVal = playerState[e.key] ?? "\u2014";
-      const numVal = parseFloat(String(rawVal));
-      if (!isNaN(numVal)) {
-        const prev = _prevStatValues.get(e.key);
-        _prevStatValues.set(e.key, numVal);
-        if (prev !== void 0 && prev !== numVal) {
-          _statChanges.set(e.key, numVal > prev ? "up" : "down");
-        }
-      }
-      html += `<div class="status-row" data-stat-key="${e.key}"><span class="status-label">${ic ? ic + " " : ""}${escapeHtml(e.label)}</span><span class="status-value ${cc}">${formatText(String(rawVal))}</span></div>`;
-    }
-  });
-  if (inGroup) html += `</div>`;
-  const achvsForStats = getAchievements();
-  if (achvsForStats.length > 0) {
-    const achvAccordions = achvsForStats.map((a) => {
-      const dashIdx = a.text.indexOf(" \u2014 ");
-      const title = dashIdx !== -1 ? escapeHtml(a.text.slice(0, dashIdx)) : escapeHtml(a.text);
-      const body = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : "";
-      return `<li class="skill-accordion skill-accordion--achievement">
-        <button class="skill-accordion-btn">
-          <span class="skill-accordion-name"><span class="journal-achievement-icon"></span>${title}</span>
-          ${body ? `<span class="skill-accordion-chevron">\u25BE</span>` : ""}
-        </button>
-        ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ""}
-      </li>`;
-    }).join("");
-    html += `<div class="status-section"><div class="status-label status-section-header">Achievements</div><ul class="skill-accordion-list">${achvAccordions}</ul></div>`;
-  }
-  return html;
-}
-function buildSkillsTabHtml() {
-  const hasSkillStore = skillRegistry.length > 0;
-  let html = hasSkillStore ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-skills" data-store-tab="skills">Skill Store</button></div>` : "";
-  const ownedSkills = Array.isArray(playerState.skills) ? playerState.skills : [];
-  if (ownedSkills.length === 0) {
-    html += `<div class="empty-state">${EMPTY_SKILLS_SVG}<p class="empty-state-text">No skills learned yet.</p></div>`;
-  } else {
-    const CATEGORY_ORDER = ["core", "active", "passive"];
-    const CATEGORY_LABELS = {
-      core: "Core Class Skills",
-      active: "Active Skills",
-      passive: "Passives"
-    };
-    const RARITY_RANK = {
-      legendary: 0,
-      epic: 1,
-      rare: 2,
-      uncommon: 3,
-      common: 4
-    };
-    const grouped = { core: [], active: [], passive: [] };
-    for (const k of ownedSkills) {
-      const entry = skillRegistry.find((s) => s.key === k);
-      const cat = entry?.category || "active";
-      if (!grouped[cat]) grouped[cat] = [];
-      grouped[cat].push(k);
-    }
-    for (const cat of CATEGORY_ORDER) {
-      grouped[cat]?.sort((a, b) => {
-        const ra = skillRegistry.find((s) => s.key === a)?.rarity ?? "common";
-        const rb = skillRegistry.find((s) => s.key === b)?.rarity ?? "common";
-        return (RARITY_RANK[ra] ?? 99) - (RARITY_RANK[rb] ?? 99);
-      });
-    }
-    const buildItem = (k) => {
-      const entry = skillRegistry.find((s) => s.key === k);
-      const label = escapeHtml(entry ? entry.label : k);
-      const desc = escapeDesc(entry ? entry.description : "");
-      const rarity = entry?.rarity || "common";
-      const rarCls = ` skill-rarity--${rarity}`;
-      return `<li class="skill-accordion skill-accordion--rarity-${rarity}"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name${rarCls}">${label}</span><span class="skill-accordion-chevron">\u25BE</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
-    };
-    for (const cat of CATEGORY_ORDER) {
-      const keys = grouped[cat];
-      if (!keys || keys.length === 0) continue;
-      html += `<div class="skill-category-header">${CATEGORY_LABELS[cat]}</div>`;
-      html += `<ul class="skill-accordion-list">${keys.map(buildItem).join("")}</ul>`;
-    }
-  }
-  return html;
-}
-function buildInventoryTabHtml() {
-  const hasItemStore = itemRegistry.length > 0;
-  let html = hasItemStore ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-inv" data-store-tab="items">Item Store</button></div>` : "";
-  const invItems = Array.isArray(playerState.inventory) ? playerState.inventory : [];
-  if (invItems.length === 0) {
-    html += `<div class="empty-state">${EMPTY_INV_SVG}<p class="empty-state-text">Nothing here yet.</p></div>`;
-  } else {
-    const invAccordions = invItems.map((invEntry) => {
-      const baseName = itemBaseName(invEntry);
-      const regEntry = itemRegistry.find((r) => r.label === baseName);
-      const label = escapeHtml(invEntry);
-      const desc = escapeDesc(regEntry ? regEntry.description : "");
-      const rarity = regEntry?.rarity || "common";
-      const rarCls = ` skill-rarity--${rarity}`;
-      return `<li class="skill-accordion skill-accordion--rarity-${rarity}">
-        <button class="skill-accordion-btn">
-          <span class="skill-accordion-name${rarCls}">${label}</span>
-          <span class="skill-accordion-chevron">\u25BE</span>
-        </button>
-        <div class="skill-accordion-desc" style="display:none;">${desc || '<em style="color:var(--text-faint)">No description available.</em>'}</div>
-      </li>`;
-    }).join("");
-    html += `<ul class="skill-accordion-list">${invAccordions}</ul>`;
-  }
-  return html;
-}
-function buildLogTabHtml() {
-  let achievementsHtml = "";
-  const achvs = getAchievements();
-  const jentries = getJournalEntries().filter((j) => j.type !== "achievement");
-  if (achvs.length === 0 && jentries.length === 0) {
-    return `<div class="empty-state">${EMPTY_LOG_SVG}<p class="empty-state-text">Nothing recorded yet.</p></div>`;
-  }
-  if (achvs.length > 0) {
-    const achvAccordionItems = achvs.map((a) => {
-      const dashIdx = a.text.indexOf(" \u2014 ");
-      const title = dashIdx !== -1 ? escapeHtml(a.text.slice(0, dashIdx)) : escapeHtml(a.text);
-      const body = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : "";
-      return `<li class="skill-accordion skill-accordion--achievement">
-          <button class="skill-accordion-btn">
-            <span class="skill-accordion-name"><span class="journal-achievement-icon"></span>${title}</span>
-            ${body ? `<span class="skill-accordion-chevron">\u25BE</span>` : ""}
-          </button>
-          ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ""}
-        </li>`;
-    }).join("");
-    achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;">Achievements</div><ul class="skill-accordion-list" style="margin-bottom:14px;">${achvAccordionItems}</ul>`;
-  }
-  if (jentries.length > 0) {
-    const journalItems = [...jentries].reverse().map(
-      (j) => `<li class="journal-entry">${escapeHtml(j.text)}</li>`
-    ).join("");
-    achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;">Journal</div><ul class="journal-list">${journalItems}</ul>`;
-  }
-  if (glossaryRegistry.length > 0) {
-    const glossaryItems = glossaryRegistry.map(
-      (entry) => `<li class="skill-accordion">
-        <button class="skill-accordion-btn">
-          <span class="skill-accordion-name">${escapeHtml(entry.term)}</span>
-          <span class="skill-accordion-chevron">\u25BE</span>
-        </button>
-        <div class="skill-accordion-desc" style="display:none;">${escapeDesc(entry.description)}</div>
-      </li>`
-    ).join("");
-    achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;margin-top:14px;">Glossary</div><ul class="skill-accordion-list">${glossaryItems}</ul>`;
-  }
-  return achievementsHtml;
-}
-function buildTabHtml(tabKey, entries) {
-  switch (tabKey) {
-    case "stats":
-      return buildStatsTabHtml(entries);
-    case "skills":
-      return buildSkillsTabHtml();
-    case "inventory":
-      return buildInventoryTabHtml();
-    case "achievements":
-      return buildLogTabHtml();
-    default:
-      return "";
-  }
-}
-function applyStatFlashes() {
-  if (_statChanges.size === 0) return;
-  _statChanges.forEach((dir, key) => {
-    const row = _statusPanel.querySelector(`.status-row[data-stat-key="${key}"]`);
-    const valEl = row?.querySelector(".status-value");
-    if (valEl) {
-      const cls = dir === "up" ? "stat-flash--up" : "stat-flash--down";
-      valEl.classList.add(cls);
-      valEl.addEventListener("animationend", () => valEl.classList.remove(cls), { once: true });
-    }
-  });
-  _statChanges.clear();
-}
-function wireTabContent() {
-  const skillsStoreBtn = _statusPanel.querySelector("#status-store-btn-skills");
-  if (skillsStoreBtn) skillsStoreBtn.addEventListener("click", () => showStore("skills"));
-  const invStoreBtn = _statusPanel.querySelector("#status-store-btn-inv");
-  if (invStoreBtn) invStoreBtn.addEventListener("click", () => showStore("items"));
-  _statusPanel.querySelectorAll(".skill-accordion-btn").forEach((btn) => {
-    const desc = btn.nextElementSibling;
-    if (!desc) return;
-    btn.addEventListener("click", () => {
-      const isOpen = desc.style.display !== "none";
-      desc.style.display = isOpen ? "none" : "block";
-      btn.classList.toggle("skill-accordion-btn--open", !isOpen);
-    });
-  });
-}
-async function runStatsScene() {
-  const text = await _fetchTextFile("stats");
-  const lines = text.split(/\r?\n/).map((raw) => ({ raw, trimmed: raw.trim() }));
-  styleState.colors = {};
-  styleState.icons = {};
-  const entries = [];
-  lines.forEach((line) => {
-    const t = line.trimmed;
-    if (!t || t.startsWith("//")) return;
-    if (t.startsWith("*stat_group")) {
-      const sgm = t.match(/^\*stat_group\s+"([^"]+)"/);
-      entries.push({ type: "group", name: sgm ? sgm[1] : t.replace(/^\*stat_group\s*/, "").trim() });
-    } else if (t.startsWith("*stat_color")) {
-      const [, rawKey, color] = t.split(/\s+/);
-      styleState.colors[normalizeKey(rawKey)] = color;
-    } else if (t.startsWith("*stat_icon")) {
-      const m = t.match(/^\*stat_icon\s+([\w_]+)\s+"(.+)"$/);
-      if (m) styleState.icons[normalizeKey(m[1])] = m[2];
-    } else if (t.startsWith("*inventory")) {
-      entries.push({ type: "inventory" });
-    } else if (t.trim() === "*skills_registered") {
-      entries.push({ type: "skills" });
-    } else if (t.trim() === "*journal_section") {
-      entries.push({ type: "journal" });
-    } else if (t.trim() === "*achievements") {
-      entries.push({ type: "achievements" });
-    } else if (t === "*stat_registered") {
-      statRegistry.forEach(({ key, label }) => entries.push({ type: "stat", key, label }));
-    } else if (t.startsWith("*stat")) {
-      const m = t.match(/^\*stat\s+([\w_]+)\s+"(.+)"$/);
-      if (m) entries.push({ type: "stat", key: normalizeKey(m[1]), label: m[2] });
-    }
-  });
-  _lastEntries = entries;
-  Object.keys(_dirtyTabs).forEach((k) => {
-    _dirtyTabs[k] = true;
-  });
-  const tabs = [
-    { key: "stats", label: "Stats" },
-    { key: "skills", label: "Skills" },
-    { key: "inventory", label: "Inv" },
-    { key: "achievements", label: "Log" }
-  ];
-  const tabBarHtml = `<div class="status-tabs" role="tablist" id="status-tab-bar">
-    ${tabs.map((t) => `<button role="tab" aria-selected="${_activeStatusTab === t.key}" aria-controls="status-tab-pane" id="tab-${t.key}" class="status-tab ${_activeStatusTab === t.key ? "status-tab--active" : ""}" data-tab="${t.key}">${t.label}</button>`).join("")}
-  </div>`;
-  const activeHtml = buildTabHtml(_activeStatusTab, entries);
-  _dirtyTabs[_activeStatusTab] = false;
-  _statusPanel.innerHTML = `${tabBarHtml}<div role="tabpanel" aria-labelledby="tab-${_activeStatusTab}" class="status-tab-content" id="status-tab-pane">${activeHtml}</div>`;
-  _statusPanel.querySelectorAll(".status-tab").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      _activeStatusTab = btn.dataset.tab ?? "stats";
-      _statusPanel.querySelectorAll(".status-tab").forEach((b) => {
-        b.classList.toggle("status-tab--active", b.dataset.tab === _activeStatusTab);
-        b.setAttribute("aria-selected", b.dataset.tab === _activeStatusTab ? "true" : "false");
-      });
-      const pane = _statusPanel.querySelector("#status-tab-pane");
-      if (pane) {
-        pane.setAttribute("aria-labelledby", `tab-${_activeStatusTab}`);
-        pane.innerHTML = buildTabHtml(_activeStatusTab, _lastEntries);
-        _dirtyTabs[_activeStatusTab] = false;
-        if (_activeStatusTab === "stats") applyStatFlashes();
-      }
-      wireTabContent();
-    });
-  });
-  wireTabContent();
-  if (_activeStatusTab === "stats") applyStatFlashes();
-}
-function showStore(tab = null) {
-  if (!_storeOverlay) return;
-  if (tab) _storeActiveTab = tab;
-  _preStoreTab = _activeStatusTab;
-  const overlay = _storeOverlay;
-  overlay.classList.remove("hidden");
-  requestAnimationFrame(() => {
-    overlay.style.opacity = "1";
-  });
-  if (_trapFocus) {
-    _storeTrapRelease = _trapFocus(overlay, null);
-  }
-  renderStore();
-}
-function hideStore() {
-  if (!_storeOverlay) return;
-  _storeOverlay.classList.add("hidden");
-  _storeOverlay.style.opacity = "0";
-  if (_storeTrapRelease) {
-    _storeTrapRelease();
-    _storeTrapRelease = null;
-  }
-  _activeStatusTab = _preStoreTab || (_storeActiveTab === "items" ? "inventory" : "skills");
-  _preStoreTab = null;
-  _scheduleStats2();
-  requestAnimationFrame(() => {
-    if (_statusPanel) {
-      _statusPanel.classList.add("status-visible");
-      _statusPanel.classList.remove("status-hidden");
-    }
-  });
-}
-function renderStore() {
-  if (!_storeOverlay) return;
-  const box = _storeOverlay.querySelector(".store-modal-box");
-  if (!box) return;
-  const essence = Number(playerState.essence || 0);
-  box.innerHTML = `
-    <div class="store-header">
-      <span class="system-block-label">[ STORE ]</span>
-      <div class="store-essence-pool">
-        <span class="store-essence-label">Essence</span>
-        <span class="store-essence-val">${essence}</span>
-      </div>
-      <button class="store-close-btn" id="store-close-btn">\u2715</button>
-    </div>
-    <div class="store-tabs">
-      <button class="store-tab ${_storeActiveTab === "skills" ? "store-tab--active" : ""}" data-tab="skills">Skills</button>
-      <button class="store-tab ${_storeActiveTab === "items" ? "store-tab--active" : ""}" data-tab="items">Items</button>
-    </div>
-    <div class="store-content" id="store-content"></div>`;
-  box.querySelector("#store-close-btn")?.addEventListener("click", hideStore);
-  box.querySelectorAll(".store-tab").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      _storeActiveTab = tab.dataset.tab ?? "skills";
-      renderStore();
-    });
-  });
-  const content = box.querySelector("#store-content");
-  if (!content) return;
-  if (_storeActiveTab === "skills") {
-    renderSkillsTab(content, essence);
-  } else {
-    renderItemsTab(content, essence);
-  }
-  requestAnimationFrame(() => {
-    box.querySelector("#store-close-btn")?.focus({ preventScroll: true });
-  });
-}
-function renderSkillsTab(container, essence) {
-  if (skillRegistry.length === 0) {
-    container.innerHTML = `<div class="store-empty">No skills available.</div>`;
-    return;
-  }
-  const visible = skillRegistry.filter((s) => {
-    if (!s.condition) return true;
-    try {
-      return !!evalValue(s.condition);
-    } catch {
-      return true;
-    }
-  });
-  const available = visible.filter((s) => !playerHasSkill(s.key));
-  let html = "";
-  if (available.length > 0) {
-    available.forEach((skill) => {
-      const canAfford = essence >= skill.essenceCost;
-      const cardCls = canAfford ? "" : "store-card--unaffordable";
-      const badgeCls = canAfford ? "store-cost-badge--can-afford" : "";
-      const rarity = skill.rarity || "common";
-      const rarCls = ` skill-rarity--${rarity}`;
-      html += `
-        <div class="store-card store-card--rarity-${rarity} ${cardCls}" data-key="${escapeHtml(skill.key)}" data-type="skill">
-          <div class="store-card-body">
-            <span class="store-card-name${rarCls}">${escapeHtml(skill.label)}</span>
-            <div class="store-card-desc">${escapeDesc(skill.description)}</div>
-          </div>
-          <div class="store-card-actions">
-            <span class="store-cost-badge ${badgeCls}">${skill.essenceCost} Essence</span>
-            <button class="store-purchase-btn" ${canAfford ? "" : "disabled"} data-key="${escapeHtml(skill.key)}" data-type="skill">Unlock</button>
-          </div>
-        </div>`;
-    });
-  }
-  if (available.length === 0) {
-    html = `<div class="store-empty">No skills available.</div>`;
-  }
-  container.innerHTML = html;
-  container.querySelectorAll(".store-purchase-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const key = btn.dataset.key ?? "";
-      if (purchaseSkill(key)) {
-        const entry = skillRegistry.find((s) => s.key === key);
-        _showToast(`Skill unlocked: ${entry?.label || key}`, 2500, entry?.rarity);
-        renderStore();
-      }
-    });
-  });
-}
-function renderItemsTab(container, essence) {
-  if (itemRegistry.length === 0) {
-    container.innerHTML = `<div class="store-empty">No items available.</div>`;
-    return;
-  }
-  const available = itemRegistry.filter((item) => {
-    if (item.condition) {
-      try {
-        if (!evalValue(item.condition)) return false;
-      } catch {
-      }
-    }
-    return getItemStock(item.key) !== 0;
-  });
-  if (available.length === 0) {
-    container.innerHTML = `<div class="store-empty">No items available.</div>`;
-    return;
-  }
-  let html = "";
-  available.forEach((item) => {
-    const stock = getItemStock(item.key);
-    const stockLabel = stock === Infinity ? "" : ` (${stock})`;
-    const canAfford = essence >= item.essenceCost;
-    const cardCls = canAfford ? "" : "store-card--unaffordable";
-    const badgeCls = canAfford ? "store-cost-badge--can-afford" : "";
-    const rarity = item.rarity || "common";
-    const rarCls = ` skill-rarity--${rarity}`;
-    html += `
-      <div class="store-card store-card--rarity-${rarity} ${cardCls}" data-key="${escapeHtml(item.key)}" data-type="item">
-        <div class="store-card-body">
-          <span class="store-card-name${rarCls}">${escapeHtml(item.label)}${escapeHtml(stockLabel)}</span>
-          <div class="store-card-desc">${escapeDesc(item.description)}</div>
-        </div>
-        <div class="store-card-actions">
-          <span class="store-cost-badge ${badgeCls}">${item.essenceCost} Essence</span>
-          <button class="store-purchase-btn" ${canAfford ? "" : "disabled"} data-key="${escapeHtml(item.key)}" data-type="item">Buy</button>
-        </div>
-      </div>`;
-  });
-  container.innerHTML = html;
-  container.querySelectorAll(".store-purchase-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const key = btn.dataset.key ?? "";
-      if (purchaseItem(key)) {
-        const entry = itemRegistry.find((i) => i.key === key);
-        _showToast(`Purchased: ${entry?.label || key}`, 2500, entry?.rarity);
-        renderStore();
-      }
-    });
-  });
-}
-function showEndingScreen(title, content) {
-  if (!_endingOverlay) return;
-  if (_endingTitle) _endingTitle.textContent = title;
-  if (_endingContent) _endingContent.textContent = content;
-  const statsLines = [];
-  statRegistry.forEach(({ key, label }) => {
-    statsLines.push(`${label}: ${playerState[key] ?? "\u2014"}`);
-  });
-  if (_endingStats) _endingStats.textContent = statsLines.join("  \xB7  ");
-  _endingOverlay.classList.remove("hidden");
-  _endingOverlay.style.opacity = "1";
-  if (_trapFocus) {
-    const release = _trapFocus(_endingOverlay, null);
-    _endingOverlay._trapRelease = release;
-  }
-  _endingActionBtn?.addEventListener("click", () => {
-    window.location.reload();
-  }, { once: true });
-}
-var _RARITY_TAG, escapeDesc, _statusPanel, _endingOverlay, _endingTitle, _endingContent, _endingStats, _endingActionBtn, _storeOverlay, _fetchTextFile, _scheduleStats2, _trapFocus, _showToast, styleState, _activeStatusTab, EMPTY_SKILLS_SVG, EMPTY_INV_SVG, EMPTY_LOG_SVG, _prevStatValues, _statChanges, _dirtyTabs, _lastEntries, _storeTrapRelease, _storeActiveTab, _preStoreTab;
-var init_panels = __esm({
-  "src/ui/panels.ts"() {
-    "use strict";
-    init_state();
-    init_skills();
-    init_items();
-    init_inventory();
-    init_journal();
-    init_narrative();
-    init_glossary();
-    init_expression();
-    _RARITY_TAG = /\[(common|uncommon|rare|epic|legendary)\]([\s\S]*?)\[\/\1\]/gi;
-    escapeDesc = (s) => escapeHtml(s).replace(_RARITY_TAG, (_, r, text) => `<span class="skill-rarity--${r.toLowerCase()}">${text}</span>`).replace(/\n/g, "<br>");
-    _endingOverlay = null;
-    _endingTitle = null;
-    _endingContent = null;
-    _endingStats = null;
-    _endingActionBtn = null;
-    _storeOverlay = null;
-    _trapFocus = null;
-    styleState = { colors: {}, icons: {} };
-    _activeStatusTab = "stats";
-    EMPTY_SKILLS_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <polygon points="24,3 42,13.5 42,34.5 24,45 6,34.5 6,13.5" stroke="var(--cyan)" stroke-width="1.5"/>
-  <circle cx="24" cy="24" r="9" stroke="var(--cyan)" stroke-width="1.2" opacity="0.5"/>
-  <line x1="24" y1="15" x2="24" y2="33" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
-  <line x1="15.2" y1="19.5" x2="32.8" y2="28.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
-  <line x1="32.8" y1="19.5" x2="15.2" y2="28.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
-</svg>`;
-    EMPTY_INV_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M17 19 C14 23 12 29 12 35 C12 41 17 45 24 45 C31 45 36 41 36 35 C36 29 34 23 31 19 Z" stroke="var(--cyan)" stroke-width="1.5"/>
-  <path d="M19 19 C19 14 21 11 24 11 C27 11 29 14 29 19" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round"/>
-  <path d="M21 13 C22 10 26 10 27 13" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="24" y1="29" x2="24" y2="38" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
-  <line x1="19.5" y1="33.5" x2="28.5" y2="33.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
-</svg>`;
-    EMPTY_LOG_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="8" y="6" width="30" height="37" rx="2" stroke="var(--cyan)" stroke-width="1.5"/>
-  <line x1="15" y1="6" x2="15" y2="43" stroke="var(--cyan)" stroke-width="1.5"/>
-  <line x1="20" y1="17" x2="33" y2="17" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
-  <line x1="20" y1="23" x2="33" y2="23" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
-  <line x1="20" y1="29" x2="33" y2="29" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
-  <line x1="20" y1="35" x2="28" y2="35" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
-  <path d="M35 30 Q39 33 35 36" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-</svg>`;
-    _prevStatValues = /* @__PURE__ */ new Map();
-    _statChanges = /* @__PURE__ */ new Map();
-    _dirtyTabs = {
-      stats: true,
-      skills: true,
-      inventory: true,
-      achievements: true
-    };
-    _lastEntries = [];
-    _storeTrapRelease = null;
-    _storeActiveTab = "skills";
-    _preStoreTab = null;
-  }
-});
-
-// src/systems/undo.ts
-var undo_exports = {};
-__export(undo_exports, {
-  clearUndoStack: () => clearUndoStack,
-  initUndo: () => initUndo,
-  popUndo: () => popUndo,
-  pushUndoSnapshot: () => pushUndoSnapshot,
-  undoStackLength: () => undoStackLength,
-  updateUndoBtn: () => updateUndoBtn
-});
-function initUndo(opts) {
-  _chapterTitleEl = opts.chapterTitleEl;
-  _sceneCache2 = opts.sceneCache;
-  _labelsCache2 = opts.labelsCache;
-}
-function pushUndoSnapshot() {
-  _undoStack.push({
-    playerState: JSON.parse(JSON.stringify(playerState)),
-    tempState: JSON.parse(JSON.stringify(tempState)),
-    scene: currentScene,
-    ip: pageBreakIp ?? ip,
-    narrativeLog: JSON.parse(JSON.stringify(getNarrativeLog())),
-    chapterTitle: _chapterTitleEl?.textContent ?? null,
-    awaitingChoice: awaitingChoice ? JSON.parse(JSON.stringify(awaitingChoice)) : null
-  });
-  if (_undoStack.length > UNDO_MAX) _undoStack.shift();
-  updateUndoBtn();
-}
-async function popUndo() {
-  if (_undoStack.length === 0) return;
-  const snap = _undoStack.pop();
-  setPlayerState(JSON.parse(JSON.stringify(snap.playerState)));
-  setTempState(JSON.parse(JSON.stringify(snap.tempState)));
-  if (snap.scene) setCurrentScene(snap.scene);
-  if (snap.scene && _sceneCache2) {
-    const key = snap.scene.endsWith(".txt") ? snap.scene : `${snap.scene}.txt`;
-    const text = _sceneCache2.get(key);
-    if (text) {
-      setCurrentLines(parseLines(text));
-      indexLabels(snap.scene, currentLines, _labelsCache2);
-    }
-  }
-  setIp(snap.ip);
-  setAwaitingChoice(null);
-  setPageBreakIp(null);
-  if (_chapterTitleEl) _chapterTitleEl.textContent = snap.chapterTitle;
-  setChapterTitleState(snap.chapterTitle ?? "");
-  renderFromLog(snap.narrativeLog, { skipAnimations: true });
-  if (snap.awaitingChoice) {
-    setAwaitingChoice(snap.awaitingChoice);
-    renderChoices(snap.awaitingChoice.choices);
-  }
-  await runStatsScene();
-  updateUndoBtn();
-}
-function updateUndoBtn() {
-  const btn = document.getElementById("undo-btn");
-  if (!btn) return;
-  btn.disabled = _undoStack.length === 0;
-}
-function clearUndoStack() {
-  _undoStack.splice(0);
-  updateUndoBtn();
-}
-function undoStackLength() {
-  return _undoStack.length;
-}
-var _undoStack, UNDO_MAX, _chapterTitleEl, _sceneCache2, _labelsCache2;
-var init_undo = __esm({
-  "src/systems/undo.ts"() {
-    "use strict";
-    init_state();
-    init_parser();
-    init_narrative();
-    init_panels();
-    _undoStack = [];
-    UNDO_MAX = 10;
-    _chapterTitleEl = null;
-    _sceneCache2 = null;
-    _labelsCache2 = null;
-  }
-});
-
-// src/core/dom.ts
-init_state();
-var _pushChapterCardLog = null;
-function registerChapterCardLog(fn) {
-  _pushChapterCardLog = fn;
-}
-function setChapterTitle(t) {
-  const m = t.match(/^\[([^\]]+)\]\s+(.+)$/);
-  const label = m ? m[1] : "Chapter";
-  const cleanTitle = m ? m[2] : t;
-  const el = document.getElementById("chapter-title");
-  const prev = el?.textContent ?? "";
-  if (el) el.textContent = cleanTitle;
-  setChapterTitleState(cleanTitle);
-  if (cleanTitle && cleanTitle !== prev && cleanTitle !== "\u2014") showChapterCard(cleanTitle, label);
-}
-function showChapterCard(title, label = "Chapter") {
-  document.querySelector(".chapter-card")?.remove();
-  const card = document.createElement("div");
-  card.className = "chapter-card";
-  const lbl = document.createElement("span");
-  lbl.className = "chapter-card-label";
-  lbl.textContent = label;
-  const ttl = document.createElement("span");
-  ttl.className = "chapter-card-title";
-  ttl.textContent = title;
-  card.appendChild(lbl);
-  card.appendChild(ttl);
-  const nc = document.getElementById("narrative-content");
-  const ca = document.getElementById("choice-area");
-  if (nc && ca) nc.insertBefore(card, ca);
-  if (_pushChapterCardLog) _pushChapterCardLog({ type: "chapter-card", text: title, label });
-}
-function initThemeToggle() {
-  const btn = document.getElementById("theme-toggle-btn");
-  if (!btn) return;
-  const applyTheme = (light) => {
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (light) {
-      document.documentElement.setAttribute("data-theme", "light");
-      btn.textContent = "\u263D";
-      btn.setAttribute("title", "Switch to dark mode");
-      if (metaTheme) metaTheme.content = "#f0ece4";
-    } else {
-      document.documentElement.removeAttribute("data-theme");
-      btn.textContent = "\u2600";
-      btn.setAttribute("title", "Switch to light mode");
-      if (metaTheme) metaTheme.content = "#0d0f1a";
-    }
-  };
-  const saved = localStorage.getItem("sa_theme");
-  const isLight = saved === "light" || !saved && window.matchMedia("(prefers-color-scheme: light)").matches;
-  applyTheme(isLight);
-  if (!saved && isLight) localStorage.setItem("sa_theme", "light");
-  btn.addEventListener("click", () => {
-    const currentlyLight = document.documentElement.getAttribute("data-theme") === "light";
-    const next = !currentlyLight;
-    applyTheme(next);
-    localStorage.setItem("sa_theme", next ? "light" : "dark");
-  });
-}
-function setGameTitle(t) {
-  const gt = document.getElementById("game-title");
-  const st = document.querySelector(".splash-title");
-  if (gt) gt.textContent = t;
-  if (st) st.textContent = t;
-  document.title = t;
-}
-function buildDom() {
-  function req(id) {
-    const el = document.getElementById(id);
-    if (!el) console.warn(`[dom] Missing element: "${id}" \u2014 check index.html IDs`);
-    return el;
-  }
-  return {
-    narrativeContent: req("narrative-content"),
-    choiceArea: req("choice-area"),
-    chapterTitle: req("chapter-title"),
-    narrativePanel: req("narrative-panel"),
-    statusPanel: req("status-panel"),
-    statusToggle: req("status-toggle"),
-    saveBtn: req("save-btn"),
-    gameTitle: req("game-title"),
-    splashTitle: document.querySelector(".splash-title"),
-    splashTagline: req("splash-tagline"),
-    splashOverlay: req("splash-overlay"),
-    splashNewBtn: req("splash-new-btn"),
-    splashLoadBtn: req("splash-load-btn"),
-    splashSlots: req("splash-slots"),
-    splashSlotsBack: req("splash-slots-back"),
-    saveOverlay: req("save-overlay"),
-    saveMenuClose: req("save-menu-close"),
-    charOverlay: req("char-creation-overlay"),
-    inputFirstName: req("input-first-name"),
-    inputLastName: req("input-last-name"),
-    counterFirst: req("counter-first"),
-    counterLast: req("counter-last"),
-    errorFirstName: req("error-first-name"),
-    errorLastName: req("error-last-name"),
-    charBeginBtn: req("char-begin-btn"),
-    endingOverlay: document.getElementById("ending-overlay"),
-    endingTitle: document.getElementById("ending-title"),
-    endingContent: document.getElementById("ending-content"),
-    endingStats: document.getElementById("ending-stats"),
-    endingActionBtn: document.getElementById("ending-action-btn"),
-    storeOverlay: document.getElementById("store-overlay"),
-    toast: req("toast")
-  };
-}
-
-// engine.ts
-init_state();
-init_expression();
-init_parser();
-
-// src/core/interpreter.ts
-init_state();
-init_expression();
-init_parser();
-init_inventory();
 
 // src/systems/saves.ts
-init_state();
 var SAVE_VERSION = 9;
 var SAVE_KEY_AUTO = "sa_save_auto";
 var SAVE_KEY_SLOTS = { 1: "sa_save_slot_1", 2: "sa_save_slot_2", 3: "sa_save_slot_3" };
@@ -2303,9 +1016,17 @@ async function restoreFromSave(save, {
   setChoiceArea: setChoiceArea2,
   parseAndCacheScene,
   fetchTextFileFn,
-  evalValueFn
+  evalValueFn,
+  showEngineError: showEngineError2
 }) {
-  await parseStartup(fetchTextFileFn, evalValueFn);
+  try {
+    await parseStartup(fetchTextFileFn, evalValueFn);
+  } catch (err) {
+    const msg = `Load failed: could not re-initialise startup.txt \u2014 ${err.message}`;
+    if (showEngineError2) showEngineError2(msg);
+    else console.error("[saves]", msg);
+    return;
+  }
   setPlayerState({ ...playerState, ...JSON.parse(JSON.stringify(save.playerState)) });
   clearTempState();
   if (Array.isArray(save.statRegistry) && save.statRegistry.length > 0) {
@@ -2338,12 +1059,130 @@ async function restoreFromSave(save, {
   }
 }
 
-// src/core/interpreter.ts
-init_skills();
-init_journal();
+// src/systems/skills.ts
+var skillRegistry = [];
+async function parseSkills(fetchTextFileFn) {
+  let text;
+  try {
+    text = await fetchTextFileFn("skills");
+  } catch (err) {
+    console.warn("[skills] skills.txt not found \u2014 skill system disabled.", err.message);
+    skillRegistry = [];
+    return;
+  }
+  const lines = text.split(/\r?\n/);
+  const parsed = [];
+  let current = null;
+  let currentCategory = "active";
+  for (const raw of lines) {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed.startsWith("//")) continue;
+    const mCat = trimmed.match(/^\*category\s+(core|active|passive)\s*$/i);
+    if (mCat) {
+      currentCategory = mCat[1].toLowerCase();
+      continue;
+    }
+    const mA = trimmed.match(/^\*skill\s+([\w]+)\s+\[([^\]]+)\]\s+"([^"]+)"\s+(\d+)\s*$/i);
+    const mB = !mA ? trimmed.match(/^\*skill\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?\s*$/i) : null;
+    if (mA || mB) {
+      if (current) parsed.push(current);
+      if (mA) {
+        current = {
+          key: normalizeKey(mA[1]),
+          label: mA[3],
+          essenceCost: Number(mA[4]),
+          rarity: mA[2].toLowerCase(),
+          description: "",
+          condition: null,
+          category: currentCategory
+        };
+      } else {
+        current = {
+          key: normalizeKey(mB[1]),
+          label: mB[2],
+          essenceCost: Number(mB[3]),
+          rarity: mB[4] ? mB[4].toLowerCase() : "common",
+          description: "",
+          condition: null,
+          category: currentCategory
+        };
+      }
+      continue;
+    }
+    if (current && trimmed.startsWith("*require ")) {
+      current.condition = trimmed.replace(/^\*require\s+/, "").trim();
+      continue;
+    }
+    if (current && raw.match(/^\s+/) && trimmed) {
+      current.description += (current.description ? "\n" : "") + trimmed;
+    }
+  }
+  if (current) parsed.push(current);
+  skillRegistry = parsed;
+  if (skillRegistry.length === 0) {
+    console.warn("[skills] No *skill entries found in skills.txt.");
+  }
+}
+function playerHasSkill(key) {
+  const k = normalizeKey(key);
+  return Array.isArray(playerState.skills) && playerState.skills.includes(k);
+}
+function grantSkill(key) {
+  const k = normalizeKey(key);
+  if (!Array.isArray(playerState.skills)) playerState.skills = [];
+  if (!playerState.skills.includes(k)) {
+    playerState.skills.push(k);
+  }
+}
+function revokeSkill(key) {
+  const k = normalizeKey(key);
+  if (!Array.isArray(playerState.skills)) return;
+  const idx = playerState.skills.indexOf(k);
+  if (idx === -1) {
+    console.warn(`[skills] *revoke_skill: "${k}" not owned \u2014 nothing to remove.`);
+    return;
+  }
+  playerState.skills.splice(idx, 1);
+}
+function purchaseSkill(key) {
+  const k = normalizeKey(key);
+  const entry = skillRegistry.find((s) => s.key === k);
+  if (!entry) {
+    console.warn(`[skills] purchaseSkill: "${k}" not found in skillRegistry.`);
+    return false;
+  }
+  if (playerHasSkill(k)) {
+    console.warn(`[skills] purchaseSkill: "${k}" already owned.`);
+    return false;
+  }
+  const essence = Number(playerState.essence || 0);
+  if (essence < entry.essenceCost) {
+    console.warn(`[skills] purchaseSkill: not enough Essence (have ${essence}, need ${entry.essenceCost}).`);
+    return false;
+  }
+  playerState.essence = essence - entry.essenceCost;
+  grantSkill(k);
+  return true;
+}
+
+// src/systems/journal.ts
+function addJournalEntry(text, type = "entry", unique = false) {
+  if (!Array.isArray(playerState.journal)) playerState.journal = [];
+  const normalised = text.trim();
+  if (unique && playerState.journal.some((e) => e.text === normalised && e.type === type)) {
+    return false;
+  }
+  playerState.journal.push({ text: normalised, type, timestamp: Date.now() });
+  return true;
+}
+function getJournalEntries() {
+  return Array.isArray(playerState.journal) ? playerState.journal : [];
+}
+function getAchievements() {
+  return getJournalEntries().filter((e) => e.type === "achievement");
+}
 
 // src/systems/procedures.ts
-init_parser();
 var procedureRegistry = /* @__PURE__ */ new Map();
 async function parseProcedures(fetchTextFileFn) {
   let text;
@@ -2382,8 +1221,49 @@ function getProcedure(name) {
   return procedureRegistry.get(name.toLowerCase()) ?? null;
 }
 
+// src/systems/glossary.ts
+var glossaryRegistry = [];
+async function parseGlossary(fetchTextFileFn) {
+  let text;
+  try {
+    text = await fetchTextFileFn("glossary");
+  } catch {
+    return;
+  }
+  const lines = text.split(/\r?\n/);
+  let currentTerm = null;
+  const descLines = [];
+  function flush() {
+    if (currentTerm !== null) {
+      const description = descLines.map((l) => l.trim()).filter(Boolean).join(" ");
+      addGlossaryTerm(currentTerm, description);
+    }
+    currentTerm = null;
+    descLines.length = 0;
+  }
+  for (const raw of lines) {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed.startsWith("//")) continue;
+    const m = trimmed.match(/^\*term\s+"([^"]+)"/);
+    if (m) {
+      flush();
+      currentTerm = m[1];
+    } else if (currentTerm !== null && trimmed) {
+      descLines.push(trimmed);
+    }
+  }
+  flush();
+}
+function addGlossaryTerm(term, description) {
+  const existing = glossaryRegistry.findIndex((e) => e.term.toLowerCase() === term.toLowerCase());
+  if (existing !== -1) {
+    glossaryRegistry[existing] = { term, description };
+  } else {
+    glossaryRegistry.push({ term, description });
+  }
+}
+
 // src/core/interpreter.ts
-init_glossary();
 var cb = {};
 function registerCallbacks(callbacks) {
   Object.assign(cb, callbacks);
@@ -2486,7 +1366,12 @@ ${err.message}`);
   cb.applyTransition();
   if (label) {
     const labels = _labelsCache.get(name) || {};
-    setIp(labels[label] ?? 0);
+    if (labels[label] === void 0) {
+      cb.showEngineError(`*goto_scene: Unknown label "${label}" in scene "${name}".`);
+      setIp(currentLines.length);
+      return;
+    }
+    setIp(labels[label]);
   }
   setAwaitingChoice(null);
   setPageBreakIp(null);
@@ -2967,14 +1852,1030 @@ registerCommand("*finish", async () => {
   await gotoScene(list[nextIdx]);
 });
 
-// engine.ts
-init_skills();
-init_items();
-init_glossary();
-init_undo();
+// src/systems/items.ts
+var itemRegistry = [];
+async function parseItems(fetchTextFileFn) {
+  let text;
+  try {
+    text = await fetchTextFileFn("items");
+  } catch (err) {
+    console.warn("[items] items.txt not found \u2014 item store disabled.", err.message);
+    itemRegistry = [];
+    return;
+  }
+  const lines = text.split(/\r?\n/);
+  const parsed = [];
+  let current = null;
+  for (const raw of lines) {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed.startsWith("//")) continue;
+    const m = trimmed.match(/^\*item\s+([\w]+)\s+"([^"]+)"\s+(\d+)(?:\s+(common|uncommon|rare|epic|legendary))?(?:\s+(\d+))?\s*$/i);
+    if (m) {
+      if (current) parsed.push(current);
+      current = {
+        key: normalizeKey(m[1]),
+        label: m[2],
+        essenceCost: Number(m[3]),
+        rarity: m[4] ? m[4].toLowerCase() : "common",
+        description: "",
+        condition: null,
+        stock: m[5] !== void 0 ? Number(m[5]) : -1
+      };
+      continue;
+    }
+    if (current && trimmed.startsWith("*require ")) {
+      current.condition = trimmed.replace(/^\*require\s+/, "").trim();
+      continue;
+    }
+    if (current && raw.match(/^\s+/) && trimmed) {
+      current.description += (current.description ? " " : "") + trimmed;
+    }
+  }
+  if (current) parsed.push(current);
+  itemRegistry = parsed;
+  if (itemRegistry.length === 0) {
+    console.warn("[items] No *item entries found in items.txt.");
+  }
+}
+function getItemStock(key) {
+  const k = normalizeKey(key);
+  const entry = itemRegistry.find((i) => i.key === k);
+  if (!entry) return 0;
+  if (entry.stock === -1) return Infinity;
+  const stateKey = `__stock_${k}`;
+  return Object.prototype.hasOwnProperty.call(playerState, stateKey) ? playerState[stateKey] : entry.stock;
+}
+function purchaseItem(key) {
+  const k = normalizeKey(key);
+  const entry = itemRegistry.find((i) => i.key === k);
+  if (!entry) {
+    console.warn(`[items] purchaseItem: "${k}" not found in itemRegistry.`);
+    return false;
+  }
+  const remaining = getItemStock(k);
+  if (remaining === 0) {
+    console.warn(`[items] purchaseItem: "${k}" is out of stock.`);
+    return false;
+  }
+  const essence = Number(playerState.essence || 0);
+  if (essence < entry.essenceCost) {
+    console.warn(`[items] purchaseItem: not enough Essence (have ${essence}, need ${entry.essenceCost}).`);
+    return false;
+  }
+  playerState.essence = essence - entry.essenceCost;
+  if (entry.stock !== -1) {
+    playerState[`__stock_${k}`] = remaining - 1;
+  }
+  addInventoryItem(entry.label);
+  return true;
+}
+
+// src/ui/narrative.ts
+var _glossaryCache = [];
+var _glossaryCacheLen = -1;
+function getGlossaryRegexes() {
+  if (glossaryRegistry.length === _glossaryCacheLen) return _glossaryCache;
+  _glossaryCache = glossaryRegistry.map((entry) => ({
+    re: new RegExp(`\\b(${entry.term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})\\b`, "gi"),
+    span: `<span class="lore-term" tabindex="0" data-tooltip="${escapeHtml(entry.description)}">`
+  }));
+  _glossaryCacheLen = glossaryRegistry.length;
+  return _glossaryCache;
+}
+function escapeHtml(val) {
+  return String(val ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+var _narrativeContent;
+var _choiceArea;
+var _narrativePanel;
+var _scheduleStats;
+var _onBeforeChoice;
+var _executeBlock;
+var _runInterpreter;
+var _choiceAreaArrowHandler = null;
+function init({
+  narrativeContent,
+  choiceArea,
+  narrativePanel,
+  scheduleStatsRender: scheduleStatsRender2,
+  onBeforeChoice,
+  executeBlock: executeBlock2,
+  runInterpreter: runInterpreter2
+}) {
+  _narrativeContent = narrativeContent;
+  _choiceArea = choiceArea;
+  _narrativePanel = narrativePanel;
+  _scheduleStats = scheduleStatsRender2 || (() => {
+  });
+  _onBeforeChoice = onBeforeChoice || (() => {
+  });
+  _executeBlock = executeBlock2 || null;
+  _runInterpreter = runInterpreter2 || null;
+}
+function setChoiceArea(el) {
+  _choiceArea = el;
+}
+var _narrativeLog = [];
+function getNarrativeLog() {
+  return _narrativeLog;
+}
+function pushNarrativeLogEntry(e) {
+  _narrativeLog.push(e);
+}
+function resolvePronoun(lower, isCapital) {
+  const map = {
+    they: playerState.pronouns_subject || "they",
+    them: playerState.pronouns_object || "them",
+    their: playerState.pronouns_possessive || "their",
+    theirs: playerState.pronouns_possessive_pronoun || "theirs",
+    themself: playerState.pronouns_reflexive || "themself"
+  };
+  const resolved = escapeHtml(map[lower] || lower);
+  return isCapital ? resolved.charAt(0).toUpperCase() + resolved.slice(1) : resolved;
+}
+function formatText(text) {
+  if (!text) return "";
+  let result = String(text);
+  const _glossaryTokens = [];
+  if (glossaryRegistry.length > 0) {
+    for (const { re, span } of getGlossaryRegexes()) {
+      re.lastIndex = 0;
+      result = result.replace(re, (match) => {
+        const idx = _glossaryTokens.length;
+        _glossaryTokens.push(`${span}${match}</span>`);
+        return `\0LTERM${idx}\0`;
+      });
+    }
+  }
+  result = result.replace(/\$\{([a-zA-Z_][\w]*)\}/g, (_, v) => {
+    const k = normalizeKey(v);
+    const store = resolveStore(k);
+    return escapeHtml(store ? store[k] : "").replace(/\*/g, "&#42;");
+  });
+  result = result.replace(
+    /\{(They|Them|Their|Theirs|Themself|they|them|their|theirs|themself)\}/g,
+    (_, token) => {
+      const lower = token.toLowerCase();
+      const isCapital = token.charCodeAt(0) >= 65 && token.charCodeAt(0) <= 90;
+      return resolvePronoun(lower, isCapital).replace(/\*/g, "&#42;");
+    }
+  );
+  result = result.replace(/\[b\](.*?)\[\/b\]/g, "<strong>$1</strong>").replace(/\[i\](.*?)\[\/i\]/g, "<em>$1</em>");
+  const COLOR_TAGS = [
+    "cyan",
+    "amber",
+    "green",
+    "red",
+    "common",
+    "uncommon",
+    "rare",
+    "epic",
+    "legendary",
+    "white",
+    "blue",
+    "purple",
+    "gold",
+    "silver",
+    "dim",
+    "faint"
+  ];
+  for (const color of COLOR_TAGS) {
+    const open = new RegExp(`\\[${color}\\]`, "g");
+    const close = new RegExp(`\\[\\/${color}\\]`, "g");
+    result = result.replace(open, `<span class="inline-accent-${color}">`).replace(close, "</span>");
+  }
+  if (_glossaryTokens.length > 0) {
+    result = result.replace(/\x00LTERM(\d+)\x00/g, (_, i) => _glossaryTokens[Number(i)] ?? "");
+  }
+  return result;
+}
+function addImage(filename, alt, width) {
+  const img = document.createElement("img");
+  img.src = `media/${filename}`;
+  img.alt = alt;
+  img.className = "narrative-image";
+  img.loading = "lazy";
+  if (width) img.style.maxWidth = `${width}px`;
+  const wrapper = document.createElement("div");
+  wrapper.className = "narrative-image-wrapper";
+  wrapper.appendChild(img);
+  _narrativeContent.insertBefore(wrapper, _choiceArea);
+  _narrativeLog.push({ type: "image", text: filename, alt, width });
+}
+function addParagraph(text, cls = "narrative-paragraph") {
+  const p = document.createElement("p");
+  p.className = cls;
+  p.innerHTML = formatText(text);
+  _narrativeContent.insertBefore(p, _choiceArea);
+  _narrativeLog.push({ type: "paragraph", text });
+}
+function addSystem(text) {
+  const div = document.createElement("div");
+  const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(text);
+  const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(text);
+  div.className = `system-block${isEssence ? " essence-block" : ""}${isLevelUp ? " levelup-block" : ""}`;
+  const formatted = formatText(text).replace(/\\n/g, "\n").replace(/\n/g, "<br>");
+  div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
+  _narrativeContent.insertBefore(div, _choiceArea);
+  _narrativeLog.push({ type: "system", text });
+}
+function clearNarrative() {
+  for (const el of [..._narrativeContent.children]) {
+    if (el !== _choiceArea) el.remove();
+  }
+  _choiceArea.innerHTML = "";
+  _narrativeContent.scrollTo({ top: 0, behavior: "instant" });
+  _narrativeLog = [];
+}
+function applyTransition() {
+  if (!_narrativePanel) return;
+  _narrativePanel.classList.remove("scene-fade");
+  void _narrativePanel.offsetWidth;
+  _narrativePanel.classList.add("scene-fade");
+  _narrativePanel.addEventListener("animationend", () => {
+    _narrativePanel.classList.remove("scene-fade");
+  }, { once: true });
+}
+function renderChoices(choices) {
+  _choiceArea.innerHTML = "";
+  _choiceArea.setAttribute("role", "group");
+  _choiceArea.setAttribute("aria-label", "Story choices");
+  let choiceMade = false;
+  choices.forEach((choice, index) => {
+    const btn = document.createElement("button");
+    btn.className = "choice-btn";
+    btn.innerHTML = `<span>${formatText(choice.text)}</span>`;
+    const plainText = choice.text.replace(/<[^>]+>/g, "");
+    btn.setAttribute("aria-label", `Choice ${index + 1} of ${choices.length}: ${plainText}`);
+    if (choice.statTag) {
+      const { label, requirement } = choice.statTag;
+      const key = normalizeKey(label.replace(/\s+/g, "_"));
+      const store = resolveStore(key);
+      const val = store ? store[key] : null;
+      const met = val !== null && Number(val) >= requirement;
+      const badge = document.createElement("span");
+      badge.className = `choice-stat-badge ${met ? "choice-stat-badge--met" : "choice-stat-badge--unmet"}`;
+      badge.textContent = `${label} ${requirement}`;
+      btn.appendChild(badge);
+    }
+    if (!choice.selectable) {
+      btn.disabled = true;
+      btn.classList.add("choice-btn--disabled");
+      btn.dataset.unselectable = "true";
+      btn.setAttribute("aria-disabled", "true");
+    } else {
+      btn.addEventListener("click", () => {
+        if (choiceMade) return;
+        choiceMade = true;
+        _onBeforeChoice();
+        clearNarrative();
+        const choiceBlockEnd = awaitingChoice?.end ?? choice.end;
+        const savedIp = awaitingChoice?._savedIp ?? choiceBlockEnd;
+        setAwaitingChoice(null);
+        _executeBlock(choice.start, choice.end, savedIp).then(() => _runInterpreter()).catch((err) => {
+          console.error("[narrative] choice execution error:", err);
+        });
+      });
+    }
+    _choiceArea.appendChild(btn);
+  });
+  requestAnimationFrame(() => {
+    const firstEnabled = _choiceArea.querySelector(".choice-btn:not(:disabled)");
+    if (firstEnabled) firstEnabled.focus({ preventScroll: true });
+  });
+  if (!_choiceAreaArrowHandler) {
+    _choiceAreaArrowHandler = (e) => {
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      e.preventDefault();
+      const btns = [..._choiceArea.querySelectorAll(".choice-btn:not(:disabled)")];
+      const current = document.activeElement;
+      const idx = btns.indexOf(current);
+      if (idx === -1) return;
+      const next = e.key === "ArrowDown" ? (idx + 1) % btns.length : (idx - 1 + btns.length) % btns.length;
+      btns[next].focus();
+    };
+    _choiceArea.addEventListener("keydown", _choiceAreaArrowHandler);
+  }
+}
+function showPageBreak(btnText, onContinue) {
+  const btn = document.createElement("button");
+  btn.className = "choice-btn page-break-btn";
+  btn.textContent = btnText || "Continue";
+  btn.addEventListener("click", () => {
+    btn.disabled = true;
+    onContinue();
+  });
+  _choiceArea.appendChild(btn);
+}
+function showInputPrompt(varName, prompt, onSubmit) {
+  const logEntry = { type: "input", varName, prompt, value: null };
+  _narrativeLog.push(logEntry);
+  const wrapper = document.createElement("div");
+  wrapper.className = "input-prompt-block";
+  wrapper.innerHTML = `
+    <span class="system-block-label">[ INPUT ]</span>
+    <label class="input-prompt-label">${formatText(prompt)}</label>
+    <div class="input-prompt-row">
+      <input type="text" class="input-prompt-field" autocomplete="off" spellcheck="false" maxlength="60" />
+      <button class="input-prompt-submit" disabled>Submit</button>
+    </div>`;
+  _narrativeContent.insertBefore(wrapper, _choiceArea);
+  const field = wrapper.querySelector(".input-prompt-field");
+  const submit = wrapper.querySelector(".input-prompt-submit");
+  field.addEventListener("input", () => {
+    submit.disabled = !field.value.trim();
+  });
+  function doSubmit() {
+    const value = field.value.trim();
+    if (!value) return;
+    logEntry.value = value;
+    wrapper.classList.add("input-prompt-block--submitted");
+    wrapper.innerHTML = `
+      <span class="system-block-label">[ INPUT ]</span>
+      <span class="input-prompt-label">${formatText(prompt)}</span>
+      <span class="input-prompt-submitted-value">${escapeHtml(value)}</span>`;
+    onSubmit(value);
+  }
+  submit.addEventListener("click", doSubmit);
+  field.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") doSubmit();
+  });
+  requestAnimationFrame(() => field.focus({ preventScroll: true }));
+}
+function renderFromLog(log, { skipAnimations = true } = {}) {
+  for (const el of [..._narrativeContent.children]) {
+    if (el !== _choiceArea) el.remove();
+  }
+  _choiceArea.innerHTML = "";
+  _narrativeContent.scrollTo({ top: 0, behavior: "instant" });
+  for (const entry of log) {
+    switch (entry.type) {
+      case "paragraph": {
+        const p = document.createElement("p");
+        p.className = "narrative-paragraph";
+        p.innerHTML = formatText(entry.text);
+        _narrativeContent.insertBefore(p, _choiceArea);
+        break;
+      }
+      case "system": {
+        const div = document.createElement("div");
+        const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(entry.text ?? "");
+        const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(entry.text ?? "");
+        div.className = `system-block${isEssence ? " essence-block" : ""}${isLevelUp ? " levelup-block" : ""}`;
+        const formatted = formatText(entry.text).replace(/\\n/g, "\n").replace(/\n/g, "<br>");
+        div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
+        _narrativeContent.insertBefore(div, _choiceArea);
+        break;
+      }
+      case "input": {
+        const wrapper = document.createElement("div");
+        wrapper.className = "input-prompt-block input-prompt-block--submitted";
+        const safe = escapeHtml(entry.value ?? "\u2014");
+        wrapper.innerHTML = `
+          <span class="system-block-label">[ INPUT ]</span>
+          <span class="input-prompt-label">${formatText(entry.prompt)}</span>
+          <span class="input-prompt-submitted-value">${safe}</span>`;
+        _narrativeContent.insertBefore(wrapper, _choiceArea);
+        break;
+      }
+      case "chapter-card": {
+        const card = document.createElement("div");
+        card.className = "chapter-card";
+        card.style.opacity = "1";
+        card.style.animation = "none";
+        const lbl = document.createElement("span");
+        lbl.className = "chapter-card-label";
+        lbl.textContent = entry.label ?? "Chapter";
+        const ttl = document.createElement("span");
+        ttl.className = "chapter-card-title";
+        ttl.textContent = entry.text ?? "";
+        card.appendChild(lbl);
+        card.appendChild(ttl);
+        _narrativeContent.insertBefore(card, _choiceArea);
+        break;
+      }
+      case "image": {
+        const img = document.createElement("img");
+        img.src = `media/${entry.text ?? ""}`;
+        img.alt = entry.alt ?? "";
+        img.className = "narrative-image";
+        img.loading = "lazy";
+        if (entry.width) img.style.maxWidth = `${entry.width}px`;
+        const wrapper = document.createElement("div");
+        wrapper.className = "narrative-image-wrapper";
+        wrapper.appendChild(img);
+        _narrativeContent.insertBefore(wrapper, _choiceArea);
+        break;
+      }
+      default:
+        console.warn("[narrative] renderFromLog: unknown entry type:", entry.type);
+    }
+  }
+  _narrativeLog = [...log];
+}
+
+// src/ui/panels.ts
+var _RARITY_TAG = /\[(common|uncommon|rare|epic|legendary)\]([\s\S]*?)\[\/\1\]/gi;
+var escapeDesc = (s) => escapeHtml(s).replace(_RARITY_TAG, (_, r, text) => `<span class="skill-rarity--${r.toLowerCase()}">${text}</span>`).replace(/\n/g, "<br>");
+var _statusPanel;
+var _endingOverlay = null;
+var _endingTitle = null;
+var _endingContent = null;
+var _endingStats = null;
+var _endingActionBtn = null;
+var _storeOverlay = null;
+var _fetchTextFile;
+var _scheduleStats2;
+var _trapFocus = null;
+var _showToast;
+function init2({
+  statusPanel,
+  endingOverlay,
+  endingTitle,
+  endingContent,
+  endingStats,
+  endingActionBtn,
+  storeOverlay,
+  fetchTextFile: fetchTextFile2,
+  scheduleStatsRender: scheduleStatsRender2,
+  trapFocus: trapFocus2,
+  showToast: showToast2
+}) {
+  _statusPanel = statusPanel;
+  _endingOverlay = endingOverlay;
+  _endingTitle = endingTitle;
+  _endingContent = endingContent;
+  _endingStats = endingStats;
+  _endingActionBtn = endingActionBtn;
+  _storeOverlay = storeOverlay;
+  _fetchTextFile = fetchTextFile2;
+  _scheduleStats2 = scheduleStatsRender2;
+  _trapFocus = trapFocus2;
+  _showToast = showToast2 ?? (() => {
+  });
+}
+var styleState = { colors: {}, icons: {} };
+var _activeStatusTab = "stats";
+var EMPTY_SKILLS_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <polygon points="24,3 42,13.5 42,34.5 24,45 6,34.5 6,13.5" stroke="var(--cyan)" stroke-width="1.5"/>
+  <circle cx="24" cy="24" r="9" stroke="var(--cyan)" stroke-width="1.2" opacity="0.5"/>
+  <line x1="24" y1="15" x2="24" y2="33" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <line x1="15.2" y1="19.5" x2="32.8" y2="28.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <line x1="32.8" y1="19.5" x2="15.2" y2="28.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+</svg>`;
+var EMPTY_INV_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M17 19 C14 23 12 29 12 35 C12 41 17 45 24 45 C31 45 36 41 36 35 C36 29 34 23 31 19 Z" stroke="var(--cyan)" stroke-width="1.5"/>
+  <path d="M19 19 C19 14 21 11 24 11 C27 11 29 14 29 19" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M21 13 C22 10 26 10 27 13" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="24" y1="29" x2="24" y2="38" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <line x1="19.5" y1="33.5" x2="28.5" y2="33.5" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+</svg>`;
+var EMPTY_LOG_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="8" y="6" width="30" height="37" rx="2" stroke="var(--cyan)" stroke-width="1.5"/>
+  <line x1="15" y1="6" x2="15" y2="43" stroke="var(--cyan)" stroke-width="1.5"/>
+  <line x1="20" y1="17" x2="33" y2="17" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
+  <line x1="20" y1="23" x2="33" y2="23" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
+  <line x1="20" y1="29" x2="33" y2="29" stroke="var(--cyan)" stroke-width="1" opacity="0.5"/>
+  <line x1="20" y1="35" x2="28" y2="35" stroke="var(--cyan)" stroke-width="1" opacity="0.4"/>
+  <path d="M35 30 Q39 33 35 36" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+</svg>`;
+var _prevStatValues = /* @__PURE__ */ new Map();
+var _statChanges = /* @__PURE__ */ new Map();
+var _dirtyTabs = {
+  stats: true,
+  skills: true,
+  inventory: true,
+  achievements: true
+};
+var _lastEntries = [];
+function buildStatsTabHtml(entries) {
+  let html = "";
+  let inGroup = false;
+  entries.forEach((e) => {
+    if (e.type === "group") {
+      if (inGroup) html += `</div>`;
+      html += `<div class="status-section"><div class="status-label status-section-header">${escapeHtml(e.name)}</div>`;
+      inGroup = true;
+    }
+    if (e.type === "stat" && e.key) {
+      const cc = styleState.colors[e.key] || "";
+      const ic = styleState.icons[e.key] ?? "";
+      const rawVal = playerState[e.key] ?? "\u2014";
+      const numVal = parseFloat(String(rawVal));
+      if (!isNaN(numVal)) {
+        const prev = _prevStatValues.get(e.key);
+        _prevStatValues.set(e.key, numVal);
+        if (prev !== void 0 && prev !== numVal) {
+          _statChanges.set(e.key, numVal > prev ? "up" : "down");
+        }
+      }
+      html += `<div class="status-row" data-stat-key="${e.key}"><span class="status-label">${ic ? ic + " " : ""}${escapeHtml(e.label)}</span><span class="status-value ${cc}">${formatText(String(rawVal))}</span></div>`;
+    }
+  });
+  if (inGroup) html += `</div>`;
+  const achvsForStats = getAchievements();
+  if (achvsForStats.length > 0) {
+    const achvAccordions = achvsForStats.map((a) => {
+      const dashIdx = a.text.indexOf(" \u2014 ");
+      const title = dashIdx !== -1 ? escapeHtml(a.text.slice(0, dashIdx)) : escapeHtml(a.text);
+      const body = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : "";
+      return `<li class="skill-accordion skill-accordion--achievement">
+        <button class="skill-accordion-btn">
+          <span class="skill-accordion-name"><span class="journal-achievement-icon"></span>${title}</span>
+          ${body ? `<span class="skill-accordion-chevron">\u25BE</span>` : ""}
+        </button>
+        ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ""}
+      </li>`;
+    }).join("");
+    html += `<div class="status-section"><div class="status-label status-section-header">Achievements</div><ul class="skill-accordion-list">${achvAccordions}</ul></div>`;
+  }
+  return html;
+}
+function buildSkillsTabHtml() {
+  const hasSkillStore = skillRegistry.length > 0;
+  let html = hasSkillStore ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-skills" data-store-tab="skills">Skill Store</button></div>` : "";
+  const ownedSkills = Array.isArray(playerState.skills) ? playerState.skills : [];
+  if (ownedSkills.length === 0) {
+    html += `<div class="empty-state">${EMPTY_SKILLS_SVG}<p class="empty-state-text">No skills learned yet.</p></div>`;
+  } else {
+    const CATEGORY_ORDER = ["core", "active", "passive"];
+    const CATEGORY_LABELS = {
+      core: "Core Class Skills",
+      active: "Active Skills",
+      passive: "Passives"
+    };
+    const RARITY_RANK = {
+      legendary: 0,
+      epic: 1,
+      rare: 2,
+      uncommon: 3,
+      common: 4
+    };
+    const grouped = { core: [], active: [], passive: [] };
+    for (const k of ownedSkills) {
+      const entry = skillRegistry.find((s) => s.key === k);
+      const cat = entry?.category || "active";
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(k);
+    }
+    for (const cat of CATEGORY_ORDER) {
+      grouped[cat]?.sort((a, b) => {
+        const ra = skillRegistry.find((s) => s.key === a)?.rarity ?? "common";
+        const rb = skillRegistry.find((s) => s.key === b)?.rarity ?? "common";
+        return (RARITY_RANK[ra] ?? 99) - (RARITY_RANK[rb] ?? 99);
+      });
+    }
+    const buildItem = (k) => {
+      const entry = skillRegistry.find((s) => s.key === k);
+      const label = escapeHtml(entry ? entry.label : k);
+      const desc = escapeDesc(entry ? entry.description : "");
+      const rarity = entry?.rarity || "common";
+      const rarCls = ` skill-rarity--${rarity}`;
+      return `<li class="skill-accordion skill-accordion--rarity-${rarity}"><button class="skill-accordion-btn" data-skill-key="${escapeHtml(k)}"><span class="skill-accordion-name${rarCls}">${label}</span><span class="skill-accordion-chevron">\u25BE</span></button><div class="skill-accordion-desc" style="display:none;">${desc}</div></li>`;
+    };
+    for (const cat of CATEGORY_ORDER) {
+      const keys = grouped[cat];
+      if (!keys || keys.length === 0) continue;
+      html += `<div class="skill-category-header">${CATEGORY_LABELS[cat]}</div>`;
+      html += `<ul class="skill-accordion-list">${keys.map(buildItem).join("")}</ul>`;
+    }
+  }
+  return html;
+}
+function buildInventoryTabHtml() {
+  const hasItemStore = itemRegistry.length > 0;
+  let html = hasItemStore ? `<div class="status-store-row"><button class="status-store-btn" id="status-store-btn-inv" data-store-tab="items">Item Store</button></div>` : "";
+  const invItems = Array.isArray(playerState.inventory) ? playerState.inventory : [];
+  if (invItems.length === 0) {
+    html += `<div class="empty-state">${EMPTY_INV_SVG}<p class="empty-state-text">Nothing here yet.</p></div>`;
+  } else {
+    const invAccordions = invItems.map((invEntry) => {
+      const baseName = itemBaseName(invEntry);
+      const regEntry = itemRegistry.find((r) => r.label === baseName);
+      const label = escapeHtml(invEntry);
+      const desc = escapeDesc(regEntry ? regEntry.description : "");
+      const rarity = regEntry?.rarity || "common";
+      const rarCls = ` skill-rarity--${rarity}`;
+      return `<li class="skill-accordion skill-accordion--rarity-${rarity}">
+        <button class="skill-accordion-btn">
+          <span class="skill-accordion-name${rarCls}">${label}</span>
+          <span class="skill-accordion-chevron">\u25BE</span>
+        </button>
+        <div class="skill-accordion-desc" style="display:none;">${desc || '<em style="color:var(--text-faint)">No description available.</em>'}</div>
+      </li>`;
+    }).join("");
+    html += `<ul class="skill-accordion-list">${invAccordions}</ul>`;
+  }
+  return html;
+}
+function buildLogTabHtml() {
+  let achievementsHtml = "";
+  const achvs = getAchievements();
+  const jentries = getJournalEntries().filter((j) => j.type !== "achievement");
+  if (achvs.length === 0 && jentries.length === 0) {
+    return `<div class="empty-state">${EMPTY_LOG_SVG}<p class="empty-state-text">Nothing recorded yet.</p></div>`;
+  }
+  if (achvs.length > 0) {
+    const achvAccordionItems = achvs.map((a) => {
+      const dashIdx = a.text.indexOf(" \u2014 ");
+      const title = dashIdx !== -1 ? escapeHtml(a.text.slice(0, dashIdx)) : escapeHtml(a.text);
+      const body = dashIdx !== -1 ? escapeHtml(a.text.slice(dashIdx + 3)) : "";
+      return `<li class="skill-accordion skill-accordion--achievement">
+          <button class="skill-accordion-btn">
+            <span class="skill-accordion-name"><span class="journal-achievement-icon"></span>${title}</span>
+            ${body ? `<span class="skill-accordion-chevron">\u25BE</span>` : ""}
+          </button>
+          ${body ? `<div class="skill-accordion-desc" style="display:none;">${body}</div>` : ""}
+        </li>`;
+    }).join("");
+    achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;">Achievements</div><ul class="skill-accordion-list" style="margin-bottom:14px;">${achvAccordionItems}</ul>`;
+  }
+  if (jentries.length > 0) {
+    const journalItems = [...jentries].reverse().map(
+      (j) => `<li class="journal-entry">${escapeHtml(j.text)}</li>`
+    ).join("");
+    achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;">Journal</div><ul class="journal-list">${journalItems}</ul>`;
+  }
+  if (glossaryRegistry.length > 0) {
+    const glossaryItems = glossaryRegistry.map(
+      (entry) => `<li class="skill-accordion">
+        <button class="skill-accordion-btn">
+          <span class="skill-accordion-name">${escapeHtml(entry.term)}</span>
+          <span class="skill-accordion-chevron">\u25BE</span>
+        </button>
+        <div class="skill-accordion-desc" style="display:none;">${escapeDesc(entry.description)}</div>
+      </li>`
+    ).join("");
+    achievementsHtml += `<div class="status-label status-section-header" style="margin-bottom:8px;margin-top:14px;">Glossary</div><ul class="skill-accordion-list">${glossaryItems}</ul>`;
+  }
+  return achievementsHtml;
+}
+function buildTabHtml(tabKey, entries) {
+  switch (tabKey) {
+    case "stats":
+      return buildStatsTabHtml(entries);
+    case "skills":
+      return buildSkillsTabHtml();
+    case "inventory":
+      return buildInventoryTabHtml();
+    case "achievements":
+      return buildLogTabHtml();
+    default:
+      return "";
+  }
+}
+function applyStatFlashes() {
+  if (_statChanges.size === 0) return;
+  _statChanges.forEach((dir, key) => {
+    const row = _statusPanel.querySelector(`.status-row[data-stat-key="${key}"]`);
+    const valEl = row?.querySelector(".status-value");
+    if (valEl) {
+      const cls = dir === "up" ? "stat-flash--up" : "stat-flash--down";
+      valEl.classList.add(cls);
+      valEl.addEventListener("animationend", () => valEl.classList.remove(cls), { once: true });
+    }
+  });
+  _statChanges.clear();
+}
+function wireTabContent() {
+  const skillsStoreBtn = _statusPanel.querySelector("#status-store-btn-skills");
+  if (skillsStoreBtn) skillsStoreBtn.addEventListener("click", () => showStore("skills"));
+  const invStoreBtn = _statusPanel.querySelector("#status-store-btn-inv");
+  if (invStoreBtn) invStoreBtn.addEventListener("click", () => showStore("items"));
+  _statusPanel.querySelectorAll(".skill-accordion-btn").forEach((btn) => {
+    const desc = btn.nextElementSibling;
+    if (!desc) return;
+    btn.addEventListener("click", () => {
+      const isOpen = desc.style.display !== "none";
+      desc.style.display = isOpen ? "none" : "block";
+      btn.classList.toggle("skill-accordion-btn--open", !isOpen);
+    });
+  });
+}
+async function runStatsScene() {
+  const text = await _fetchTextFile("stats");
+  const lines = text.split(/\r?\n/).map((raw) => ({ raw, trimmed: raw.trim() }));
+  styleState.colors = {};
+  styleState.icons = {};
+  const entries = [];
+  lines.forEach((line) => {
+    const t = line.trimmed;
+    if (!t || t.startsWith("//")) return;
+    if (t.startsWith("*stat_group")) {
+      const sgm = t.match(/^\*stat_group\s+"([^"]+)"/);
+      entries.push({ type: "group", name: sgm ? sgm[1] : t.replace(/^\*stat_group\s*/, "").trim() });
+    } else if (t.startsWith("*stat_color")) {
+      const [, rawKey, color] = t.split(/\s+/);
+      styleState.colors[normalizeKey(rawKey)] = color;
+    } else if (t.startsWith("*stat_icon")) {
+      const m = t.match(/^\*stat_icon\s+([\w_]+)\s+"(.+)"$/);
+      if (m) styleState.icons[normalizeKey(m[1])] = m[2];
+    } else if (t.startsWith("*inventory")) {
+      entries.push({ type: "inventory" });
+    } else if (t.trim() === "*skills_registered") {
+      entries.push({ type: "skills" });
+    } else if (t.trim() === "*journal_section") {
+      entries.push({ type: "journal" });
+    } else if (t.trim() === "*achievements") {
+      entries.push({ type: "achievements" });
+    } else if (t === "*stat_registered") {
+      statRegistry.forEach(({ key, label }) => entries.push({ type: "stat", key, label }));
+    } else if (t.startsWith("*stat")) {
+      const m = t.match(/^\*stat\s+([\w_]+)\s+"(.+)"$/);
+      if (m) entries.push({ type: "stat", key: normalizeKey(m[1]), label: m[2] });
+    }
+  });
+  _lastEntries = entries;
+  Object.keys(_dirtyTabs).forEach((k) => {
+    _dirtyTabs[k] = true;
+  });
+  const tabs = [
+    { key: "stats", label: "Stats" },
+    { key: "skills", label: "Skills" },
+    { key: "inventory", label: "Inv" },
+    { key: "achievements", label: "Log" }
+  ];
+  const tabBarHtml = `<div class="status-tabs" role="tablist" id="status-tab-bar">
+    ${tabs.map((t) => `<button role="tab" aria-selected="${_activeStatusTab === t.key}" aria-controls="status-tab-pane" id="tab-${t.key}" class="status-tab ${_activeStatusTab === t.key ? "status-tab--active" : ""}" data-tab="${t.key}">${t.label}</button>`).join("")}
+  </div>`;
+  const activeHtml = buildTabHtml(_activeStatusTab, entries);
+  _dirtyTabs[_activeStatusTab] = false;
+  _statusPanel.innerHTML = `${tabBarHtml}<div role="tabpanel" aria-labelledby="tab-${_activeStatusTab}" class="status-tab-content" id="status-tab-pane">${activeHtml}</div>`;
+  _statusPanel.querySelectorAll(".status-tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      _activeStatusTab = btn.dataset.tab ?? "stats";
+      _statusPanel.querySelectorAll(".status-tab").forEach((b) => {
+        b.classList.toggle("status-tab--active", b.dataset.tab === _activeStatusTab);
+        b.setAttribute("aria-selected", b.dataset.tab === _activeStatusTab ? "true" : "false");
+      });
+      const pane = _statusPanel.querySelector("#status-tab-pane");
+      if (pane) {
+        pane.setAttribute("aria-labelledby", `tab-${_activeStatusTab}`);
+        pane.innerHTML = buildTabHtml(_activeStatusTab, _lastEntries);
+        _dirtyTabs[_activeStatusTab] = false;
+        if (_activeStatusTab === "stats") applyStatFlashes();
+      }
+      wireTabContent();
+    });
+  });
+  wireTabContent();
+  if (_activeStatusTab === "stats") applyStatFlashes();
+}
+var _storeTrapRelease = null;
+var _storeActiveTab = "skills";
+var _preStoreTab = null;
+function showStore(tab = null) {
+  if (!_storeOverlay) return;
+  if (tab) _storeActiveTab = tab;
+  _preStoreTab = _activeStatusTab;
+  const overlay = _storeOverlay;
+  overlay.classList.remove("hidden");
+  requestAnimationFrame(() => {
+    overlay.style.opacity = "1";
+  });
+  if (_trapFocus) {
+    _storeTrapRelease = _trapFocus(overlay, null);
+  }
+  renderStore();
+}
+function hideStore() {
+  if (!_storeOverlay) return;
+  _storeOverlay.classList.add("hidden");
+  _storeOverlay.style.opacity = "0";
+  if (_storeTrapRelease) {
+    _storeTrapRelease();
+    _storeTrapRelease = null;
+  }
+  _activeStatusTab = _preStoreTab || (_storeActiveTab === "items" ? "inventory" : "skills");
+  _preStoreTab = null;
+  _scheduleStats2();
+  requestAnimationFrame(() => {
+    if (_statusPanel) {
+      _statusPanel.classList.add("status-visible");
+      _statusPanel.classList.remove("status-hidden");
+    }
+  });
+}
+function renderStore() {
+  if (!_storeOverlay) return;
+  const box = _storeOverlay.querySelector(".store-modal-box");
+  if (!box) return;
+  const essence = Number(playerState.essence || 0);
+  box.innerHTML = `
+    <div class="store-header">
+      <span class="system-block-label">[ STORE ]</span>
+      <div class="store-essence-pool">
+        <span class="store-essence-label">Essence</span>
+        <span class="store-essence-val">${essence}</span>
+      </div>
+      <button class="store-close-btn" id="store-close-btn">\u2715</button>
+    </div>
+    <div class="store-tabs">
+      <button class="store-tab ${_storeActiveTab === "skills" ? "store-tab--active" : ""}" data-tab="skills">Skills</button>
+      <button class="store-tab ${_storeActiveTab === "items" ? "store-tab--active" : ""}" data-tab="items">Items</button>
+    </div>
+    <div class="store-content" id="store-content"></div>`;
+  box.querySelector("#store-close-btn")?.addEventListener("click", hideStore);
+  box.querySelectorAll(".store-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      _storeActiveTab = tab.dataset.tab ?? "skills";
+      renderStore();
+    });
+  });
+  const content = box.querySelector("#store-content");
+  if (!content) return;
+  if (_storeActiveTab === "skills") {
+    renderSkillsTab(content, essence);
+  } else {
+    renderItemsTab(content, essence);
+  }
+  requestAnimationFrame(() => {
+    box.querySelector("#store-close-btn")?.focus({ preventScroll: true });
+  });
+}
+function renderSkillsTab(container, essence) {
+  if (skillRegistry.length === 0) {
+    container.innerHTML = `<div class="store-empty">No skills available.</div>`;
+    return;
+  }
+  const visible = skillRegistry.filter((s) => {
+    if (!s.condition) return true;
+    try {
+      return !!evalValue(s.condition);
+    } catch {
+      return true;
+    }
+  });
+  const available = visible.filter((s) => !playerHasSkill(s.key));
+  let html = "";
+  if (available.length > 0) {
+    available.forEach((skill) => {
+      const canAfford = essence >= skill.essenceCost;
+      const cardCls = canAfford ? "" : "store-card--unaffordable";
+      const badgeCls = canAfford ? "store-cost-badge--can-afford" : "";
+      const rarity = skill.rarity || "common";
+      const rarCls = ` skill-rarity--${rarity}`;
+      html += `
+        <div class="store-card store-card--rarity-${rarity} ${cardCls}" data-key="${escapeHtml(skill.key)}" data-type="skill">
+          <div class="store-card-body">
+            <span class="store-card-name${rarCls}">${escapeHtml(skill.label)}</span>
+            <div class="store-card-desc">${escapeDesc(skill.description)}</div>
+          </div>
+          <div class="store-card-actions">
+            <span class="store-cost-badge ${badgeCls}">${skill.essenceCost} Essence</span>
+            <button class="store-purchase-btn" ${canAfford ? "" : "disabled"} data-key="${escapeHtml(skill.key)}" data-type="skill">Unlock</button>
+          </div>
+        </div>`;
+    });
+  }
+  if (available.length === 0) {
+    html = `<div class="store-empty">No skills available.</div>`;
+  }
+  container.innerHTML = html;
+  container.querySelectorAll(".store-purchase-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.key ?? "";
+      if (purchaseSkill(key)) {
+        const entry = skillRegistry.find((s) => s.key === key);
+        _showToast(`Skill unlocked: ${entry?.label || key}`, 2500, entry?.rarity);
+        renderStore();
+      }
+    });
+  });
+}
+function renderItemsTab(container, essence) {
+  if (itemRegistry.length === 0) {
+    container.innerHTML = `<div class="store-empty">No items available.</div>`;
+    return;
+  }
+  const available = itemRegistry.filter((item) => {
+    if (item.condition) {
+      try {
+        if (!evalValue(item.condition)) return false;
+      } catch {
+      }
+    }
+    return getItemStock(item.key) !== 0;
+  });
+  if (available.length === 0) {
+    container.innerHTML = `<div class="store-empty">No items available.</div>`;
+    return;
+  }
+  let html = "";
+  available.forEach((item) => {
+    const stock = getItemStock(item.key);
+    const stockLabel = stock === Infinity ? "" : ` (${stock})`;
+    const canAfford = essence >= item.essenceCost;
+    const cardCls = canAfford ? "" : "store-card--unaffordable";
+    const badgeCls = canAfford ? "store-cost-badge--can-afford" : "";
+    const rarity = item.rarity || "common";
+    const rarCls = ` skill-rarity--${rarity}`;
+    html += `
+      <div class="store-card store-card--rarity-${rarity} ${cardCls}" data-key="${escapeHtml(item.key)}" data-type="item">
+        <div class="store-card-body">
+          <span class="store-card-name${rarCls}">${escapeHtml(item.label)}${escapeHtml(stockLabel)}</span>
+          <div class="store-card-desc">${escapeDesc(item.description)}</div>
+        </div>
+        <div class="store-card-actions">
+          <span class="store-cost-badge ${badgeCls}">${item.essenceCost} Essence</span>
+          <button class="store-purchase-btn" ${canAfford ? "" : "disabled"} data-key="${escapeHtml(item.key)}" data-type="item">Buy</button>
+        </div>
+      </div>`;
+  });
+  container.innerHTML = html;
+  container.querySelectorAll(".store-purchase-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.key ?? "";
+      if (purchaseItem(key)) {
+        const entry = itemRegistry.find((i) => i.key === key);
+        _showToast(`Purchased: ${entry?.label || key}`, 2500, entry?.rarity);
+        renderStore();
+      }
+    });
+  });
+}
+function showEndingScreen(title, content) {
+  if (!_endingOverlay) return;
+  if (_endingTitle) _endingTitle.textContent = title;
+  if (_endingContent) _endingContent.textContent = content;
+  const statsLines = [];
+  statRegistry.forEach(({ key, label }) => {
+    statsLines.push(`${label}: ${playerState[key] ?? "\u2014"}`);
+  });
+  if (_endingStats) _endingStats.textContent = statsLines.join("  \xB7  ");
+  _endingOverlay.classList.remove("hidden");
+  _endingOverlay.style.opacity = "1";
+  if (_trapFocus) {
+    const release = _trapFocus(_endingOverlay, null);
+    _endingOverlay._trapRelease = release;
+  }
+  _endingActionBtn?.addEventListener("click", () => {
+    window.location.reload();
+  }, { once: true });
+}
+
+// src/systems/undo.ts
+var _undoStack = [];
+var UNDO_MAX = 10;
+var _chapterTitleEl = null;
+var _sceneCache2 = null;
+var _labelsCache2 = null;
+function initUndo(opts) {
+  _chapterTitleEl = opts.chapterTitleEl;
+  _sceneCache2 = opts.sceneCache;
+  _labelsCache2 = opts.labelsCache;
+}
+function pushUndoSnapshot() {
+  _undoStack.push({
+    playerState: JSON.parse(JSON.stringify(playerState)),
+    tempState: JSON.parse(JSON.stringify(tempState)),
+    scene: currentScene,
+    ip: pageBreakIp ?? ip,
+    narrativeLog: JSON.parse(JSON.stringify(getNarrativeLog())),
+    chapterTitle: _chapterTitleEl?.textContent ?? null,
+    awaitingChoice: awaitingChoice ? JSON.parse(JSON.stringify(awaitingChoice)) : null
+  });
+  if (_undoStack.length > UNDO_MAX) _undoStack.shift();
+  updateUndoBtn();
+}
+async function popUndo() {
+  if (_undoStack.length === 0) return;
+  const snap = _undoStack.pop();
+  setPlayerState(JSON.parse(JSON.stringify(snap.playerState)));
+  setTempState(JSON.parse(JSON.stringify(snap.tempState)));
+  if (snap.scene) setCurrentScene(snap.scene);
+  if (snap.scene && _sceneCache2) {
+    const key = snap.scene.endsWith(".txt") ? snap.scene : `${snap.scene}.txt`;
+    const text = _sceneCache2.get(key);
+    if (text) {
+      setCurrentLines(parseLines(text));
+      indexLabels(snap.scene, currentLines, _labelsCache2);
+    }
+  }
+  setIp(snap.ip);
+  setAwaitingChoice(null);
+  setPageBreakIp(null);
+  if (_chapterTitleEl) _chapterTitleEl.textContent = snap.chapterTitle;
+  setChapterTitleState(snap.chapterTitle ?? "");
+  renderFromLog(snap.narrativeLog, { skipAnimations: true });
+  if (snap.awaitingChoice) {
+    setAwaitingChoice(snap.awaitingChoice);
+    renderChoices(snap.awaitingChoice.choices);
+  }
+  await runStatsScene();
+  updateUndoBtn();
+}
+function updateUndoBtn() {
+  const btn = document.getElementById("undo-btn");
+  if (!btn) return;
+  btn.disabled = _undoStack.length === 0;
+}
+function clearUndoStack() {
+  _undoStack.splice(0);
+  updateUndoBtn();
+}
 
 // src/ui/overlays.ts
-init_state();
 var _splashOverlay;
 var _splashSlots;
 var _saveOverlay;
@@ -3001,6 +2902,7 @@ var _parseAndCacheScene;
 var _clearUndoStack = null;
 var _setChoiceArea = null;
 var _setGameTitle = null;
+var _showEngineError = null;
 function init3({
   splashOverlay,
   splashSlots,
@@ -3027,7 +2929,8 @@ function init3({
   parseAndCacheScene,
   setChoiceArea: setChoiceArea2,
   clearUndoStack: clearUndoStack2,
-  setGameTitle: setGameTitle2
+  setGameTitle: setGameTitle2,
+  showEngineError: showEngineError2
 }) {
   _splashOverlay = splashOverlay;
   _splashSlots = splashSlots;
@@ -3055,8 +2958,9 @@ function init3({
   _clearUndoStack = clearUndoStack2 || null;
   _setChoiceArea = setChoiceArea2 || null;
   _setGameTitle = setGameTitle2 || null;
+  _showEngineError = showEngineError2 || null;
 }
-function trapFocus(overlayEl, triggerEl = null) {
+function trapFocus(overlayEl, triggerEl = null, autoFocus = true) {
   const FOCUSABLE = [
     "a[href]",
     "button:not([disabled])",
@@ -3096,13 +3000,15 @@ function trapFocus(overlayEl, triggerEl = null) {
     }
   }
   overlayEl.addEventListener("keydown", handleKeydown);
-  requestAnimationFrame(() => {
-    try {
-      const focusable = getFocusable();
-      if (focusable.length) focusable[0].focus();
-    } catch (_) {
-    }
-  });
+  if (autoFocus) {
+    requestAnimationFrame(() => {
+      try {
+        const focusable = getFocusable();
+        if (focusable.length) focusable[0].focus();
+      } catch (_) {
+      }
+    });
+  }
   return function release() {
     try {
       overlayEl.removeEventListener("keydown", handleKeydown);
@@ -3196,7 +3102,8 @@ async function loadAndResume(save) {
     setChoiceArea: _setChoiceArea,
     parseAndCacheScene: _parseAndCacheScene,
     fetchTextFileFn: _fetchTextFile2,
-    evalValueFn: _evalValue
+    evalValueFn: _evalValue,
+    showEngineError: _showEngineError ?? void 0
   });
   if (_setGameTitle) {
     const ps = save.playerState || {};
@@ -3205,7 +3112,6 @@ async function loadAndResume(save) {
   }
 }
 function showSplash() {
-  ["auto", 1, 2, 3].forEach(loadSaveFromSlot);
   refreshAllSlotCards();
   const notice = document.getElementById("splash-stale-notice");
   if (notice) {
@@ -3264,7 +3170,7 @@ function refreshCheckpoints() {
     const fmt = new Intl.DateTimeFormat(void 0, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
     list.innerHTML = checkpoints.map((cp) => `
       <div class="checkpoint-card" data-slot="${cp.slot}">
-        <span class="checkpoint-label">${escapeHtml2(cp.label)}</span>
+        <span class="checkpoint-label">${escapeHtml(cp.label)}</span>
         <span class="checkpoint-time">${fmt.format(new Date(cp.timestamp))}</span>
         <button class="slot-load-btn slot-load-btn--load checkpoint-load-btn" data-checkpoint="${cp.slot}">Load</button>
       </div>`).join("");
@@ -3293,9 +3199,6 @@ function refreshCheckpoints() {
     });
   });
 }
-function escapeHtml2(val) {
-  return String(val ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
 function showSaveMenu() {
   refreshAllSlotCards();
   refreshCheckpoints();
@@ -3323,6 +3226,7 @@ function validateName(value, label) {
 }
 function wireCharCreation() {
   function handleInput(inputEl, counterEl, errorEl, fieldLabel) {
+    inputEl.classList.remove("char-input--default");
     const cleaned = inputEl.value.replace(/[^\p{L}\p{M}'\- ]/gu, "");
     if (cleaned !== inputEl.value) {
       const pos = Math.max(0, (inputEl.selectionStart ?? 0) - (inputEl.value.length - cleaned.length));
@@ -3339,6 +3243,16 @@ function wireCharCreation() {
     errorEl.classList.toggle("hidden", !err);
     updateBeginBtn();
   }
+  function clearIfDefault(inputEl, counterEl) {
+    if (inputEl.classList.contains("char-input--default")) {
+      inputEl.value = "";
+      inputEl.classList.remove("char-input--default");
+      counterEl.textContent = String(NAME_MAX);
+      updateBeginBtn();
+    }
+  }
+  _inputFirstName.addEventListener("focus", () => clearIfDefault(_inputFirstName, _counterFirst));
+  _inputLastName.addEventListener("focus", () => clearIfDefault(_inputLastName, _counterLast));
   _inputFirstName.addEventListener("input", () => handleInput(_inputFirstName, _counterFirst, _errorFirstName, "First name"));
   _inputLastName.addEventListener("input", () => handleInput(_inputLastName, _counterLast, _errorLastName, "Last name"));
   _inputLastName.addEventListener("keydown", (e) => {
@@ -3391,25 +3305,27 @@ function wireCharCreation() {
       overlay._resolve({
         firstName: _inputFirstName.value.trim(),
         lastName: _inputLastName.value.trim(),
-        pronouns_subject: selected.dataset.subject,
-        pronouns_object: selected.dataset.object,
-        pronouns_possessive: selected.dataset.possessive,
-        pronouns_possessive_pronoun: selected.dataset.possessivePronoun,
-        pronouns_reflexive: selected.dataset.reflexive,
-        pronouns_label: selected.dataset.pronouns
+        pronouns_subject: selected.dataset.subject ?? "",
+        pronouns_object: selected.dataset.object ?? "",
+        pronouns_possessive: selected.dataset.possessive ?? "",
+        pronouns_possessive_pronoun: selected.dataset.possessivePronoun ?? "",
+        pronouns_reflexive: selected.dataset.reflexive ?? "",
+        pronouns_label: selected.dataset.pronouns ?? ""
       });
     }
   });
 }
 function showCharacterCreation() {
+  const DEFAULT_FIRST = "Charlie";
+  const DEFAULT_LAST = "McKinley";
   _inputFirstName.value = "";
   _inputLastName.value = "";
   _counterFirst.textContent = String(NAME_MAX);
   _counterLast.textContent = String(NAME_MAX);
   _errorFirstName.classList.add("hidden");
   _errorLastName.classList.add("hidden");
-  _inputFirstName.classList.remove("char-input--error");
-  _inputLastName.classList.remove("char-input--error");
+  _inputFirstName.classList.remove("char-input--error", "char-input--default");
+  _inputLastName.classList.remove("char-input--error", "char-input--default");
   _charBeginBtn.disabled = true;
   _charOverlay.querySelectorAll(".pronoun-card").forEach((c) => {
     const def = c.dataset.pronouns === "they/them";
@@ -3420,10 +3336,18 @@ function showCharacterCreation() {
   _charOverlay.classList.remove("hidden");
   _charOverlay.style.opacity = "1";
   requestAnimationFrame(() => {
-    const release = trapFocus(_charOverlay, null);
+    const release = trapFocus(_charOverlay, null, false);
     _charOverlay._trapRelease = release;
+    _inputFirstName.value = DEFAULT_FIRST;
+    _inputLastName.value = DEFAULT_LAST;
+    _counterFirst.textContent = String(NAME_MAX - DEFAULT_FIRST.length);
+    _counterLast.textContent = String(NAME_MAX - DEFAULT_LAST.length);
+    _inputFirstName.classList.add("char-input--default");
+    _inputLastName.classList.add("char-input--default");
+    _charBeginBtn.disabled = false;
+    const selected = _charOverlay.querySelector(".pronoun-card.selected");
     try {
-      _inputFirstName.focus();
+      selected?.focus();
     } catch (_) {
     }
   });
@@ -3433,10 +3357,6 @@ function showCharacterCreation() {
 }
 
 // src/systems/save-manager.ts
-init_narrative();
-init_panels();
-init_state();
-init_undo();
 function wireSaveUI(dom, opts) {
   const { scheduleStatsRender: scheduleStatsRender2 } = opts;
   dom.statusToggle?.addEventListener("click", () => {
@@ -3648,8 +3568,6 @@ function wireSaveUI(dom, opts) {
 }
 
 // engine.ts
-init_narrative();
-init_panels();
 var sceneCache = /* @__PURE__ */ new Map();
 var labelsCache = /* @__PURE__ */ new Map();
 async function fetchTextFile(name) {
@@ -3686,7 +3604,7 @@ function scheduleStatsRender() {
   requestAnimationFrame(() => {
     _statsRenderPending = false;
     runStatsScene();
-    Promise.resolve().then(() => (init_undo(), undo_exports)).then((m) => m.updateUndoBtn());
+    updateUndoBtn();
   });
 }
 async function boot() {
@@ -3750,7 +3668,8 @@ async function boot() {
       if (el) setChoiceArea(el);
     },
     clearUndoStack,
-    setGameTitle
+    setGameTitle,
+    showEngineError
   });
   registerCallbacks({
     addParagraph,
