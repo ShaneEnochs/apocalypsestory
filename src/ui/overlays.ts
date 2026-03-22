@@ -149,7 +149,7 @@ export function init({
 // trapFocus — keyboard focus containment for modal overlays.
 // Returns a release() function that removes the listener and restores focus.
 // ---------------------------------------------------------------------------
-export function trapFocus(overlayEl: HTMLElement, triggerEl: HTMLElement | null = null): () => void {
+export function trapFocus(overlayEl: HTMLElement, triggerEl: HTMLElement | null = null, autoFocus = true): () => void {
   const FOCUSABLE = [
     'a[href]', 'button:not([disabled])', 'input:not([disabled])',
     'select:not([disabled])', 'textarea:not([disabled])',
@@ -178,12 +178,14 @@ export function trapFocus(overlayEl: HTMLElement, triggerEl: HTMLElement | null 
   }
 
   overlayEl.addEventListener('keydown', handleKeydown);
-  requestAnimationFrame(() => {
-    try {
-      const focusable = getFocusable();
-      if (focusable.length) focusable[0].focus();
-    } catch (_) {}
-  });
+  if (autoFocus) {
+    requestAnimationFrame(() => {
+      try {
+        const focusable = getFocusable();
+        if (focusable.length) focusable[0].focus();
+      } catch (_) {}
+    });
+  }
 
   return function release() {
     try { overlayEl.removeEventListener('keydown', handleKeydown); } catch (_) {}
@@ -598,20 +600,19 @@ export function showCharacterCreation(): Promise<CharacterData> {
   _charOverlay.classList.remove('hidden');
   _charOverlay.style.opacity = '1';
   requestAnimationFrame(() => {
-    const release = trapFocus(_charOverlay, null);
+    // Disable trapFocus auto-focus so it doesn't trigger clearIfDefault.
+    const release = trapFocus(_charOverlay, null, false);
     (_charOverlay as any)._trapRelease = release;
-    // trapFocus schedules its own rAF to auto-focus the first element, which
-    // would fire clearIfDefault and wipe the defaults.  Apply defaults in a
-    // nested rAF so they land in the frame *after* trapFocus's focus() fires.
-    requestAnimationFrame(() => {
-      _inputFirstName.value = DEFAULT_FIRST;
-      _inputLastName.value  = DEFAULT_LAST;
-      _counterFirst.textContent = String(NAME_MAX - DEFAULT_FIRST.length);
-      _counterLast.textContent  = String(NAME_MAX - DEFAULT_LAST.length);
-      _inputFirstName.classList.add('char-input--default');
-      _inputLastName.classList.add('char-input--default');
-      _charBeginBtn.disabled = false;
-    });
+    // Focus first (no char-input--default class yet, so clearIfDefault is a no-op),
+    // then apply the defaults.
+    try { _inputFirstName.focus(); } catch (_) {}
+    _inputFirstName.value = DEFAULT_FIRST;
+    _inputLastName.value  = DEFAULT_LAST;
+    _counterFirst.textContent = String(NAME_MAX - DEFAULT_FIRST.length);
+    _counterLast.textContent  = String(NAME_MAX - DEFAULT_LAST.length);
+    _inputFirstName.classList.add('char-input--default');
+    _inputLastName.classList.add('char-input--default');
+    _charBeginBtn.disabled = false;
   });
 
   return new Promise(resolve => { (_charOverlay as any)._resolve = resolve; });
