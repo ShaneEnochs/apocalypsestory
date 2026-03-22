@@ -38,7 +38,7 @@
 
 *skill last_bastion [Legendary] "Last Bastion" 0
   [legendary]Legendary[/legendary]
-  When the horde pressed in and retreat meant death for those behind you, you held the line. Bastions have served the same purpose for thousands of years: they are the places where the desperate make their stand, where supplies outlast siege engines, where time becomes a weapon. This skill is the answer to that ancient need.
+  Bastions have served the same purpose for thousands of years: they are the places where the desperate make their stand, where supplies outlast siege engines, where time itself becomes a weapon. This skill is the answer to that ancient need. After countless battles where hordes of monsters have pressed in and retreat meant death for those behind you, you have proven yourself willing and capable of holding the line and have been awarded this skill. 
   Description: Creates an underground bunker at the safest location within 2 kilometers, chosen by the [System]. The entrance is a 5-meter stairwell lined with wards and runes to damage intruders. Below it, an enchanted tunnel ends at a reinforced blast door. The chamber beyond provides 10 square meters per person, stocked with food, water, recycled air, and medical supplies for six months.
   Capacity: 10 per skill level. Only those you designate at the time of casting may enter and exit freely.
   The bunker draws from a separate and dedicated mana reserve that charges at the speed of your mana regeneration, but only when your personal mana pool is full. Allies may contribute their mana directly to the reserve, and mana stones may be used to add up to 1,000,000 mana per year.
