@@ -1804,7 +1804,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 .char-box {
   max-width: 460px;
-  padding: 40px 36px 36px;
+  padding: 28px 36px 28px;
   text-align: left;
   /* 9C — subtle digital grid background */
   background-image:
@@ -1826,19 +1826,18 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 }
 
 .char-box > :nth-child(1) { animation-delay:   0ms; }
-.char-box > :nth-child(2) { animation-delay: 120ms; }
-.char-box > :nth-child(3) { animation-delay: 240ms; }
-.char-box > :nth-child(4) { animation-delay: 360ms; }
-.char-box > :nth-child(5) { animation-delay: 480ms; }
-.char-box > :nth-child(6) { animation-delay: 560ms; }
-.char-box > :nth-child(7) { animation-delay: 640ms; }
+.char-box > :nth-child(2) { animation-delay: 100ms; }
+.char-box > :nth-child(3) { animation-delay: 200ms; }
+.char-box > :nth-child(4) { animation-delay: 300ms; }
+.char-box > :nth-child(5) { animation-delay: 400ms; }
+.char-box > :nth-child(6) { animation-delay: 480ms; }
 
 /* 9A — character portrait / HUD silhouette frame */
 .char-portrait-frame {
   position: relative;
-  width: 160px;
-  height: 192px;
-  margin: 0 auto 20px;
+  width: 120px;
+  height: 144px;
+  margin: 0 auto 12px;
   overflow: hidden;
   border: 1px solid rgba(0, 212, 245, 0.2);
   background: #000c10;
@@ -1860,7 +1859,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
 
 .char-header      { margin-bottom: 28px; text-align: center; }
 .char-header .system-block-label { display: inline-block; font-size: var(--text-sm); letter-spacing: 0.22em; color: var(--cyan-dim); opacity: 1; margin-bottom: 0; }
-.char-field-group { margin-bottom: 20px; }
+.char-field-group { margin-bottom: 12px; }
 
 .char-label {
   display: block;
@@ -1869,7 +1868,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
   color: var(--text-faint);
-  margin-bottom: 7px;
+  margin-bottom: 5px;
 }
 
 .char-input-wrap { position: relative; display: flex; align-items: center; }
@@ -1905,7 +1904,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   letter-spacing: var(--ls-tight);
-  padding: 12px 8px;
+  padding: 8px 6px;
   cursor: pointer;
   text-align: center;
   transition: all var(--transition-fast);
@@ -1927,7 +1926,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   letter-spacing: var(--ls-tight);
-  padding: 12px 8px;
+  padding: 8px 6px;
   cursor: pointer;
   text-align: center;
   transition: all var(--transition-fast);
@@ -1946,7 +1945,7 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   letter-spacing: var(--ls-tight);
 }
 
-.char-begin-btn          { width: 100%; margin-top: 8px; letter-spacing: var(--ls-wide); }
+.char-begin-btn          { width: 100%; margin-top: 4px; letter-spacing: var(--ls-wide); }
 .char-begin-btn:disabled { background: var(--border-dim); color: var(--text-faint); cursor: not-allowed; box-shadow: none; }
 
 
