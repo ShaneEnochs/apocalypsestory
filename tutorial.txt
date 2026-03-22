@@ -81,7 +81,10 @@ When a stat changes during the story, you'll see it flash briefly in the panel s
 
 *choice
   #What are Body, Mind, and Spirit?
-    [cyan]Body[/cyan] represents your physical capability: strength, endurance, and resilience. [cyan]Mind[/cyan] covers intellect, perception, and tactical thinking. [cyan]Spirit[/cyan] governs your connection to mana, willpower, and the deeper magical forces of the System. These three attributes define the shape of your character's power.
+    [cyan]Body[/cyan] represents your physical capability: strength, endurance, and resilience. 
+    [cyan]Mind[/cyan] covers intellect, perception, and tactical thinking. 
+    [cyan]Spirit[/cyan] governs your connection to mana, willpower, and the deeper magical forces of the System. 
+    These three attributes define the shape of your character's power.
     *goto tutorial_skills
   #Got it. Keep going.
     *goto tutorial_skills
