@@ -6,26 +6,26 @@
 
 *temp checked_matt false
 
-You don't remember falling asleep, which means your body simply made the decision without consulting you. You guess that somewhere around hour seventy it had apparently convened an internal committee, reached a unanimous verdict, and that was that. The cot beneath you is pre-[System] military surplus, made completely of just canvas and aluminum tubing, and obviously designed by someone who believed that comfort was a form of weakness and had very strong opinions about it.
+You don't remember falling asleep, which means your body simply made the decision without consulting you. You suppose that somewhere around hour seventy it had convened an internal committee, reached a unanimous verdict, and that was that. The cot beneath you is pre-[System] military surplus, made of nothing but canvas and aluminum tubing, and obviously designed by someone who believed comfort was a form of weakness and intended to prove it.
 
-You lie still and run a quiet internal check. Your mana is regenerating from having to recharge the monster detection system you have set up outside. Your body is operational? Sure, we'll go with that. As for your mind, it's present. The grief is exactly where you left it, locked in the specific interior room you've been reinforcing for eight years, and the door is holding strong. Thankfully, you've become, through extensive and largely involuntary practice, very good at this particular maintenance task.
+You lie still and run a quiet internal check. Your mana is still regenerating from recharging the monster detection system set up outside. Your body is operational? Sure, we'll go with that. As for your mind, it's present. The grief is exactly where you left it, locked away in a deep, dark room you've been reinforcing for eight years, and the door is holding strong. Thankfully, through extensive and largely involuntary practice, you've gotten quite skilled at this specific form of maintenance.
 
-You listen to Callie's machine hum to your left, her tools clinking against the magic metal it's composed of. You take one more breath of the stale, but safe, recycled air.
+You listen to Callie's machine hum to your left, her tools clinking against whatever magic metal it's made of. You take a deep breath of the stale but safe recycled air.
 
 *page_break Get up.
 
-The gear rack, full of salvaged armor and weapons, was your contribution to the sanctuary's infrastructure, assembling it during the first week when you needed something to do other than think about how royally screwed the three of you are. It is, if you're being honest, the finest piece of non-magical construction in the room, which is either a point of pride or a fairly damning commentary on where a lot of your skill points went.
+The gear rack, full of salvaged armor and weapons, was your contribution to the sanctuary's decor — assembled during the first week when you needed something to do other than think about how royally screwed the three of you were. It is, if you're being honest, the finest piece of non-magical construction in the room, which is either a point of pride or a fairly damning commentary on where a lot of your skill points went.
 
-You begin checking the clasps and tensions anyway, running through the routine you've been completing every morning for years because rituals are load-bearing, and you've learned not to dismantle the ones that work. Most of the armor is dulled or broken in a way that no amount of maintenance could ever fully correct, though it's still better than the best pre-[System] armor ever devised. It's kind of embarrassing in a way, considering your final [Class] evolution is called [legendary]Shield of Humanity[/legendary]. And though you do have a skill that allows you to fix small damage in your weapons and armor, you're no blacksmith.
+You begin checking the clasps and tensions anyway, running through the routine you've performed every morning for years, because rituals are load-bearing, and you've learned not to dismantle the ones that work. Most of the armor is dulled or broken in a way that no amount of maintenance could ever fully correct, though it's still better than the best pre-[System] armor ever devised, which is a little embarrassing for someone whose final [Class] evolution is called [legendary]Shield of Humanity[/legendary]. And though you do have a skill that lets you mend minor damage to your weapons and armor, you're no blacksmith.
 
 The weapons here are in better shape, though.
 
 *choice
   #Check the consumables.
-    You check the consumables. Two greater healing potions, three mana points, one ward scroll, a collection of charged mana grenades that are, at your current level, roughly as tactically relevant as a strongly-worded letter, but you've kept them the same way you've kept other things that stopped being useful because they held memories instead. The final tally is honest, though not at all comforting. You've found those two qualities very rarely travel together.
+    You check the consumables. Two greater healing potions, three mana potions, one ward scroll, a collection of charged mana grenades that are, at your current level, roughly as tactically relevant as a strongly-worded letter, but you've kept them the same way you've kept other things that stopped being useful because they held memories instead. The final tally is honest, though not at all comforting. You've found those two qualities very rarely travel together.
     *goto gear_done
   #Check the weapons.
-    You check the weapons. There's a chip in one of the blades you've been meaning to address for three days. You find the whetstone and work on it with more focus than the job probably strictly requires, because you've learned that the mind will think about whatever you point it at, and it is considerably better to point it at a small imperfection in a blade than at the mile of solid rock above your head and your world being completely overrun with monsters. The chip is minor, but the distraction is the point. You are absolutely self-aware enough to know this and do it anyway, which you've helpfully decided counts as a coping strategy rather than a character flaw. There are no therapists left to tell you any different.
+    You check the weapons. There's a chip in one of the blades you've been meaning to address for three days. You find the whetstone and work on it with more focus than the job probably strictly requires, because you've learned that the mind will think about whatever you point it at, and it is considerably better to point it at a small imperfection in a blade than at the mile of solid rock above your head or the fact that the world is completely overrun with monsters. The chip is minor, but the distraction is the point. You are absolutely self-aware enough to know this and do it anyway, which you've helpfully decided counts as a coping strategy rather than a character flaw. There are no therapists left to tell you any different.
     *goto gear_done
   #Everything's in order.
     Well, everything's in order, which is frankly a little on the nose, considering. Three people at the approximate ceiling of [System] enhanced capability, sitting in a magically conjured room at the end of the world, waiting for a time machine to finish charging. All the gear checks out. There's nothing to fix. The only remaining problem is one you can't solve with a whetstone, which is either deeply ironic or just another Tuesday, and after eight years, you've stopped really distinguishing between the two because it just doesn't matter anymore.
@@ -33,7 +33,7 @@ The weapons here are in better shape, though.
 
 *label gear_done
 
-Matt is awake, of course. He's sitting on the edge of his own cot, elbows on his knees, turning something small between his fingers. A coin, you realize. The old world kind, predating everything that matters now and is worth precisely nothing to anyone alive. It's not one that you're familiar with though.
+Matt is awake, of course. He's sitting on the edge of his own cot, elbows on his knees, turning something small between his fingers. A coin, you realize. The old world kind, predating everything that matters now, worth precisely nothing to anyone alive. It's not one you recognize, though.
 
 Matt looks up, realizing you're watching him, and holds it up for you to see.
 
@@ -64,15 +64,15 @@ He's quiet for a moment, then closes his fingers around the coin and tucks it in
 *label sit_matt
 You sit down beside him. The cots are close enough that you don't have to move much to be next to each other, and Matt doesn't even look at you when you do. He shifts just enough that you're not sitting on top of each other.
 
-You have noticed this before about Matt. He understands the difference between a silence that needs filled and a silence that wants to be left alone, and he's never once gotten them confused. You appreciate that about him. You know Callie told him things about you, early on when he first joined the two of you, and you suspect that's part of it. The rest is just him, you think.
+You've noticed this before about Matt. He understands the difference between a silence that needs filling and a silence that wants to be left alone, and he's never once gotten them confused. You appreciate that about him. You know Callie told him things about you, early on when he first joined the two of you, and you suspect that's part of it. The rest is just him, you think.
 *set checked_matt true
 *goto matt_moment
 
 *label matt_moment
 
-The two of you simply sit with the quiet for a few minutes, which the three of you have learned is often a very finite resource since the [System] arrived and treat it accordingly. The glowing runes for the wards beyond the blast doors are cycling their slow, golden rhythm, which means the outer wards are holding fine and nothing has found the entrance yet. You are carefully and deliberately not trying to guess how long that's likely to remain true.
+The two of you sit with the quiet for a few minutes — something the three of you have learned is a finite resource since the [System] arrived and treat accordingly. The glowing runes beyond the blast doors are pulsing their slow, golden rhythm, which means the outer wards are holding and nothing has found the entrance yet. You are deliberately not trying to guess how long that's likely to remain true.
 
-"She let me bring her food around hour twenty," Matt says, nodding toward Callie. "She didn't even look up. Just held out her hand." He paused. "I don't even know if she actually ate it." He looks at you, as if to see if you have any insight into this, but you don't. You just know that it's exactly the kind of thing Callie would do, and that Matt is exactly the kind of person who would find it worth mentioning.
+"She let me bring her food around hour twenty," Matt says, nodding toward Callie. "She didn't even look up. Just held out her hand." He pauses. "I don't even know if she actually ate it." He looks at you, as if to see if you have any insight into this, but you don't. You just know it's precisely the kind of thing Callie would do, and that Matt is exactly the kind of person who would find it worth mentioning.
 
 *choice
   #"That tracks."
@@ -87,7 +87,7 @@ The two of you simply sit with the quiet for a few minutes, which the three of y
 
 Matt almost smiles. "Callie said you used to have to remind her to eat during finals too."
 
-You feel something begin welling up in your chest, but you push it back into the box where it belongs. "Yeah, she's always had her priorties, and taking care of herself has always ranked pretty low on that list unfortunately."
+You feel something begin welling up in your chest, but you push it back into the box where it belongs. "Yeah, she's always had her priorities, and taking care of herself has always ranked pretty low on that list, unfortunately."
 *goto matt_end
 
 *label make_sure
@@ -114,9 +114,9 @@ You smile. "Fair enough," you say. "I guess I'll go check on her *machine* inste
 
 You get up and cross the room.
 
-The machine takes up most of the back wall, and it still does something weird to your chest and head every time you look at it. It's a particular variety of vertigo, but not the kind that comes from heights or spinning or falling. It's from looking at something that shouldn't exist, something that is so far beyond the limits of what the world should be capable of that your brain just doesn't know how to process it. Once upon a time, you'd have thought that it's what it must be like to look upon an eldritch horror, but having done that many times now, you know that it's not quite right.
+The machine takes up most of the back wall, and it still does something strange to your head every time you look at it. It's a particular variety of vertigo, but not the kind that comes from heights or spinning or falling. It's from looking at something that shouldn't exist, something so far beyond what the world should be capable of that your brain simply doesn't know how to process it. Once upon a time, you'd have thought this was what it must feel like to look upon an eldritch horror, but having done that many times now, you know the comparison doesn't hold.
 
-Copper conduits spiral around an ironite-obsidian central housing. Dungeon cores from Tier 8 and 9 space-time instances are slotted into a lattice of [System]-generated materials the three of you had gathered for years, unable to imagine this is what they'd eventually be used for. It's every high-tier drop the three of you had managed to hoard, stripped down and reassembled into something that the [System] didn't even have a category for, and that by itself was quite a feat.
+Copper conduits spiral around an ironite-obsidian central housing. Dungeon cores from Tier 8 and 9 space-time instances are slotted into a lattice of [System]-generated materials the three of you had gathered for years, unable to imagine what they'd eventually be used for. It's every high-tier drop the three of you had managed to hoard, stripped down and reassembled into something the [System] didn't even have a category for, which by itself was no small thing.
 
 Behind a viewport of reinforced magesteel glass, at the center of all of it, a single point of light spins.
 
@@ -124,15 +124,15 @@ A singularity.
 
 *page_break "Hey, Callie."
 
-"Hey Callie," you say.
+"Hey, Callie," you say.
 
 Callie doesn't look up, and you instantly recognize the expression she gets when she's very close to the edge of something great. She's focused to the point where the rest of the world, and even her own health, has been downgraded to background noise, filed under *deal with it later,* and left on read.
 
-The dark rings under her eyes have deepend and evolved from exhaustion to something that looks more like a medical condition. Her hair is held back with a piece of wire, which you're pretty certain is one of the wires from your ward scrolls that she asked to borrow four days ago for *just a second.*
+The dark rings under her eyes have deepened from exhaustion into something that looks more like a medical condition. Her hair is held back with a piece of wire, which you're pretty certain is one of the wires from your ward scrolls that she asked to borrow four days ago for *just a second.*
 
-You have known Callie Owens since your second year of college, which means you knew her before the [System], before the descent, before the long catastrophic sequence of events that transformed the two of you from people who argued about where the best place near campus to eat was into people who have watched the world end together and are now, improbably, preparing to actually do something about it.
+You have known Callie Owens since your second year of college, which means you knew her before the [System], before the descent, before the long catastrophic sequence of events that transformed the two of you from people who argued about where the best place near campus to eat was into people who watched the world end together, and are now, improbably, preparing to do something about it.
 
-You knew her when she was *just* the most frighteningly capable person you'd ever met. Now the [System] has given her a Tier rating and a Legendary [Class] as a confirmation. But you already knew.
+You knew her when she was *just* the most frighteningly capable person you'd ever met. Now the [System] has given her a Tier rating and a Legendary [Class] to confirm it. But you already knew.
 
 *choice
   #Don't say anything. Just stand close enough that she knows you're there.
@@ -146,13 +146,13 @@ You knew her when she was *just* the most frighteningly capable person you'd eve
 
 *label callie_status
 
-She makes her HUD visible to you, and a blue screen appears in the air between you, displaying a series of readouts and graphs that you don't understand but you have to admit look very impressive. You have no doubt that they are accurate, and that they are the result of Callie's genius, but most of it might as well be hieroglyphics to you.
+She makes her HUD visible to you, and a blue screen appears in the air between you, displaying a series of readouts and graphs you don't understand but have to admit look very impressive. You have no doubt they're accurate and that they are the result of Callie's genius, but most of it might as well be hieroglyphics to you.
 
 Well, that's not true. Thanks to a [Skill] you picked up in the early days, you can understand most written and spoken languages, including Egyptian hieroglyphics.
 
 "What am I looking at?"
 
-Callie squinted, and the data arranged itself into a much simplier format.
+Callie squints at the display, and the data arranges itself into a much simpler format.
 
 *system
 MACHINE STATUS: 67% charge.
@@ -176,15 +176,15 @@ Estimated stabilization: 2 hours, 10 minutes.
 
 Two hours and ten minutes.
 
-You let yourself hold that number for a moment without immediately stress-testing it, which is actually harder than it sounds. You've had eight years of learning that good news generally came with lots and lots of fine print.
+You let yourself hold that number for a moment without immediately stress-testing it, which is actually harder than it sounds. Eight years had taught you that good news generally came with a great deal of fine print.
 
-For instance, four months ago, the portal mages had sealed the last entrance to the surface. There were no gates or tunnels; just a mile of solid rock between the city of Solace and the horrors above. It was the last coalition of surving nations, built in the earth's hollow because there was nowhere else to go but down. Legions of geomancers sheared the rock asunder, architecture mages laid the streets and buildings, and the most powerful illusionists created a false sky on the ceiling so the survivors could look up at something other than stone in dispair.
+Four months ago, the portal mages had sealed the last entrance to the surface. There were no gates or tunnels; just a mile of solid rock between the city of Solace and the horrors above. Solace was the last coalition of surviving nations, built into the earth's hollow because there was nowhere else to go but down. Legions of geomancers carved through the rock, artificer mages laid the streets and buildings, and the most powerful illusionists created a false sky on the ceiling so the survivors could look up at something other than stone in despair.
 
-Everyone dispaired, regardless. How could they not?
+Everyone despaired, regardless. How could they not?
 
 *page_break But it mostly worked, for all of four months.
 
-For four months, as far as anyone knows, there has not been a single living human being on the surface. The monsters had done what monsters do when left entirely to their own devices: autonomously summoned more of their kind, fought and consumed each other to become more powerful and stranger, and evolved in directions that no one could have anticipated. They got smarter, and they eventually began looking for wherever humanity had tried to hide.
+For four months, as far as anyone knows, there has not been a single living human being on the surface. The monsters had done what monsters do when left entirely to their own devices: autonomously summoned more of their kind, fought and consumed each other to grow more powerful and stranger, and evolved in directions no one could have anticipated. They got smarter, and they eventually began looking for wherever humanity had tried to hide.
 
 It didn't take long for them to start looking down.
 
@@ -221,125 +221,781 @@ You go very still.
 
 "They actually did it," Matt says quietly, reading the same notification in his HUD. "Tier-10."
 
-The strongest World Boss you personally know to have existed and faced was a Tier-8. It had taken the combined efforts of every survivor in Solace, over two million of the strongest human beings left on the entire planet, nearly six hours to fully bring it low.
+The strongest World Boss you had personally ever faced was a Tier-8. It had taken the combined efforts of every survivor in Solace, over two million of the strongest human beings left on the entire planet, nearly six hours to bring it down.
 
-The most insidious power that World Bosses had, besides their overwhelming strength and impossible durability, was their ability to summon lower-tier Commanders, who in turn could summon legions of monsters under their control. The battle was a nightmare that you try not to think about, resulting in the loss of nearly every inhabitant and the destruction of the majority of the city itself.
+The most insidious power that World Bosses had, besides their overwhelming strength and impossible durability, was their ability to summon lower-tier Commanders, who in turn could summon legions of monsters under their control. The battle was a nightmare you tried not to think about, resulting in the loss of nearly every inhabitant and the destruction of most of the city itself.
 
 The three people in this room were the only survivors out of two million.
 
-The difference in power between a Tier-8 and a Tier-10 is... well, it's hard to even comprehend. If a Tier-8 had nearly walked through the strongest that the human species had to offer, what would a Tier-10, the absolute pinnacle of monster evolution, be capable of?
+The difference in power between a Tier-8 and a Tier-10 is... well, it's hard to even comprehend. If a Tier-8 had nearly broken through everything the human species had to offer, what would a Tier-10, the absolute pinnacle of monster evolution, be capable of?
 
 *choice
-  #Check the outer ward monitors one more time.
-    You move to the seismic station and pull up the outer ward readings. The green bars showing ward integrity hold steady at 99%. The outer defenders are doing their job. They've been doing it for four months, and there's no sign of that changing today. You let yourself feel, for just a moment, grateful for their work. For the time they've bought.
-    *goto callie_next
+  #Check the ward status.
+    *set trust_instinct +1
+    *goto check_wards
+  #Check the bastion mana reserve.
+    *set trust_instinct -1
+    *goto check_mana
+  #Look at Matt first.
+    *set trust_instinct +1
+    *set grief_carried +1
+    *goto look_at_matt_first
+
+*label check_wards
+You move to the ward monitor and pull up the readings. Outer ward integrity at 99%. The arcane trigger traps are armed and waiting in the entrance corridor, exactly where you set them. Whatever is coming hasn't arrived yet.
+
+You run the numbers automatically, the way you've been running numbers for eight years. Detection radius puts it at maybe eighteen minutes out. Probably less, given what a Tier-10 is capable of.
+
+Matt appears at your shoulder. He's read the same notification, done the same math. "It won't come alone," he says. Quietly, without dramatics, the way he says most things.
+
+"No," you agree. "It won't."
+*goto matt_assessment
+
+*label check_mana
+You move to the bastion reserve panel. 847,000 mana in the dedicated reserve. Wards drawing at standard rate. Arcane trigger traps armed.
+
+You do the math. At standard draw, the reserve holds for roughly four hours. At elevated draw — the kind that comes when something large and deliberate is pressing against the wards rather than simply triggering them — that number drops considerably. You don't know yet how much. You will soon.
+
+Matt appears beside you. He's already seen the numbers. "It won't come alone," he says.
+
+"No," you agree. "It won't."
+*goto matt_assessment
+
+*label look_at_matt_first
+You look at Matt.
+
+He's already looking at you. He has the coin in his hand — you notice he closed his fingers around it at some point without thinking about it, the way people reach for familiar things when something unfamiliar arrives. He meets your eyes and holds them for a moment. Then he nods, once. The nod he gives before hard things. The one that means: I know. The one that means: I'm still here.
+
+You nod back.
+
+"It won't come alone," he says.
+
+"No," you agree. "It won't."
+*goto matt_assessment
+
+*comment ── Section 2: Matt Assessment / Callie Directive
+
+*label matt_assessment
+
+You both turn to Callie. She hasn't looked up. Her hands haven't stopped moving. But something in the set of her shoulders tells you she read the notification the same moment you did and has already filed it under problems the machine needs to solve faster.
+
+"Callie," you say.
+
+"I know," she says. "I'm working."
+
+"How long?"
+
+"Same as before. Maybe less, if I push the calibration sequence." Her hands move through something precise and practiced. "Don't let anything touch my machine."
+
+It's not a request.
+
+"We won't," Matt says, with complete sincerity.
+
+You turn back to the monitor. The trigger traps are designed to fire on contact and chain through the entrance corridor — the first wave will hit them before it reaches the wards at all. But the wards will take whatever comes after, and the wards run on the reserve, and the reserve has limits.
+
+Eighteen minutes, give or take. You've survived worse. You tell yourself this, and it is technically true, and it doesn't help at all.
+
+*page_break Eighteen minutes.
+
+*comment ── Section 3: Siege Begins
+
+*label siege_begins
+
+It takes fourteen.
+
+The first wave hits the trigger traps before the ward monitor even registers the contact — a cascade of arcane detonations lighting up the entrance corridor one after another, chain-triggering down the line exactly the way you designed them to. You watch the trap integrity readout cycle through activation after activation in under a minute.
+
+Then the wards take the weight, and the reserve begins to drop.
+
+Not fast. Not yet. But with a new and deliberate steadiness that wasn't there before.
+
+"Draw rate's up," Matt says from the monitor.
+
+"How much?"
+
+He's quiet for a moment. "Triple baseline."
+
+You look at the reserve. 847,000 mana, dropping at triple the standard rate. You do the math, then do it again, because the first answer isn't one you want to keep.
+
+"Ninety minutes," you say. "Maybe less if the draw increases."
+
+"The draw will increase," Matt says.
+
+"Yeah."
+
+The machine needs two more hours.
+
+*choice
+  #Go to the conversion panel.
+    *goto conversion_panel
+  #"Matt. Offensive positions."
+    *set trust_instinct -1
+    Matt is already moving before you finish saying it. He takes the left side of the monitor bank, where the blast door readings are clearest, and settles into the particular stillness that comes over him before a fight. His hand rests near his blade without touching it.
+
+    "If the door holds," he says, "we don't need to fight anything."
+
+    "And if it doesn't?"
+
+    He almost smiles. "Then we fight."
+
+    You turn to the conversion panel. There's more than one way to buy time.
+    *goto conversion_panel
+  #Check the trap readouts first.
+    You pull up the trap readout. Forty-three of the sixty outer traps have already fired. Seventeen remain armed in the inner corridor, closer to the blast door. The outer corridor is spent, but it did its job — the wards took the weight after the traps softened it, and the draw rate, while bad, could be worse.
+
+    "Traps bought us maybe fifteen minutes on the reserve," you say.
+
+    Matt nods. You move to the conversion panel.
+    *goto conversion_panel
+
+*comment ── Section 4: Mana Conversion Round One
+
+*label conversion_panel
+
+The Last Bastion had built this sanctuary from mana — which meant everything in it, at the most fundamental level, was mana in a different shape. The conversion panel existed for this reason. Feed materials back into the reserve. Buy more time.
+
+You look at what you have.
+
+The gear rack: 4,200 mana. The consumables: 1,800 mana. Personal effects: 847 mana, field currently locked. Structural supports: 12,000 mana, locked separately at the bottom of the panel, which you haven't touched and aren't touching yet.
+
+You start with what's available.
+
+*choice
+  #Convert the gear rack first.
+    *set carries_dead -1
+    The gear rack is the largest yield by a wide margin. 4,200 mana in salvaged armor and weapons, none of it irreplaceable, all of it worth less right now than the time you're buying with it.
+
+    You initiate the conversion. The rack dissolves piece by piece — the dulled pauldrons you've been meaning to replace for two years, the blades that were in better shape than everything else, the whetstone. You watch the reserve climb and keep your eyes on the numbers.
+    *goto conversion_done
+  #Convert the consumables first.
+    *set carries_dead +1
+    The consumables will yield less — 1,800 mana for the healing potions, the mana potions, the ward scroll. You initiate the conversion and watch the numbers climb.
+
+    Then you look at the mana grenades.
+
+    They're tactically irrelevant. Have been for years. You've kept them the same way you've kept other things that stopped being useful because they held memories instead. You stand there for a moment longer than the decision strictly requires, and then you convert them, and you don't let yourself think too carefully about why that felt like a different kind of thing.
+    *goto conversion_done
+  #Convert both at once.
+    *set carries_dead -1
+    Six thousand mana, give or take. You initiate both conversions at once, because the math is the math and there's no version of this where sentiment changes the numbers.
+
+    The rack goes first — armor, blades, whetstone — and the consumables follow. The mana grenades last. You watch the reserve climb and keep your eyes on the numbers.
+    *goto conversion_done
+
+*label conversion_done
+
+The draw rate hasn't changed. You run the new math and arrive at a number that is better than before and still not good enough.
+
+Matt glances at the panel, reading the updated figures. He doesn't say anything. He understands the math as well as you do.
+
+*goto conversion_middle
+
+*comment ── Section 5: Siege Middle / Callie Update
+
+*label conversion_middle
+
+The ward monitor pulses. A second wave, heavier than the first. The draw rate spikes, holds for a moment, then settles at something worse than before.
+
+You recalculate. Still short. The gap between what you have and what you need hasn't closed enough.
+
+"Callie," you call.
+
+"Seventy-eight percent," she says, before you can ask. Not looking up. Just reporting, the way she always does, like the question is a distraction from the answer she's already working toward.
+
+*choice
+  #"It's relevant to me."
+    *set grief_carried +1
+    "It's relevant to me," you say.
+
+    A pause. Just a fraction of a second. Then her hands resume. "Twenty minutes," she says. "Maybe eighteen."
+
+    You nod. You file the number away. You look back at the monitor.
+    *goto personal_effects
+  #"Keep going."
+    *set trust_instinct +1
+    "Keep going," you say.
+
+    She doesn't respond. She's already going. You look back at the monitor.
+    *goto personal_effects
+  #Cross to her for a moment.
+    *set grief_carried +1
+    *set trust_instinct -1
+    You cross the room to her. You don't say anything — you just stand close enough that she knows you're there, the same way you did this morning, and you watch her hands move through something you don't understand but trust completely.
+
+    After a moment, that small shift happens in her shoulders. The one that means she registered you and it helped.
+
+    You go back to the monitor.
+    *goto personal_effects
+
+*comment ── Section 6: Personal Effects
+
+*label personal_effects
+
+The conversion panel has one field left before the structural supports. Personal effects. 847 mana — the lowest yield on the panel by a significant margin, and the only field none of you had ever touched, because there was always enough mana, and because some weights are easier to carry than to set down.
+
+You initiate the conversion without deliberating over it. The panel doesn't ask you to confirm.
+
+You think, briefly and without meaning to, that in two hours you will lose even this. Not just these objects but every physical remnant of eight years — every tangible proof that any of it happened, that any of them were real. You will arrive with empty hands and a body that doesn't know what it's carried, and the only things coming with you will be what you remember.
+
+You let the thought move through you. You lock the door behind it.
+
+The reserve climbs by 847 mana. You look back at the monitor.
+
+*goto siege_continues
+
+*comment ── Section 7: Siege Continues / Matt Reads the Math
+
+*label siege_continues
+
+Ward integrity at 44%. The draw rate is still climbing.
+
+You run the numbers one more time and arrive at the same answer you've been arriving at for the last twenty minutes, the one you keep recalculating in the hope that it changes. It doesn't change. The reserve will not last two hours at current draw. It will not last two hours at any rate of conversion you have left, short of one.
+
+You look at the structural supports field at the bottom of the panel. 12,000 mana, locked. You look at it for a moment and then you look away, because converting the structural supports doesn't solve the problem — it accelerates the ward failure, trades the bunker's integrity for mana you'd burn through in twenty minutes regardless. The math doesn't work. You've checked.
+
+Matt has been watching the monitor from across the room. At some point he's taken out the coin again, turning it over in his fingers. After a moment he pockets it and straightens up.
+
+"Draw rate is still climbing," he says.
+
+"I know."
+
+He's quiet for a moment. "The reserve math—"
+
+"I know," you say.
+
+He nods. He doesn't push it. He crosses to the blast door and stands there, looking at the rune display cycling its slow gold rhythm. Then he turns to you.
+
+"Walk with me for a minute?"
+
+*choice
+  #Walk with him.
+    *set went_to_door true
+    *goto walk_with_matt
+  #"What is it?"
+    *set grief_carried -1
+    *set went_to_door true
+    "What is it?" you ask.
+
+    He looks at you steadily. "Just walk with me."
+
+    You go.
+    *goto walk_with_matt
+  #You already know. Walk with him anyway.
+    *set grief_carried +1
+    *set went_to_door true
+    You already know what he's going to say. You've known for the last twenty minutes, since the draw rate climbed past the point where the numbers worked out. You walk with him anyway.
+    *goto walk_with_matt
+
+*comment ── Section 8: The Blast Door
+
+*label walk_with_matt
+
+He passes Callie's workstation without stopping. You watch him not stop, and you understand what that costs him — the deliberate not-stopping, the choice to not make her carry one more thing right now — and you don't say anything about it.
+
+You follow him to the blast door. The runes pulse their slow gold on the other side of the reinforced viewport. Beyond them, past a mile of solid rock, Malphas is dismantling what's left of the world one ward at a time.
+
+Matt looks at the door for a long moment. Then he turns to face you.
+
+"The structural supports," he says.
+
+"I know."
+
+"Converting them accelerates the collapse. We'd be trading the bunker's structure for mana we'd burn through in twenty minutes." He pauses. "And even then."
+
+"Even then," you agree.
+
+The draw rate is still climbing. The reserve will not last. You both know what the numbers say, and you both know there is only one thing left that changes them.
+
+"Someone needs to go up," he says.
+
+The words land the way you knew they would.
+
+"The three of us go together," you say. "That's the plan."
+
+"That was the plan," he says, quietly. "The plan assumed the wards would hold." He doesn't look away from you. "I can hold the line above long enough for the machine to finish. My class at full expression, against a siege running on attrition — I can do it. You know I can."
+
+You look at him for a long moment.
+
+*choice
+  #"Don't do this."
+    *set said_dont true
+    *set grief_carried +1
+    *goto matt_dont
+  #"I can come with you."
+    *goto matt_come_with_offer
+  #"Your class says the champion always falls."
+    *set grief_carried +1
+    *goto matt_class_acknowledgment
+  #Say nothing.
+    *set grief_carried +1
+    *goto matt_silence_response
+
+*label matt_dont
+
+"Don't do this," you say.
+
+He's quiet for a moment. Then: "I know."
+
+He says it simply, without apology or argument. Like an acknowledgment rather than a dismissal. Like he understands exactly what you mean and it changes nothing and he is genuinely sorry for that in a way that also changes nothing.
+
+You stand together at the blast door, and the runes pulse their slow gold, and neither of you says anything else for a little while.
+*goto matt_coin_scene
+
+*label matt_come_with_offer
+
+"I can come with you," you say.
+
+He shakes his head. "Callie can't leave the machine. Someone has to stay at the conversion panel in case the draw spikes again." He says it without heat, just logistics, just the facts of the situation laid out plainly. "If both of us go, there's no one here. The reserve drains before she hits a hundred percent."
+
+"There has to be another way."
+
+"If there was," he says, "we'd have found it by now." He holds your gaze. "You know that."
+
+*choice
+  #"She needs us both."
+    "She needs us both," you say.
+
+    "She needs the machine to finish," he says. "Same as always, she's already three steps past whatever we're arguing about right now." The corner of his mouth moves, almost. "You know I'm right."
+
+    You do. You hate that you do.
+    *goto matt_coin_scene
+  #Accept it.
+    *set trust_instinct +1
+    You look at him for a long moment.
+
+    Then you nod. Once. The same nod he gave you when the warning fired, the one that means: I know. The one that means: I'm still here.
+
+    He nods back.
+    *goto matt_coin_scene
+  #"I'm not asking."
+    *goto matt_push_through_warning
+
+*label matt_class_acknowledgment
+
+"Your class says the champion always falls," you say.
+
+He considers this with the same quiet seriousness he brings to everything. "Yeah," he says finally. "It does." He looks at the door. "I've known that for a while. I think maybe that's why it chose me and not someone else."
+
+He says it without self-pity. Somehow that makes it worse.
+*goto matt_coin_scene
+
+*label matt_silence_response
+
+You don't say anything.
+
+There isn't anything to say that would change the numbers, or move the draw rate, or buy two hours from a situation that has stopped offering them. You've learned, across eight years, that some silences aren't a failure of language. They're just the shape of the thing, and the most honest response to it.
+
+Matt seems to understand. He usually does.
+*goto matt_coin_scene
+
+*comment ── Section 9: The Coin
+
+*label matt_coin_scene
+
+He reaches into his pocket and holds out the coin.
+
+The old world thing. Worth nothing to anyone alive. Kept anyway.
+
+"Take it," he says. "Or don't. Either way."
+
+*choice
+  #Take it.
+    *set coin_kept true
+    *set carries_dead +1
+    You take it. It's warm from his pocket, which is such a small and ordinary detail that it almost undoes you.
+
+    "Sentimental value only," you say.
+
+    He almost smiles. "Yeah."
+    *goto matt_final_moment
+  #"Keep it. Take something with you."
+    *set coin_kept false
+    *set carries_dead -1
+    "Keep it," you say. "Take something with you."
+
+    He looks at the coin for a moment. Then he closes his fingers around it and tucks it back into his pocket.
+
+    "Okay," he says.
+    *goto matt_final_moment
+  #Close your hand around his before taking it.
+    *set coin_kept true
+    *set carries_dead +1
+    *set grief_carried +1
+    You close your hand around his first, coin and all, and hold it there for a moment. Then you take it.
+
+    He doesn't say anything. Neither do you. Some things don't need language to be said.
+    *goto matt_final_moment
+
+*comment ── Section 10: Matt Goes Through
+
+*label matt_final_moment
+
+He turns toward the door.
+
+*choice
+  #"Matt."
+    He stops. He doesn't turn around.
+
+    "Yeah," he says. Not a question. Just: I hear you. Just: I know.
+
+    After a moment, he walks through.
+    *goto matt_goes_through
+  #Let him go.
+    *set trust_instinct +1
+    You let him go. It's the hardest kind of trust — the kind that looks, from the outside, exactly like doing nothing. You have never been good at it. You are marginally better at it now than you were eight years ago. Not much.
+    *goto matt_goes_through
+  #"Come back if you can."
+    *set grief_carried +1
+    "Come back if you can," you say.
+
+    He pauses. "I'll see what I can do," he says.
+
+    You both know he won't. He walks through anyway.
+    *goto matt_goes_through
+
+*label matt_goes_through
+
+The blast door opens. The wards part for him — he's designated, they know him, they let him through the way they would let any of you through — and then the door closes, and the wards seal behind him, and the runes resume their slow gold pulse.
+
+Like nothing changed. Like that was just another Tuesday.
+
+*page_break
+
+*comment ── Section 11: The Vigil
+
+*label matt_vigil
+
+You stay at the viewport.
+
+Through the reinforced glass you watch him move through the outer corridor, past the spent trigger traps, toward the entrance stairwell. He doesn't look back. He walks the way he does everything — with that settled, particular quality, like he's already made his peace with whatever comes next and has no remaining business with doubt.
+
+At the top of the stairwell he pauses. Just for a moment. Then he steps through, and the angle of the rock takes him, and he's gone.
+
+You watch the HUD after that. It's easier. Numbers are easier.
+
+The drain rate holds steady for a few minutes — long enough for you to imagine him moving into position above, finding his ground, settling into that stillness that precedes everything else for him. And then it begins to fall.
+
+Slowly at first. Then lower. Lower still.
+
+The ward integrity stabilizes. Then, incrementally, it begins to climb. 44%. 46%. 49%.
+
+He's holding.
+
+*choice
+  #Stay at the monitor.
+    You stay at the monitor and watch the numbers. It is the least useful thing you can do and also the only thing available to you right now, and you've made your peace with that particular distinction over eight years of being someone whose job was to hold the line while other people handled what was beyond your reach.
+
+    The drain rate keeps falling. The integrity keeps climbing.
+
+    He's holding.
+    *goto vigil_continues
   #Go back to Callie.
-    You turn back toward the machine. Callie is still working, her focus absolute. She's in the zone—that state where the rest of the world falls away and only the problem exists. You recognize it from a thousand late-night study sessions. From the moment before the final push. You've both been waiting for this day for eight years. It's almost here.
-    *goto callie_next
-  #Just breathe for a moment.
-    You stand still for a moment, letting yourself feel the weight of it. Eight years. Thousands of days just like this one, but today is different. Today is the day. The machine is almost ready. You're almost home.
-    *goto callie_next
+    You cross to Callie. She's at 84%, her hands moving through a sequence that looks almost musical — the kind of flow state that only comes when someone has spent so long with a problem that it stops being a problem and becomes something closer to a conversation. She doesn't acknowledge you. You don't need her to.
 
-*label callie_next
+    You stand nearby and watch her work, and in the background the drain rate keeps falling.
 
-You move back toward Callie. She's working with the kind of focus that doesn't allow for interruption, so you just stand close, out of the way. Nearby. The charge bar creeps upward: 70%, 72%, 75%.
+    He's holding.
+    *goto vigil_continues
+  #Use [skill]Mend[/skill] on yourself.
+    You sit down against the wall and cast [skill]Mend[/skill], because you haven't done it in three days and the accumulated damage from the first wave has been quietly adding up in ways you stopped noticing. It costs 250 mana and takes the edge off a collection of things you'd filed under manageable. You feel, briefly and specifically, slightly more like a person.
 
-"It's working," she says, not looking up. Not really talking to you, just thinking out loud. "Everything's calibrating perfectly. We're going to do this."
+    Across the room, the drain rate is falling.
 
-There's no doubt in her voice. Just certainty. The certainty of someone who has spent eight years building something and knows, down to her bones, that it will work.
+    He's holding.
+    *goto vigil_continues
 
-"How much longer?" you ask.
+*comment ── Section 12: The Collapse
 
-"An hour, maybe," she says. "Hour and a half at most. We accelerate past that, we risk the singularity destabilizing. But we don't need to accelerate. We have time."
+*label vigil_continues
 
-She's right. The outer wards are holding fine. The defenders have bought you all the time you need. For the first time in eight years, you have enough time. Enough time to do this right. Enough time to jump.
+The machine climbs through its final percentages with a steadiness that feels almost cruel in its patience. 89%. 91%. 93%.
 
-Enough time to fix the world.
+The drain rate is still falling. Ward integrity at 67% and climbing. The math, for the first time in the last two hours, is working in your favor.
 
-*goto matt_moment_two
+You are watching the drain rate when Malphas does something above.
 
-*label matt_moment_two
+You feel it before the monitor registers it — a pressure change in the rock itself, something vast and deliberate shifting its weight in a way that has nothing to do with the siege and everything to do with intent. Then the ceiling cracks.
 
-Matt appears in the doorway. He's not armored—there's no need to be. Today is just like every other day. The defenders handle the outer wards. The three of you handle the machine. The routine that has kept you alive for eight years continues until the moment it doesn't have to anymore.
+Not the whole ceiling. A section above Callie's workstation, three meters across, fracturing along a seam the geomancers left when they carved this place out of the rock eight years ago.
 
-He sees you, nods, then moves to sit on the edge of his cot. He pulls out the coin again—the old world thing that's worth nothing but means something anyway. He turns it over in his fingers, the same way he's been doing for hours now.
+Callie cries out.
 
-"Thinking about what comes next?" you ask.
+You are already running.
 
-He looks at the coin. "Trying not to," he says. "Trying to just... be here. In this moment. Before everything changes."
+*goto callie_collapse
 
-You understand. For eight years, you've all been living in a holding pattern. A waiting room. Today, you finally step through the door.
+*comment ── Section 13: Callie's Assessment
 
-You sit down on your cot, across from Matt, and the two of you wait together. Not talking. Not needing to. Just waiting for the moment when Callie's machine finishes its work and the three of you step into a past that doesn't know you're coming.
+*label callie_collapse
 
-The charge bar climbs steadily: 78%, 81%, 84%.
+The section comes down in pieces rather than all at once, which is the only reason she's not dead. You cross the room in the time it takes for the second piece to fall, and you put yourself between her and the third, and the impact hits your shoulders like a decision you already made. Your armor takes most of it. Your health bar drops by a number you register and set aside for later.
 
-There's no urgency. Just anticipation. Just the knowledge that after eight years, you're finally about to do the thing you've been preparing for.
+You get her clear.
 
-The end of this world. The beginning of another.
+She's alive. Conscious. Already trying to look past you at the machine.
 
-The charge bar continues its steady climb: 87%, 89%, 91%.
+"The machine," she says.
 
-After eight years of waiting, the end is almost here. Not an ending—a beginning. The machine hums with purpose. Everything is exactly as it should be. Exactly as Callie designed it.
+"You first."
 
-She glances at you once, just a quick look, and in that look is everything: confidence, certainty, and something else. Something like readiness. She's been ready for this since the moment she started building.
+"The machine—"
 
-"When it hits 100," she says, "the singularity will stabilize completely. You'll have a window of about thirty seconds before it starts degrading. I'll give you the signal. When I do, you go. No hesitation, no looking back."
+"Callie." You say her name the way you've been saying it since your second year of college, when she would forget to sleep and forget to eat and forget that she was a person and not simply a vehicle for the work. The way that means: I see you. The way that means: you matter more than the thing you're building.
 
-You nod. There's no panic in her voice, and so there's no panic in you. Just clarity. Just the simple acknowledgment of what has to happen next.
+She stops. She looks at you. For one moment she is just Callie Owens, your friend, exhausted and hurting, and the moment is brief and real and then it passes, and her eyes move to the machine, and her expression does something complicated and quiet.
 
-"I'll be ready," you say.
+"I need to see it," she says.
 
-She looks back at the screens, and her fingers move through another sequence of inputs. The charge bar ticks higher: 93%, 95%.
+You let her up.
 
-The machine is singing now—a high, clear note that seems to come from everywhere and nowhere. The singularity at its heart pulses with light, steady and true.
+*page_break
 
-Matt sits quietly on his cot, the coin still in his hand. He's not checking the doors anymore. There's nothing left to check. Everything that needed doing is done. All that's left is to wait, together, for the moment when eight years of work becomes one perfect instant.
+She assesses the damage in under a minute, because it's Callie and that's what she does. You watch her face and read the answer there before she gives it.
+
+"Housing is intact," she says. "Singularity is stable." A pause. "The manual calibration array took the impact."
+
+"What does that mean?"
+
+"It means the machine will finish charging." She still isn't looking at you. "It means someone has to maintain continuous manual input for the last seven percent or the calibration drifts and the jump misfires." Another pause, shorter than the first. "It means whoever is doing that cannot step away from the panel. Not for thirty seconds. Not for ten."
+
+The room is very quiet.
+
+"How long?" you ask.
+
+"Twenty minutes. Maybe twenty-five."
+
+You look at her. She's still not looking at you.
 
 *choice
-  #Place your hand on the machine.
-    You move to the machine and place your palm against the cool metal of the central housing. You can feel it thrumming with energy, with purpose. It's so close now. So close to ready. You've touched this machine a thousand times over the years, but this time is different. This time, it's going to work.
-    *goto final_sequence
-  #Look at both of them one more time.
-    You take a moment to look at Matt, then at Callie. These are the only two people left in the world who matter. The only two who survived. The only two who believed this was possible. After tonight, everything changes. After tonight, you'll be trying to save the world they tried to save eight years ago. You won't be alone—but you won't be here either. Not with them. Not like this.
-    *goto final_sequence
-  #Wait.
-    *goto final_sequence
+  #"Then we find another way."
+    *set trust_instinct -1
+    "Then we find another way," you say.
 
-*label final_sequence
+    She's quiet for a moment. "There isn't one," she says. "I've already looked. That's why I'm not looking at you right now."
 
-The charge bar reaches 98%.
+    The room stays quiet.
+    *goto callie_realization
+  #"I know what you're going to say."
+    *set grief_carried +1
+    "I know what you're going to say," you say.
 
-The machine's song grows higher. Callie's shoulders tense just slightly—the only sign that she feels the magnitude of this moment. Everything else about her is absolute focus, absolute control.
+    "Then I won't say it," she says.
+
+    But you both already know.
+    *goto callie_realization
+  #Say nothing.
+    *set grief_carried +1
+    You don't say anything. You've arrived at this place before, in different rooms and different shapes — the moment where the math stops offering alternatives and something else has to fill the gap. You know what it looks like by now.
+
+    Callie still isn't looking at you.
+    *goto callie_realization
+
+*comment ── Section 14: Callie's Directive
+
+*label callie_realization
+
+She turns to face you. She looks, for just a moment, like she did the first time you met her — younger and exhausted and completely certain about something, even when the certainty cost her.
+
+"You have to go alone," she says.
+
+"Callie—"
+
+"The machine will finish. The window will open." She meets your eyes, and her voice doesn't shake, because of course it doesn't. "I did not spend eight years and my health and my sleep and everything else so that you could stand here and argue with me about it."
+
+*choice
+  #"Come with me. We'll find a way."
+    *goto callie_wrong_ending_setup
+  #"What do I do when I get there?"
+    *set trust_instinct +1
+    "What do I do when I get there?" you ask.
+
+    Something in her expression shifts. Relief, maybe. That you're not fighting her. That you're already thinking forward.
+
+    "What you always do," she says. "Hold the line. Buy time. Give everyone else a chance to be better than they were." She almost smiles. "You're very good at that."
+    *goto callie_farewell
+  #Just nod.
+    *set trust_instinct +1
+    *set grief_carried -1
+    You nod. Once. The same nod Matt gave you when the warning fired — the one that means: I know. The one that means: I'm still here.
+
+    She nods back.
+    *goto callie_farewell
+
+*comment ── Section 15: Farewell
+
+*label callie_farewell
+
+She turns back to the machine. Her hands find the manual calibration array and begin moving, and within seconds she is somewhere else entirely — somewhere inside the problem, in that place where only the work exists — and you understand that this is also how she is choosing to do this. Not with words. With the thing she does best.
+
+You stand there for a moment and watch her.
+
+You have known Callie Owens since your second year of college. You knew her before the [System], before the descent, before the long sequence of losses that carved the two of you into the people standing in this room. You knew her when she was just the most frighteningly capable person you'd ever met, and you have watched her become something that the word capable isn't large enough to hold, and you think the truest thing you know about her is this: she has always been someone who stays at the machine so that someone else can go through the door.
+
+You don't say goodbye. She wouldn't want you to.
+
+*page_break
+
+*comment ── Section 16: The Jump
+
+*label the_jump_approach
+
+The charge bar climbs. 95%. 97%.
+
+You think about the shoe store.
+
+It's a strange thing to be thinking about, standing at the end of the world. But that's where you'll land — that's the last clear memory you have of before. The smell of new rubber soles. Fluorescent lights. A Tuesday afternoon so ordinary it didn't know it was the last one. You had decided to start working out, which in retrospect is one of the more quietly absurd decisions you've ever made, given what happened approximately thirty seconds after you joined the line at the register.
+
+You think about what it will feel like to be in that body again. Soft hands. No mana, no levels, no eight years of surviving unsurvivable things written into your bones. You will be standing in line with nothing but your memories, in a body that hasn't earned any of them, and you will have maybe thirty seconds before the [System] initializes and the world you're trying to prevent begins its ending anyway.
+
+Thirty seconds to remember why you're there. To decide where to go first and what to say and how to say it to people who have no reason yet to believe you.
+
+You think you can manage that.
+
+98%.
+
+The machine's song rises. Behind you, Callie's hands move without stopping, her focus total and absolute, and you understand that she has already said what she needed to say and is now doing what she needs to do. For Callie, those have never been different things.
 
 99%.
 
-"It's time," she says quietly.
+You move to the singularity.
+
+The light has changed. It's not the steady pulse from before — it's something building, something that seems to pull at the edges of the room and the air between seconds and the space behind your eyes. The temperature rises. The sound the machine makes shifts into a register you feel more than hear.
 
 100%.
 
-The singularity blazes. The light is blindingly white, and for a moment the entire sanctuary—all three of you, all of your preparations, all of your hope—is illuminated perfectly.
+"Go," Callie says.
 
-"Go," Callie says, and there's no doubt, no fear, no hesitation in the word. Just a statement of fact. The machine is ready. The window is open. The past is waiting.
+You don't think. You step forward.
 
-You don't think. You run toward the singularity.
-
-The temperature spikes as you approach. Your skin tingles. The air itself thins and grows strange. Behind you, Callie's voice rings out clear and steady, speaking words in a language you don't quite recognize but understand anyway. Machine language. The voice of someone holding a doorway open between worlds.
-
-Behind her, Matt is also speaking, his voice lower, steadier. He's not trying to stop you. He's not trying to save you. He's letting you go. He's helping you go. Because this is what all eight years have been for.
+The heat spikes as you cross the threshold. Your skin tingles. The air thins and grows strange, and behind you Callie's voice rings out clear and steady, speaking in the language of the machine — words you don't quite recognize but understand anyway, the way you always understand things you've been close to long enough. The voice of someone holding a door open with their bare hands and their entire will.
 
 You step into the singularity.
 
 For one impossible moment, everything is light.
 
-Then there is nothing.
+Then —
 
 *system
 JUMP INITIATED.
 Timeline: Original
 Destination: 8 years previous
-Status: SUCCESSFUL
+Status: IN TRANSIT...
 *end_system
 
+*comment ── Chapter 1 begins here.
 
-*ending Prologue "Thank you so much for playing the Prologue of this game, I hope you enjoyed it!"
+*ending Prologue "Thank you so much for playing the Prologue of [game title]. We hope you enjoyed it!"
+
+*comment ══════════════════════════════════════════
+*comment WRONG ENDINGS
+*comment ══════════════════════════════════════════
+
+*comment ── Wrong Ending A: The Blast Door
+
+*label matt_push_through_warning
+
+"I'm not asking," you say.
+
+Something shifts in Matt's expression. Not surprise. Not even disappointment. Something quieter than either — a settled recognition, like he was expecting this and has already decided what comes next.
+
+He doesn't reach for his blade. He doesn't raise his voice or move aggressively or do anything that looks like a fight. He simply steps into your path and stands there, and something about the quality of that stillness — the absolute, complete absence of any intention to be moved — makes it very clear that walking through him is not something that is going to happen.
+
+You try anyway.
+
+*choice
+  #Stand down.
+    *set trust_instinct +1
+    You stop.
+
+    Not because you can't find what it takes to push. But because you look at him — really look at him, the way you haven't let yourself since the warning fired — and you understand that this is the thing he has chosen, and that taking it from him is not the same as saving him. Those are different things. You know that. You've always known that.
+
+    You step back.
+
+    He nods. Once.
+    *goto matt_coin_scene
+  #Push through anyway.
+    *set grief_carried +2
+    *set trust_instinct -2
+    *goto matt_wrong_ending_push
+
+*label matt_wrong_ending_push
+
+You push through anyway. Or you try to. His skill holds you with a gentleness that is somehow worse than force would have been — not restraining you, exactly, just making the forward direction temporarily unavailable, the way a locked door isn't violence but is still a wall.
+
+By the time it releases, the blast door has already closed.
+
+The runes resume their slow gold pulse. On the monitor, the drain rate is falling. The ward integrity is climbing. He's already working.
+
+You stand at the viewport for a long time. You watch the numbers move in the right direction and you think about thirty seconds and a shoe store and everything that was supposed to happen next.
+
+The machine reaches 100%.
+
+The singularity blazes. The light fills the room.
+
+You don't move.
+
+You're not sure, afterward, at exactly what point you decided not to. It's possible it wasn't a decision at all. Grief is sometimes just a wall that presents itself as a choice, and you've been building this one for eight years without knowing it.
+
+The window holds for thirty seconds, the way Callie designed it to. Then the singularity destabilizes. The light dies. The machine winds down with a sound like something exhaling for the last time, and the room is very quiet.
+
+On the monitor, the ward integrity holds for another forty seconds.
+
+Then it doesn't.
+
+*ending wrong_ending_a "You chose to stay. The machine finished. No one was there to use it. This is one of the wrong paths — go back and try again."
+
+*comment ── Wrong Ending B: The Portal
+
+*label callie_wrong_ending_setup
+
+"Come with me," you say. "We'll figure it out on the other side — we'll find a way, we always find a way—"
+
+"There is no other side if the calibration drifts," she says, with complete patience. "The jump misfires. We don't arrive eight years ago. We don't arrive anywhere we recognize." She holds your gaze. "I know what I'm doing."
+
+"Callie—"
+
+"I know what I'm doing," she says again, quieter. "Please let me do it."
+
+*choice
+  #Let her.
+    *set trust_instinct +1
+    You let her.
+
+    She turns back to the machine. You stand there for a moment, and then you do the thing she asked, because it's the only thing left that makes sense and somewhere underneath the grief you know it.
+    *goto callie_farewell
+  #Grab her and go anyway.
+    *goto callie_wrong_ending_push
+
+*label callie_wrong_ending_push
+
+You grab her arm.
+
+She doesn't fight you. She's too exhausted to fight you, and she knows you, and she understands what fear looks like when it's wearing the face of a plan. She lets you pull her toward the singularity. Her hands leave the calibration array.
+
+The machine doesn't stop. It keeps climbing — 98%, 99% — because the charging sequence is already complete. What Callie was doing wasn't charging it. It was keeping it true.
+
+100%.
+
+The singularity opens. The light blazes. You pull her through because you cannot stand the alternative, because eight years of loss has finally found the one thing it refuses to release, and you step into the light together.
+
+You arrive somewhere.
+
+It is not a shoe store.
+
+The light is wrong — too red, too thick, like looking through something that hasn't finished deciding what it is. The air tastes like ozone and something older than ozone, something that doesn't have a name in any language you've been exposed to long enough to understand. There is no fluorescent hum. No smell of rubber soles. No Tuesday afternoon waiting for you on the other side.
+
+Callie looks around slowly. Her expression isn't afraid. It's something worse than afraid — it's the expression of someone who already knows exactly what happened and is calculating how bad it is, and the calculation is not going well.
+
+"Where are we?" you ask.
+
+She's quiet for a long moment.
+
+"I don't know," she says. "The calibration drifted."
+
+You look at her. She looks at you. Around you, whatever this place is continues to be whatever this place is, red-lit and strange and entirely indifferent to the both of you.
+
+"How bad is it?" you ask.
+
+She doesn't answer right away. That's answer enough.
+
+*ending wrong_ending_b "Some doors require both hands to hold open. This is one of the wrong paths — go back and try again."
