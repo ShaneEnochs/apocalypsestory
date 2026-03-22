@@ -53,9 +53,9 @@
 *create max_mana 8000
 
 *comment --- Allocatable stats ---
-*create_stat body "Body" 86
-*create_stat mind "Mind" 142
-*create_stat spirit "Spirit" 160
+*create_stat body "Body" 186
+*create_stat mind "Mind" 218
+*create_stat spirit "Spirit" 242
 
 *comment --- Misc ---
 *create loop_counter 0
