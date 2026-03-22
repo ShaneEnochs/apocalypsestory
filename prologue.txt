@@ -361,4 +361,4 @@ If the monsters manage to get through the blast door before the three of you are
 
 *page_break Eighteen minutes later.
 
-*ending Thank you so much for playing what I have so far of this game. This project is ongoing and will be updated with new content as I write it, so if you enjoyed this, please consider following me for updates.
+*ending "You've Reached the End (so far)" "Thank you so much for playing what I have so far of this game. This project is ongoing and will be updated with new content as I write it, so if you enjoyed this, please consider following me for updates."
