@@ -600,15 +600,18 @@ export function showCharacterCreation(): Promise<CharacterData> {
   requestAnimationFrame(() => {
     const release = trapFocus(_charOverlay, null);
     (_charOverlay as any)._trapRelease = release;
-    try { _inputFirstName.focus(); } catch (_) {}
-    // Set defaults after focus so the programmatic focus event doesn't clear them.
-    _inputFirstName.value = DEFAULT_FIRST;
-    _inputLastName.value  = DEFAULT_LAST;
-    _counterFirst.textContent = String(NAME_MAX - DEFAULT_FIRST.length);
-    _counterLast.textContent  = String(NAME_MAX - DEFAULT_LAST.length);
-    _inputFirstName.classList.add('char-input--default');
-    _inputLastName.classList.add('char-input--default');
-    _charBeginBtn.disabled = false;
+    // trapFocus schedules its own rAF to auto-focus the first element, which
+    // would fire clearIfDefault and wipe the defaults.  Apply defaults in a
+    // nested rAF so they land in the frame *after* trapFocus's focus() fires.
+    requestAnimationFrame(() => {
+      _inputFirstName.value = DEFAULT_FIRST;
+      _inputLastName.value  = DEFAULT_LAST;
+      _counterFirst.textContent = String(NAME_MAX - DEFAULT_FIRST.length);
+      _counterLast.textContent  = String(NAME_MAX - DEFAULT_LAST.length);
+      _inputFirstName.classList.add('char-input--default');
+      _inputLastName.classList.add('char-input--default');
+      _charBeginBtn.disabled = false;
+    });
   });
 
   return new Promise(resolve => { (_charOverlay as any)._resolve = resolve; });
