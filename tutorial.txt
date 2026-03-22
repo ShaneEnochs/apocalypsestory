@@ -91,8 +91,6 @@ When a stat changes during the story, you'll see it flash briefly in the panel s
 
 *label tutorial_skills
 
-*page_break
-
 *comment ── Section 4: Skills
 
 *system
