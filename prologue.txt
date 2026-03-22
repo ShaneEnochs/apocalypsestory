@@ -251,27 +251,27 @@ Almost...
 *temp carries_dead 0
 *comment Negative = lets go, Positive = carries them forward
 
-You are playing poker with Matt when the [System] notification appears.
+You are playing poker with Matt when the notification appears.
 
 *system
-WARNING: Highest Demon Lord, Malphas (Tier-10 World Boss) has been detected within 10 kilometers of your location and is moving in your general direction.
+WARNING: [b]Highest Demon Lord, Malphas (Tier-10 World Boss)[/b] has been detected within 10 kilometers of your location and is moving in your general direction.
 *end_system
 
 There have been countless times in the past eight years when you have experienced such overwhelming fear that you thought the physical weight of it may suffocate you. Seeing that notification has let you know that you haven't had a true understanding of how strong the sensation of fear could be until this very moment. You don't just feel it in your chest, stomach, and tightness of your shoulders. This fear has reached into your bones, into the very marrow, and has crossed into the metaphysical realm of your soul where it has taken root. 
 
-This is fear. No, this is beyond fear and terror. This is the pure, distilled and unadulterated essence of a dread so supreme that it has no name, because no one has every experienced what the three of you are experiencing in this moment.
+What you feel in this moment is beyond the primal, fundamental emotion of fear or even terror. This is the pure, distilled and unadulterated essence of a dread so supreme and encompassing that it has no name, because no one in the approximately 300,000 years of homo sapien existance has anyone ever experienced what the three of you are experiencing in this moment.
 
 "My God," you hear Matt whisper. "They actually did it. Tier-10."
 
-The strongest World Boss you knew with certainty that had existed before this moment was a Tier-8 hive-mind titan called Auren the Undivided. It existed as both a single creature and a swarm, and destroying 95% of its mass does absolutely nothing if the core node survives.It had taken the combined efforts of every survivor in Solace, over two million of the strongest fighters left on the entire planet, nearly six hours to bring it down.
+The strongest World Boss you knew with certainty that had existed before this moment was a Tier-8 hive-mind titan called Auren the Undivided. It existed as both a single creature and a swarm, and destroying 95% of its mass does absolutely nothing to its ability to wreak devastation if the core node survives. It had taken the combined efforts of every single survivor in Solace, over two million of the strongest fighters left on the entire planet, nearly six hours to bring it down.
 
-The most insidious power that World Bosses have, besides their overwhelming strength and impossible durability, is their ability to summon lower-tier Commanders, who in turn can summon legions of monsters under their control. The battle against Auren was a nightmare you try not to think about, resulting in the loss of nearly every inhabitant and the destruction of most of the city itself.
+The most insidious power that World Bosses have, besides their overwhelming strength and impossible durability, is their ability to summon lower-tier Commanders, who in turn can summon legions of monsters under their control. The battle against Auren was an absolute bloodbath, made worse by the fact that it could rapidly replenish its body by absorbing its minions, resulting in the loss of nearly every inhabitant and the destruction of most of the city itself.
 
-The three people in this room were the only survivors of that fight out of two million.
+The three people in this room are the only survivors of that fight.
 
-And now this thing has appeared.
+And now [i]this thing[/i] has appeared.
 
-The difference in power between a Tier-8 and a Tier-10 is... well, it's hard to even comprehend. If a Tier-8 had nearly broken through everything humans had to offer, what would a Tier-10, the absolute pinnacle of monster evolution as far as [System] scientists had been able to determine, be capable of?
+The difference in power between even regular monster tiers is a vast gulf. The power difference between a Tier-8 and a Tier-10 World Boss is... well, it's hard to even comprehend. If a Tier-8 World Boss had nearly broken through everything humans had to offer, what would a Tier-10, the absolute pinnacle of monster evolution as far as [System] scientists had been able to determine, be capable of?
 
 *choice
   #Check the ward status.
