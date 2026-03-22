@@ -578,17 +578,15 @@ export function wireCharCreation(): void {
 export function showCharacterCreation(): Promise<CharacterData> {
   const DEFAULT_FIRST = 'Charlie';
   const DEFAULT_LAST  = 'McKinley';
-  _inputFirstName.value = DEFAULT_FIRST;
-  _inputLastName.value  = DEFAULT_LAST;
-  _counterFirst.textContent = String(NAME_MAX - DEFAULT_FIRST.length);
-  _counterLast.textContent  = String(NAME_MAX - DEFAULT_LAST.length);
+  _inputFirstName.value = '';
+  _inputLastName.value  = '';
+  _counterFirst.textContent = String(NAME_MAX);
+  _counterLast.textContent  = String(NAME_MAX);
   _errorFirstName.classList.add('hidden');
   _errorLastName.classList.add('hidden');
-  _inputFirstName.classList.remove('char-input--error');
-  _inputLastName.classList.remove('char-input--error');
-  _inputFirstName.classList.add('char-input--default');
-  _inputLastName.classList.add('char-input--default');
-  _charBeginBtn.disabled = false;
+  _inputFirstName.classList.remove('char-input--error', 'char-input--default');
+  _inputLastName.classList.remove('char-input--error', 'char-input--default');
+  _charBeginBtn.disabled = true;
 
   _charOverlay.querySelectorAll<HTMLElement>('.pronoun-card').forEach((c: HTMLElement) => {
     const def = c.dataset.pronouns === 'they/them';
@@ -603,6 +601,14 @@ export function showCharacterCreation(): Promise<CharacterData> {
     const release = trapFocus(_charOverlay, null);
     (_charOverlay as any)._trapRelease = release;
     try { _inputFirstName.focus(); } catch (_) {}
+    // Set defaults after focus so the programmatic focus event doesn't clear them.
+    _inputFirstName.value = DEFAULT_FIRST;
+    _inputLastName.value  = DEFAULT_LAST;
+    _counterFirst.textContent = String(NAME_MAX - DEFAULT_FIRST.length);
+    _counterLast.textContent  = String(NAME_MAX - DEFAULT_LAST.length);
+    _inputFirstName.classList.add('char-input--default');
+    _inputLastName.classList.add('char-input--default');
+    _charBeginBtn.disabled = false;
   });
 
   return new Promise(resolve => { (_charOverlay as any)._resolve = resolve; });
