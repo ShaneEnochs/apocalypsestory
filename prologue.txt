@@ -136,7 +136,9 @@ You give a chuckle. "Fair enough," you say. "Though it's probably best I go with
 
 You get up and cross the room to the nook that Callie has designated her workshop.
 
-The [i]time machine[/i] takes up most of the back wall, and looking at it still does something strange to your head. It's a particular variety of vertigo, but not the kind that comes from heights or spinning or falling. It's from looking at something that you know in the most primal parts of your brain shouldn't exist: something that spits in the face of physics and so far beyond what anyone in the world should be capable of building that you simply doesn't know how to process it. Once upon a time, you might have thought this would be what it would feel like to look upon an eldritch horror, but having done that many times now, the comparison doesn't hold.
+The [i]time machine[/i] takes up most of the back wall, and looking at it still does something strange to your head. It's a particular variety of vertigo, but not the kind that comes from heights or spinning or falling. It's from looking at something that you know in the most primal parts of your brain shouldn't exist: something that spits in the face of physics and so far beyond what anyone in the world should be capable of building that you simply doesn't know how to process it. 
+
+Once upon a time, you might have thought this would be what it would feel like to look upon an eldritch horror, but having done that many times now, the comparison doesn't hold.
 
 Copper conduits spiral around an ironite-obsidian central housing. Cores from Tier 8 and 9 space-time themed dungeons are slotted into a lattice created from [System]-generated materials the three of you gathered for years, having no way of imagining this is what they'd eventually be used for. It's made from every high-tier drop the three of you managed to hoard, stripped down and reassembled by Callie into something the [System] didn't even have a category for.
 
@@ -150,11 +152,13 @@ A singularity.
 
 Callie doesn't look up, but you recognize the expression on her face — she's close to a breakthrough. She's focused to the point where the rest of the world, even her own health, has been downgraded to background noise, filed under [i]deal with it later,[/i] and left on read.
 
-The dark rings under her eyes show that she's far past exhaustion now, and it's turned into something that looks more like a medical condition. Her hair is held back with a piece of wire, which you're pretty certain is one of the wires from your ward scrolls that she asked to borrow four days ago for [i]just a second.[/i]
+The dark rings under her eyes show that she's far past exhaustion now, and it's turned into something that looks more like a medical condition. Her hair is held back with a piece of wire, which you're pretty certain is one of the wires from your ward scrolls that she asked to borrow four days ago for [i]just a second.[/i] She likely found a way to molecularly take them apart and integrate them into her machine, somehow. 
 
-You have known Callie Owens since your second year of college, before the [System] descended and the long, catastrophic sequence of events that transformed the two of you from people who argued about the best place near campus to eat into people who watched the world end together. And now here you are, improbably, preparing to do something about it.
+You have known Callie Owens since your second year of college, before the [System] descended and the long, catastrophic sequence of events that transformed the two of you from people who argued about the best place near campus to eat into people who have witnessed the world end together. 
 
-You knew her when she was [i]just[/i] the most frighteningly capable person you ever met. Now, having the Legendary class [legendary][Thesis Incarnate][/legendary], there may not be a word devised to describe what she is.
+And now here you are, improbably, preparing to do something about it.
+
+You knew her when she was [i]just[/i] the most frighteningly capable person you ever met. Now, having the Legendary class [legendary][Thesis Incarnate][/legendary], there may not be a word in any language to describe what she has become.
 
 *choice
   #Don't say anything. Just stand close enough that she knows you're there.
