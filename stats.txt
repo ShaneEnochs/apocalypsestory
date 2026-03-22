@@ -6,7 +6,6 @@
 *stat_group "Progress"
 *stat_color level accent-cyan
 *stat level "Level"
-*stat_color essence accent-amber
 *stat essence "Essence"
 *stat next_lvl "To Next Level"
 
