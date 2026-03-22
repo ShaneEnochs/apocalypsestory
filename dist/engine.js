@@ -3287,6 +3287,41 @@ function wireCharCreation() {
       }
     });
   });
+  const sceneBtns = [..._charOverlay.querySelectorAll(".scene-toggle-btn")];
+  const sceneHint = _charOverlay.querySelector("#scene-toggle-hint");
+  const SCENE_HINTS = {
+    tutorial: "Recommended for new players",
+    prologue: "Skip straight to the story"
+  };
+  function selectScene(btn) {
+    sceneBtns.forEach((b) => {
+      b.classList.remove("selected");
+      b.setAttribute("aria-checked", "false");
+      b.setAttribute("tabindex", "-1");
+    });
+    btn.classList.add("selected");
+    btn.setAttribute("aria-checked", "true");
+    btn.setAttribute("tabindex", "0");
+    if (sceneHint) sceneHint.textContent = SCENE_HINTS[btn.dataset.scene ?? ""] ?? "";
+  }
+  sceneBtns.forEach((btn) => {
+    btn.addEventListener("click", () => selectScene(btn));
+    btn.addEventListener("keydown", (e) => {
+      const idx = sceneBtns.indexOf(btn);
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        selectScene(sceneBtns[(idx + 1) % sceneBtns.length]);
+        sceneBtns[(idx + 1) % sceneBtns.length].focus();
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        selectScene(sceneBtns[(idx - 1 + sceneBtns.length) % sceneBtns.length]);
+        sceneBtns[(idx - 1 + sceneBtns.length) % sceneBtns.length].focus();
+      } else if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        selectScene(btn);
+      }
+    });
+  });
   function updateBeginBtn() {
     const ok = !validateName(_inputFirstName.value, "First name") && !validateName(_inputLastName.value, "Last name") && !!_charOverlay.querySelector(".pronoun-card.selected");
     _charBeginBtn.disabled = !ok;
@@ -3295,6 +3330,8 @@ function wireCharCreation() {
     if (validateName(_inputFirstName.value, "First name") || validateName(_inputLastName.value, "Last name")) return;
     const selected = _charOverlay.querySelector(".pronoun-card.selected");
     if (!selected) return;
+    const sceneSelected = _charOverlay.querySelector(".scene-toggle-btn.selected");
+    const startScene = sceneSelected?.dataset.scene ?? "tutorial";
     _charOverlay.classList.add("hidden");
     const overlay = _charOverlay;
     if (typeof overlay._trapRelease === "function") {
@@ -3310,7 +3347,8 @@ function wireCharCreation() {
         pronouns_possessive: selected.dataset.possessive ?? "",
         pronouns_possessive_pronoun: selected.dataset.possessivePronoun ?? "",
         pronouns_reflexive: selected.dataset.reflexive ?? "",
-        pronouns_label: selected.dataset.pronouns ?? ""
+        pronouns_label: selected.dataset.pronouns ?? "",
+        startScene
       });
     }
   });
@@ -3333,6 +3371,14 @@ function showCharacterCreation() {
     c.setAttribute("aria-checked", def ? "true" : "false");
     c.setAttribute("tabindex", def ? "0" : "-1");
   });
+  _charOverlay.querySelectorAll(".scene-toggle-btn").forEach((b) => {
+    const def = b.dataset.scene === "tutorial";
+    b.classList.toggle("selected", def);
+    b.setAttribute("aria-checked", def ? "true" : "false");
+    b.setAttribute("tabindex", def ? "0" : "-1");
+  });
+  const hint = _charOverlay.querySelector("#scene-toggle-hint");
+  if (hint) hint.textContent = "Recommended for new players";
   _charOverlay.classList.remove("hidden");
   _charOverlay.style.opacity = "1";
   requestAnimationFrame(() => {
@@ -3454,7 +3500,7 @@ function wireSaveUI(dom, opts) {
     document.getElementById("undo-btn")?.classList.remove("hidden");
     clearUndoStack();
     await runStatsScene();
-    await gotoScene(startup.sceneList[0] || "prologue");
+    await gotoScene(charData.startScene);
   });
   dom.splashLoadBtn?.addEventListener("click", () => {
     document.getElementById("splash-main")?.classList.add("hidden");

@@ -25,6 +25,7 @@ export interface CharacterData {
   pronouns_possessive_pronoun: string;
   pronouns_reflexive:         string;
   pronouns_label:             string;
+  startScene:                 string;
 }
 
 // ---------------------------------------------------------------------------
@@ -542,6 +543,42 @@ export function wireCharCreation(): void {
     });
   });
 
+  // Scene toggle — Tutorial (default) or Prologue
+  const sceneBtns = [..._charOverlay.querySelectorAll<HTMLElement>('.scene-toggle-btn')];
+  const sceneHint = _charOverlay.querySelector<HTMLElement>('#scene-toggle-hint');
+  const SCENE_HINTS: Record<string, string> = {
+    tutorial: 'Recommended for new players',
+    prologue: 'Skip straight to the story',
+  };
+
+  function selectScene(btn: HTMLElement): void {
+    sceneBtns.forEach(b => {
+      b.classList.remove('selected');
+      b.setAttribute('aria-checked', 'false');
+      b.setAttribute('tabindex', '-1');
+    });
+    btn.classList.add('selected');
+    btn.setAttribute('aria-checked', 'true');
+    btn.setAttribute('tabindex', '0');
+    if (sceneHint) sceneHint.textContent = SCENE_HINTS[btn.dataset.scene ?? ''] ?? '';
+  }
+
+  sceneBtns.forEach(btn => {
+    btn.addEventListener('click', () => selectScene(btn));
+    btn.addEventListener('keydown', (e: KeyboardEvent) => {
+      const idx = sceneBtns.indexOf(btn);
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault(); selectScene(sceneBtns[(idx + 1) % sceneBtns.length]);
+        (sceneBtns[(idx + 1) % sceneBtns.length] as HTMLElement).focus();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault(); selectScene(sceneBtns[(idx - 1 + sceneBtns.length) % sceneBtns.length]);
+        (sceneBtns[(idx - 1 + sceneBtns.length) % sceneBtns.length] as HTMLElement).focus();
+      } else if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault(); selectScene(btn);
+      }
+    });
+  });
+
   function updateBeginBtn() {
     const ok = !validateName(_inputFirstName.value, 'First name') &&
                !validateName(_inputLastName.value,  'Last name')  &&
@@ -554,6 +591,8 @@ export function wireCharCreation(): void {
         validateName(_inputLastName.value,  'Last name'))  return;
     const selected = _charOverlay.querySelector<HTMLElement>('.pronoun-card.selected');
     if (!selected) return;
+    const sceneSelected = _charOverlay.querySelector<HTMLElement>('.scene-toggle-btn.selected');
+    const startScene = sceneSelected?.dataset.scene ?? 'tutorial';
     _charOverlay.classList.add('hidden');
     const overlay = _charOverlay as any;
     if (typeof overlay._trapRelease === 'function') {
@@ -570,6 +609,7 @@ export function wireCharCreation(): void {
         pronouns_possessive_pronoun: selected.dataset.possessivePronoun  ?? '',
         pronouns_reflexive:          selected.dataset.reflexive          ?? '',
         pronouns_label:              selected.dataset.pronouns           ?? '',
+        startScene,
       });
     }
   });
@@ -596,6 +636,16 @@ export function showCharacterCreation(): Promise<CharacterData> {
     c.setAttribute('aria-checked', def ? 'true' : 'false');
     c.setAttribute('tabindex', def ? '0' : '-1');
   });
+
+  // Reset scene toggle — tutorial is default
+  _charOverlay.querySelectorAll<HTMLElement>('.scene-toggle-btn').forEach((b: HTMLElement) => {
+    const def = b.dataset.scene === 'tutorial';
+    b.classList.toggle('selected', def);
+    b.setAttribute('aria-checked', def ? 'true' : 'false');
+    b.setAttribute('tabindex', def ? '0' : '-1');
+  });
+  const hint = _charOverlay.querySelector<HTMLElement>('#scene-toggle-hint');
+  if (hint) hint.textContent = 'Recommended for new players';
 
   _charOverlay.classList.remove('hidden');
   _charOverlay.style.opacity = '1';

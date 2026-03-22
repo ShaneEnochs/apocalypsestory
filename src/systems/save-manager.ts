@@ -22,7 +22,7 @@ import { getNarrativeLog } from '../ui/narrative.js';
 import { runStatsScene } from '../ui/panels.js';
 
 import {
-  patchPlayerState, startup,
+  patchPlayerState,
 } from '../core/state.js';
 
 import { gotoScene } from '../core/interpreter.js';
@@ -153,7 +153,7 @@ export function wireSaveUI(dom: Dom, opts: {
     document.getElementById('undo-btn')?.classList.remove('hidden');
     clearUndoStack();
     await runStatsScene();
-    await gotoScene(startup.sceneList[0] || 'prologue');
+    await gotoScene(charData.startScene);
   });
 
   // Continue (splash load) — hide #splash-main, show save slots
