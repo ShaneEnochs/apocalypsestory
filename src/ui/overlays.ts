@@ -600,12 +600,10 @@ export function showCharacterCreation(): Promise<CharacterData> {
   _charOverlay.classList.remove('hidden');
   _charOverlay.style.opacity = '1';
   requestAnimationFrame(() => {
-    // Disable trapFocus auto-focus so it doesn't trigger clearIfDefault.
     const release = trapFocus(_charOverlay, null, false);
     (_charOverlay as any)._trapRelease = release;
-    // Focus first (no char-input--default class yet, so clearIfDefault is a no-op),
-    // then apply the defaults.
-    try { _inputFirstName.focus(); } catch (_) {}
+    // Set defaults before touching focus — no focus event fires on the name
+    // inputs here, so clearIfDefault can never wipe them.
     _inputFirstName.value = DEFAULT_FIRST;
     _inputLastName.value  = DEFAULT_LAST;
     _counterFirst.textContent = String(NAME_MAX - DEFAULT_FIRST.length);
@@ -613,6 +611,10 @@ export function showCharacterCreation(): Promise<CharacterData> {
     _inputFirstName.classList.add('char-input--default');
     _inputLastName.classList.add('char-input--default');
     _charBeginBtn.disabled = false;
+    // Focus the pre-selected pronoun card for keyboard accessibility.
+    // Pronoun cards have no clearIfDefault handler, so the defaults are safe.
+    const selected = _charOverlay.querySelector<HTMLElement>('.pronoun-card.selected');
+    try { selected?.focus(); } catch (_) {}
   });
 
   return new Promise(resolve => { (_charOverlay as any)._resolve = resolve; });
