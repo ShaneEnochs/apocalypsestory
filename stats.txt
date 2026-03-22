@@ -8,6 +8,7 @@
 *stat level "Level"
 *stat_color essence accent-amber
 *stat essence "Essence"
+*stat next_lvl "To Next Level"
 
 *stat_group "Vitals"
 *stat_color health accent-green
