@@ -16,7 +16,7 @@ You listen to Callie's machine hum to your left, her tools clinking against the 
 
 The gear rack, full of salvaged armor and weapons, was your contribution to the sanctuary's decor — assembled during the first week when you needed something to do other than think about the exact dimensions of how screwed the three of you were. It is, if you're being honest, the finest piece of non-magical construction in the room, which is either a point of pride or a damning commentary on where a lot of your skill points went.
 
-You begin checking the clasps and tensions anyway, running through the routine you've performed every morning for years, because rituals are load-bearing, and you've learned not to dismantle the ones that work. Most of the armor is dulled or broken in a way that no amount of maintenance could ever fully correct, though it's still better than the best pre-[System] armor ever devised, which is not a great look for someone whose final [Class] evolution is called [legendary][Shield of Humanity][/legendary]. You have a skill that lets you mend minor damage, but you're no blacksmith.
+You begin checking the clasps and tensions anyway, running through the routine you've performed every morning for months, because rituals are load-bearing, and you've learned not to dismantle the ones that work. Most of the armor is dulled or broken in a way that no amount of maintenance could ever fully correct, though it's still better than the best pre-[System] armor ever devised, which is not a great look for someone whose final [Class] evolution is called [legendary][Shield of Humanity][/legendary]. You have a skill that lets you mend minor damage, but you're no blacksmith.
 
 The weapons here are in better shape, though.
 
@@ -277,7 +277,7 @@ The difference in power between even regular monster tiers is a vast gulf. The p
   #Check the ward status.
     *set trust_instinct +1
     *goto check_wards
-  #Check the Bastion's mana reserve.
+  #Check the [Last Bastion]'s mana reserve.
     *set trust_instinct -1
     *goto check_mana
   #Look at Matt.
@@ -294,7 +294,23 @@ Matt appears at your shoulder. "It won't come alone," he says.
 *goto matt_assessment
 
 *label check_mana
-You move to the bastion reserve panel. 847,000 mana in the dedicated reserve. The wards are drawing at standard rate, and the arcane trigger traps armed.
+You mentally call up the screen for this place. 
+
+*system
+[legendary][b]Last Bastion[/b][/legendary]
+[legendary]Legendary[/legendary]
+Bastions have served the same purpose for thousands of years: they are the places where the desperate make their stand, where supplies outlast siege engines, where time itself becomes a weapon. This skill is the answer to that ancient need. After countless battles where hordes of monsters have pressed in and retreat meant death for those behind you, you have proven yourself willing and capable of holding the line and have been awarded this skill. 
+Description: Creates an underground bunker at the safest location within 2 kilometers, chosen by the [System]. The entrance is a 5-meter stairwell lined with wards and runes to damage intruders. Below it, an enchanted tunnel ends at a reinforced blast door. The chamber beyond provides 10 square meters per person, stocked with food, water, recycled air, and medical supplies for six months.
+Capacity: 10 per skill level. Only those you designate at the time of casting may enter and exit freely.
+The bunker draws from a separate and dedicated mana reserve that charges at the speed of your mana regeneration, but only when your personal mana pool is full. Allies may contribute their mana directly to the reserve, and mana stones may be used to add up to 1,000,000 mana per year.
+After six months, the bunker collapses. Any non-living contents disappear. All living inhabitants are teleported to a safe location above ground.
+Activation cost: 2,000,000 mana from dedicated reserve only.
+Cooldown: 1 year.
+Notice:
+This [Skill] is currently in effect.
+Time until Bastion collapse: 3 months, 17 days, 8 hours, 22 minutes.
+Mana in reserves for defense: 847,000
+*end_system
 
 You try to do the math of how long the defenses might hold against a siege by a Tier-10 World Boss, its Commanders, and the legions of monsters they have probably already summoned, but you honestly have no idea. This is the first time you've used [Last Bastion], so while you have a general understanding of the mechanics of this place, you have no real-world experience to draw on for how much abuse the wards will take. Creating it cost two million mana, which took a year to gather between your own mana regeneration and every mana stone the three of you had ever gathered. 847,000 mana is more than ten times the amount of your maximum mana, and you are one, if not the, most powerful shield mages to have lived. Your [Skill]s could survive a lot of punishment, so your best hypothesis is this place should be able to hold out a hundred times longer than you could on your own. 
 
