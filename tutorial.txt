@@ -40,12 +40,12 @@ Try it now.
   #What if I make the wrong choice?
     There are no wrong choices, only different ones. 
     Some paths are harder, and some will reveal things others don't. The story adapts to [i]you[/i], not the other way around.
+    *goto tutorial_system_blocks
   #Can I go back if I don't like what happens?
     Yes! The game has a save system and checkpoints that let you revisit key moments. We'll cover that in a moment.
+    *goto tutorial_system_blocks
 
 *label tutorial_system_blocks
-
-*page_break
 
 *comment ── Section 2: System Blocks and Notifications
 
