@@ -2,60 +2,44 @@
 
 *comment ══════════════════════════════════════════
 *comment TUTORIAL SCENE — Plays before the Prologue
-*comment Introduces core game features in a friendly,
-*comment in-world way without breaking immersion.
+*comment Streamlined: covers only what players need
+*comment before the story begins.
 *comment ══════════════════════════════════════════
 
 *system
 WELCOME TO SYSTEM: YEAR ZERO
 *end_system
 
-Welcome to [b]System: Year Zero[/b], an interactive fiction experience set in a world where a mysterious supernatural framework called the [cyan]System[/cyan] appeared overnight and changed everything. Monsters flooded the surface, forcing humanity underground. 
+Welcome to [b]System: Year Zero[/b]. The [cyan]System[/cyan] appeared overnight and changed everything — monsters flooded the surface, humanity retreated underground. You are one of the last three survivors, and together you're building something impossible: a machine that might give the world a second chance.
 
-The last three survivors of the human race, you among them, build something impossible: a machine that, if it works, will give the world a second chance.
-
-This is a story about do-overs, bonds, cosequence of action and inaction, and deciding what you carry with you.
-
-Your choices will shape who you are. The words you say, the things you do, and the people you prioritize will define your character in ways both visible and hidden. There are no wrong answers, though some paths are much shorter than others.
-
-Before we begin, let's walk you through how everything works.
+Your choices will shape who you are. There are no wrong answers, though some paths are much shorter than others.
 
 *page_break Let's get started.
 
-*comment ── Section 1: The Narrative and Choices
+*comment ── Section 1: Choices
 
 *system
-[ TUTORIAL: READING AND CHOOSING ]
+[ TUTORIAL: MAKING CHOICES ]
 *end_system
 
-The story is told in present tense second person where [i]you[/i] are the main character. Text like this makes up the narrative. You read it, process it, and move forward at your own pace.
-
-When the story asks you to make a decision, you'll see a set of buttons like the ones below. Each choice leads down a different path. Some choices are small. Some will literally change everything. All of them are yours.
-
-Try it now.
+When the story asks you to decide, you'll see buttons like the ones below. Some choices are small. Some will change everything. Try one now.
 
 *choice
-  #I understand. Show me more.
+  #I'm ready. Let's go.
     *goto tutorial_system_blocks
-  #What if I make the wrong choice?
-    There are no wrong choices, only different ones. 
-    Some paths are harder, and some will reveal things others don't. The story adapts to [i]you[/i], not the other way around.
-    *goto tutorial_system_blocks
-  #Can I go back if I don't like what happens?
-    Yes! The game has a save system and checkpoints that let you revisit key moments. We'll cover that in a moment.
+  #What if I regret my choice?
+    The game saves automatically and keeps named [b]checkpoints[/b] at major story moments — you can always jump back from the Save Menu. You can also use [b]Save Codes[/b] to capture your exact position and pick up later from any device.
     *goto tutorial_system_blocks
 
 *label tutorial_system_blocks
 
-*comment ── Section 2: System Blocks and Notifications
+*comment ── Section 2: System Blocks
 
 *system
 [ TUTORIAL: SYSTEM NOTIFICATIONS ]
 *end_system
 
-Throughout the game, you'll see blocks like this one. These are [cyan]System notifications[/cyan]: in-world messages from the mysterious framework that governs stats, skills, and survival in this world. They deliver important information like warnings, status updates, level changes, and more.
-
-Here's an example of what one might look like during gameplay:
+Throughout the story you'll see blocks like this one. These are [cyan]System notifications[/cyan] — in-world messages from the framework that governs stats, skills, and survival. They carry important information: warnings, level changes, status updates.
 
 *system
 WARNING: Seismic activity detected.
@@ -63,7 +47,7 @@ Protective ward integrity holding at 94%.
 Mana reserve: 94,000 / 100,000.
 *end_system
 
-You'll also occasionally see brief popup messages at the top of your screen. These are [cyan]toast notifications[/cyan] and are quick updates that will appear and fade on their own. They will appear during the story to confirm things like stat changes, quest updates, or items received.
+You'll also see brief popup messages appear and fade at the top of your screen. These confirm things like stat changes or items received.
 
 *page_break
 
@@ -73,107 +57,11 @@ You'll also occasionally see brief popup messages at the top of your screen. The
 [ TUTORIAL: YOUR STATS PANEL ]
 *end_system
 
-On the right side of your screen (or behind the panel toggle button on mobile), you'll find your [cyan]Stats Panel[/cyan]. This is your character dashboard, and it's organized into several tabs.
+On the right side of your screen — or behind the panel toggle on mobile — is your [cyan]Stats Panel[/cyan]. Check it whenever you want to see your current level, Essence, health, mana, and your three core attributes: [cyan]Body[/cyan], [cyan]Mind[/cyan], and [cyan]Spirit[/cyan].
 
-The [b]Stats[/b] tab shows your core information at a glance: your name, your class, your level, your Essence (functionally both your XP and the universal currency in this world), your health, your mana, and your three primary attributes — [cyan]Body[/cyan], [cyan]Mind[/cyan], and [cyan]Spirit[/cyan].
+[cyan]Essence[/cyan] is both your XP and the world's universal currency. Spend it in the [cyan]System Store[/cyan] (accessible from the Skills or Inventory tabs) to buy new abilities and items.
 
-When a stat changes during the story, you'll see it flash briefly in the panel so you know something has changed.
-
-*choice
-  #What are Body, Mind, and Spirit?
-    [cyan]Body[/cyan] represents your physical capability: strength, endurance, and resilience. 
-    [cyan]Mind[/cyan] covers intellect, perception, and tactical thinking. 
-    [cyan]Spirit[/cyan] governs your connection to mana, willpower, and the deeper magical forces of the System. 
-    These three attributes define the shape of your character's power.
-    *goto tutorial_skills
-  #Got it. Keep going.
-    *goto tutorial_skills
-
-*label tutorial_skills
-
-*comment ── Section 4: Skills
-
-*system
-[ TUTORIAL: SKILLS ]
-*end_system
-
-The [b]Skills[/b] tab in your panel shows every ability your character has learned. Skills are organized into three categories:
-
-[b]Core Class Skills[/b] are the abilities that define your class. They are powerful, rare, and central to who you are as an owner of your class.
-
-[b]Active Skills[/b] are abilities you use deliberately: attacks, defensive maneuvers, utility spells. They cost mana to activate and some have cooldowns.
-
-[b]Passive Skills[/b] are always working in the background, enhancing your capabilities without needing to be activated.
-
-Each skill has a [i]rarity[/i] that reflects its power: [common]Common[/common], [uncommon]Uncommon[/uncommon], [rare]Rare[/rare], [epic]Epic[/epic], or [legendary]Legendary[/legendary]. You can click to expand any skill in the panel to read its full description.
-
-Some choices in the story are gated behind stats or skills, so if you don't meet the requirement, sometimes you'll see the option but won't be able to select it. This tells you what to work toward. Other times it'll be completely invisible, but you may see it on future playthroughs.
-
-*page_break
-
-*comment ── Section 5: Inventory and the Store
-
-*system
-[ TUTORIAL: INVENTORY AND THE STORE ]
-*end_system
-
-The [b]Inventory[/b] tab tracks every item you're carrying. Items can be found during the story, given to you by other characters, or purchased from the [cyan]System Store[/cyan].
-
-The Store is accessible from both the Skills and Inventory tabs. If you have enough Essence, you can browse available skills and items for purchase. Some items and skills are hidden until you meet certain requirements, so keep leveling and exploring to unlock them.
-
-Items are sometimes checked during the story. Carrying the right thing at the right moment can open doors that would otherwise stay closed.
-
-*page_break
-
-*comment ── Section 6: Journal, Achievements, and Glossary
-
-*system
-[ TUTORIAL: YOUR LOG ]
-*end_system
-
-The [b]Log[/b] tab is your personal record. It contains two things:
-
-[b]Journal entries[/b] are added automatically as you make decisions and discover things. They serve as a running record of your journey — useful for remembering what you've done and where you've been.
-
-[b]Achievements[/b] are special milestones marked with a distinct icon. Some are earned by making specific choices. Others are found by exploring paths others might miss.
-
-You may also notice certain [cyan]highlighted words[/cyan] appearing in the story text. These are [b]glossary terms[/b] — hover over them (or tap on mobile) to see a brief definition. The full glossary is available in your Log as well. These terms help you keep track of the world's lore without needing to memorize everything at once.
-
-*page_break
-
-*comment ── Section 7: Saving and Checkpoints
-
-*system
-[ TUTORIAL: SAVING YOUR PROGRESS ]
-*end_system
-
-The game saves automatically at key moments, such as whenever you make a choice or move to a different page. You can also access the [b]Save Menu[/b] at any time by clicking the save icon in the top bar.
-
-Inside the Save Menu, you'll find:
-
-[b]Save Codes:[/b] a text string that captures your exact position in the story. You can copy it, save it somewhere safe, and paste it back later to pick up right where you left off. This is especially useful if you want to share your progress between devices.
-
-[b]Checkpoints:[/b] the game creates named restore points at major story moments. You can jump back to any checkpoint from the Save Menu if you want to revisit a critical decision or explore a different path.
-
-There's also a [b]Restart[/b] option if you want to begin the story fresh from the very beginning.
-
-*page_break
-
-*comment ── Section 8: Tips and Final Notes
-
-*system
-[ TUTORIAL: A FEW LAST THINGS ]
-*end_system
-
-A few tips before you begin:
-
-[b]Your choices matter more than you think.[/b] The game tracks how you respond to situations in ways that aren't always obvious. The way you handle grief, trust, and sacrifice will shape who your character becomes. Pay attention to what feels right.
-
-[b]Explore everything.[/b] Some of the best moments are tucked behind the less obvious options. If something catches your eye, follow it.
-
-[b]There's a theme toggle[/b] in the top bar (a small sun or moon icon) that lets you switch between dark mode and light mode. Pick whichever is easier on your eyes.
-
-[b]Take your time.[/b] This story doesn't rush you, so read at your own pace.
+Some choices are gated behind stats or skills. If you don't meet a requirement, you'll sometimes see the option but won't be able to select it — that's the game telling you what to work toward.
 
 *page_break
 
