@@ -672,7 +672,7 @@ body {
 
 .narrative-paragraph:last-child { margin-bottom: 0; }
 .narrative-paragraph em         { color: var(--text-primary); font-style: italic; }
-.narrative-paragraph strong     { color: var(--cyan); font-weight: 600; }
+.narrative-paragraph strong     { font-weight: 600; }
 
 
 /* ============================================================
