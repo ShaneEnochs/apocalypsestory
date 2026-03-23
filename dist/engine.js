@@ -2280,7 +2280,7 @@ function renderFromLog(log, { skipAnimations = true } = {}) {
 // src/ui/panels.ts
 var _RARITY_TAG = /\[(common|uncommon|rare|epic|legendary)\]([\s\S]*?)\[\/\1\]/gi;
 var escapeDesc = (s) => {
-  const escaped = escapeHtml(s).replace(_RARITY_TAG, (_, r, text) => `<span class="skill-rarity--${r.toLowerCase()}">${text}</span>`);
+  const escaped = escapeHtml(s).replace(_RARITY_TAG, (_, r, text) => `<span class="skill-rarity--${r.toLowerCase()}">${text}</span>`).replace(/\[b\](.*?)\[\/b\]/g, "<strong>$1</strong>").replace(/\[i\](.*?)\[\/i\]/g, "<em>$1</em>");
   return escaped.split("\n").map((line) => `<p class="desc-para">${line}</p>`).join("");
 };
 var _statusPanel;

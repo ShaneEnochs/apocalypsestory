@@ -22,7 +22,9 @@ import { escapeHtml, formatText } from './narrative.js';
 const _RARITY_TAG = /\[(common|uncommon|rare|epic|legendary)\]([\s\S]*?)\[\/\1\]/gi;
 const escapeDesc = (s: string): string => {
   const escaped = escapeHtml(s)
-    .replace(_RARITY_TAG, (_, r, text) => `<span class="skill-rarity--${r.toLowerCase()}">${text}</span>`);
+    .replace(_RARITY_TAG, (_, r, text) => `<span class="skill-rarity--${r.toLowerCase()}">${text}</span>`)
+    .replace(/\[b\](.*?)\[\/b\]/g, '<strong>$1</strong>')
+    .replace(/\[i\](.*?)\[\/i\]/g, '<em>$1</em>');
   return escaped.split('\n').map(line => `<p class="desc-para">${line}</p>`).join('');
 };
 import { glossaryRegistry } from '../systems/glossary.js';
