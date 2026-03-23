@@ -10,9 +10,9 @@
 WELCOME TO SYSTEM: YEAR ZERO
 *end_system
 
-Welcome to [b]System: Year Zero[/b]. The [cyan]System[/cyan] appeared overnight and changed everything — monsters flooded the surface, humanity retreated underground. You are one of the last three survivors, and together you're building something impossible: a machine that might give the world a second chance.
+Welcome to [b]System: Year Zero[/b]. The [cyan]System[/cyan] appeared overnight and changed everything, allowing humanity to reach heights considered impossible before. However, this gift came with a steep cost: monsters flooded the surface of the world, and eventually humanity retreated underground. You are one of the last three survivors on the entire planet, and together, you're building something impossible: a machine that might give the world a second chance.
 
-Your choices will shape who you are. There are no wrong answers, though some paths are much shorter than others.
+Your choices will shape who you are. There are no wrong answers, though some paths are much shorter, and more brutal, than others.
 
 *page_break Let's get started.
 
@@ -28,7 +28,7 @@ When the story asks you to decide, you'll see buttons like the ones below. Some 
   #I'm ready. Let's go.
     *goto tutorial_system_blocks
   #What if I regret my choice?
-    The game saves automatically and keeps named [b]checkpoints[/b] at major story moments — you can always jump back from the Save Menu. You can also use [b]Save Codes[/b] to capture your exact position and pick up later from any device.
+    The game saves automatically and keeps named [b]checkpoints[/b] at major story moments, but you can always jump back from the Save Menu. You can also use [b]Save Codes[/b] to capture your exact position and pick up later from any device.
     *goto tutorial_system_blocks
 
 *label tutorial_system_blocks
@@ -39,7 +39,7 @@ When the story asks you to decide, you'll see buttons like the ones below. Some 
 [ TUTORIAL: SYSTEM NOTIFICATIONS ]
 *end_system
 
-Throughout the story you'll see blocks like this one. These are [cyan]System notifications[/cyan] — in-world messages from the framework that governs stats, skills, and survival. They carry important information: warnings, level changes, status updates.
+Throughout the story you'll see blocks like this one. These are [cyan]System notifications[/cyan]: in-world messages from the framework that governs stats, skills, and survival. They carry important information such as warnings, level changes, and status updates.
 
 *system
 WARNING: Seismic activity detected.
@@ -57,11 +57,11 @@ You'll also see brief popup messages appear and fade at the top of your screen. 
 [ TUTORIAL: YOUR STATS PANEL ]
 *end_system
 
-On the right side of your screen — or behind the panel toggle on mobile — is your [cyan]Stats Panel[/cyan]. Check it whenever you want to see your current level, Essence, health, mana, and your three core attributes: [cyan]Body[/cyan], [cyan]Mind[/cyan], and [cyan]Spirit[/cyan].
+Located at the top right of your screen is the Status button that opens your [cyan]Stats Panel[/cyan]. Check it whenever you want to see your current level, Essence, health, mana, and your three core attributes: [cyan]Body[/cyan], [cyan]Mind[/cyan], and [cyan]Spirit[/cyan]. You may also view your inventory, skills, achievements, journal, and access the item/skill store as well. 
 
 [cyan]Essence[/cyan] is both your XP and the world's universal currency. Spend it in the [cyan]System Store[/cyan] (accessible from the Skills or Inventory tabs) to buy new abilities and items.
 
-Some choices are gated behind stats or skills. If you don't meet a requirement, you'll sometimes see the option but won't be able to select it — that's the game telling you what to work toward.
+Some choices are gated behind stats or skills. If you don't meet a requirement, you'll sometimes see the option but won't be able to select it. That's the game's way of telling you what to work toward.
 
 *page_break
 
