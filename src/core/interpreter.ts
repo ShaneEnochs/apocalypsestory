@@ -301,7 +301,9 @@ export async function executeCurrentLine(): Promise<void> {
 
 // *title text
 registerCommand('*title', (t) => {
-  cb.setChapterTitle(t.replace(/^\*title\s*/, '').trim());
+  const raw = t.replace(/^\*title\s*/, '').trim();
+  const interpolated = cb.formatText ? cb.formatText(raw).replace(/<[^>]+>/g, '') : raw;
+  cb.setChapterTitle(interpolated);
   advanceIp();
 });
 
