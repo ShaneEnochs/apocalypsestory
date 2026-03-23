@@ -1,4 +1,4 @@
-*title [Tutorial] Welcome, Survivor
+*title [Tutorial] Welcome, ${first_name} ${last_name}
 
 *comment ══════════════════════════════════════════
 *comment TUTORIAL SCENE — Plays before the Prologue
@@ -10,7 +10,9 @@
 WELCOME TO SYSTEM: YEAR ZERO
 *end_system
 
-Welcome to [b]System: Year Zero[/b]. The [cyan]System[/cyan] appeared overnight and changed everything, allowing humanity to reach heights considered impossible before. However, this gift came with a steep cost: monsters flooded the surface of the world, and eventually humanity retreated underground. You are one of the last three survivors on the entire planet, and together, you're building something impossible: a machine that might give the world a second chance.
+Welcome to [b]System: Year Zero[/b]. 
+
+[b]Synopsis:[/b] The [cyan]System[/cyan] appeared overnight and changed everything, allowing humanity to reach heights considered impossible before. However, this gift came with a steep cost: monsters flooded the surface of the world, and eventually humanity retreated underground. You are one of the last three survivors on the entire planet, and together, you're building something impossible: a machine that might give the world a second chance.
 
 Your choices will shape who you are. There are no wrong answers, though some paths are much shorter, and more brutal, than others.
 
