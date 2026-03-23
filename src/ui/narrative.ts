@@ -240,8 +240,9 @@ export function addSystem(text: string): void {
   const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(text);
   div.className = `system-block${isEssence ? ' essence-block' : ''}${isLevelUp ? ' levelup-block' : ''}`;
 
-  const formatted = formatText(text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
-  div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
+  const paras = formatText(text).replace(/\\n/g, '\n').split('\n');
+  const formatted = paras.map(p => `<p class="system-block-para">${p}</p>`).join('');
+  div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><div class="system-block-text">${formatted}</div>`;
   _narrativeContent.insertBefore(div, _choiceArea);
 
   _narrativeLog.push({ type: 'system', text });

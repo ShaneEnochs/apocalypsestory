@@ -2074,8 +2074,9 @@ function addSystem(text) {
   const isEssence = /Essence\s+gained|bonus\s+Essence|\+\d+\s+Essence/i.test(text);
   const isLevelUp = /level\s*up|LEVEL\s*UP/i.test(text);
   div.className = `system-block${isEssence ? " essence-block" : ""}${isLevelUp ? " levelup-block" : ""}`;
-  const formatted = formatText(text).replace(/\\n/g, "\n").replace(/\n/g, "<br>");
-  div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><span class="system-block-text">${formatted}</span>`;
+  const paras = formatText(text).replace(/\\n/g, "\n").split("\n");
+  const formatted = paras.map((p) => `<p class="system-block-para">${p}</p>`).join("");
+  div.innerHTML = `<span class="system-block-label">[ SYSTEM ]</span><div class="system-block-text">${formatted}</div>`;
   _narrativeContent.insertBefore(div, _choiceArea);
   _narrativeLog.push({ type: "system", text });
 }
@@ -2276,7 +2277,10 @@ function renderFromLog(log, { skipAnimations = true } = {}) {
 
 // src/ui/panels.ts
 var _RARITY_TAG = /\[(common|uncommon|rare|epic|legendary)\]([\s\S]*?)\[\/\1\]/gi;
-var escapeDesc = (s) => escapeHtml(s).replace(_RARITY_TAG, (_, r, text) => `<span class="skill-rarity--${r.toLowerCase()}">${text}</span>`).replace(/\n/g, "<br>");
+var escapeDesc = (s) => {
+  const escaped = escapeHtml(s).replace(_RARITY_TAG, (_, r, text) => `<span class="skill-rarity--${r.toLowerCase()}">${text}</span>`);
+  return escaped.split("\n").map((line) => `<p class="desc-para">${line}</p>`).join("");
+};
 var _statusPanel;
 var _endingOverlay = null;
 var _endingTitle = null;
