@@ -698,8 +698,12 @@ body {
 
 .system-block-text {
   display: block;
-  white-space: pre-wrap;
 }
+
+.system-block-para {
+  margin: 0 0 0.9em;
+}
+.system-block-para:last-child { margin-bottom: 0; }
 
 /* Essence variant */
 .system-block.essence-block                    { border-left-color: var(--cyan); color: var(--cyan); }
@@ -2333,6 +2337,11 @@ button:disabled .choice-stat-badge { opacity: 0.5; }
   border-top: 1px solid var(--border-dim);
   background: rgba(0, 0, 0, 0.2);
 }
+
+.desc-para {
+  margin: 0 0 0.9em;
+}
+.desc-para:last-child { margin-bottom: 0; }
 
 /* Achievement accordion variant */
 .skill-accordion--achievement .skill-accordion-name { color: var(--cyan); }

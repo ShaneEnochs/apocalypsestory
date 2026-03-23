@@ -20,10 +20,11 @@ import { escapeHtml, formatText } from './narrative.js';
 
 /** Escape for HTML, convert [rarity]...[/rarity] tags to styled spans, then newlines to <br>. */
 const _RARITY_TAG = /\[(common|uncommon|rare|epic|legendary)\]([\s\S]*?)\[\/\1\]/gi;
-const escapeDesc = (s: string): string =>
-  escapeHtml(s)
-    .replace(_RARITY_TAG, (_, r, text) => `<span class="skill-rarity--${r.toLowerCase()}">${text}</span>`)
-    .replace(/\n/g, '<br>');
+const escapeDesc = (s: string): string => {
+  const escaped = escapeHtml(s)
+    .replace(_RARITY_TAG, (_, r, text) => `<span class="skill-rarity--${r.toLowerCase()}">${text}</span>`);
+  return escaped.split('\n').map(line => `<p class="desc-para">${line}</p>`).join('');
+};
 import { glossaryRegistry } from '../systems/glossary.js';
 import { evalValue } from '../core/expression.js';
 import type { SkillEntry } from '../systems/skills.js';
