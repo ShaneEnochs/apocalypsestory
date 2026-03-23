@@ -371,6 +371,8 @@ You receive a notification that the entrance barrier has taken damage. You check
 
 *notify "[b][epic]Greater Demon Legionnaire[/epic] (Tier-6 Epic Infernal Minion)[/b] has been defeated. 2 Essence awarded (2,000 Essence * 0.001 due to level disparity.)" 1000
 
+*notify "[b][epic]Greater Demon Legionnaire[/epic] (Tier-6 Epic Infernal Minion)[/b] has been defeated. 2 Essence awarded (2,000 Essence * 0.001 due to level disparity.)" 3000
+
 Those kill notifications are going to get really old, really fast. You mentally create a filter to stop the notifications from flooding your HUD, but you can still see the status of the barrier dropping from the monsters throwing themselves against it.
 
 "They're here," you say to your companions. "Looks like it's just the minions so far, but we know what's coming next."
