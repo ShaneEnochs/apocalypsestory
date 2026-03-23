@@ -1418,7 +1418,9 @@ async function executeCurrentLine() {
   advanceIp();
 }
 registerCommand("*title", (t) => {
-  cb.setChapterTitle(t.replace(/^\*title\s*/, "").trim());
+  const raw = t.replace(/^\*title\s*/, "").trim();
+  const interpolated = cb.formatText ? cb.formatText(raw).replace(/<[^>]+>/g, "") : raw;
+  cb.setChapterTitle(interpolated);
   advanceIp();
 });
 registerCommand("*set_game_title", (t) => {
