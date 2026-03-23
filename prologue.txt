@@ -395,8 +395,16 @@ Those kill notifications are going to get really old, really fast. You mentally 
     You find the controls for the mana flow to the entrance wards after only a moment of searching. You bump up the flow by 20%, and thanks to your Mind stat, you perform the mental math instantly. It'll buy you a few more minutes, at most, but dedicating any more to the very first line of defense would be reckless. The heavy hitters haven't even arrived yet, and by the time they do, you expect the entrance to be breached.
 
     Matt approaches the blast door, and you walk over to him.
-    *goto at_the_door
 
+    "How long, you reckon?" Matt asks, slipping into his deep Appalachian drawl while looking through the window.
+
+    "Not long," you say. You throw together a predictive algorithm in your HUD to try to estimate how long it'll be until the monsters get through the entrance, make it through the corridor, and reach the blast door. The algorithm is based on the rate at which the entrance barrier is taking damage, the rate at which the mana reserves are depleting, and a whole lot of guesswork based on your experience of monster hordes and how World Bosses and their Commanders operate. You make your screen visible to Matt.
+
+    *system
+    Estimated time to breach: 17 - 39 minutes.
+    *end_system
+    *goto ending_for_now
+    
 *label at_the_door
 
 "How long, you reckon?" Matt asks, slipping into his deep Appalachian drawl while looking through the window.
@@ -409,6 +417,6 @@ Estimated time to breach: 15 - 37 minutes.
 
 *page_break
 
-
+*label ending_for_now
 
 *ending "You've Reached the End (so far)" "Thank you so much for playing what I have so far of this game. This project is ongoing and will be updated with new content as I write it, so if you enjoyed this, please consider following me for updates."
