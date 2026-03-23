@@ -142,7 +142,7 @@ Once upon a time, you might have thought this would be what it would feel like t
 
 Copper conduits spiral around an ironite-obsidian central housing. Cores from Tier 8 and 9 space-time themed dungeons are slotted into a lattice created from [System]-generated materials the three of you gathered for years, having no way of imagining this is what they'd eventually be used for. It's made from every high-tier drop the three of you managed to hoard, stripped down and reassembled by Callie into something the [System] didn't even have a category for.
 
-Behind a viewport of reinforced mage-steel glass, at the center of the contraption, a miniscule single point of incredibly bright light shines.
+Behind a viewport of reinforced magi-steel glass, at the center of the contraption, a miniscule single point of incredibly bright light shines.
 
 A singularity.
 
@@ -212,7 +212,7 @@ Two hours and ten minutes.
 
 Four months ago, the portal mages had closed the last entrance that connected the surface to the city of Solace. The city was built without any traditional methods of accessing it, so there were no gates or tunnels; just a mile of solid rock between the final sanctuary of humans and the horrors above.
 
-Solace was the last coalition of surviving nations, built into the earth's hollow because there was nowhere else to go but down. Legions of geomancers carved through the rock, artificers and architecture mages laid the streets and buildings, and glamourers used potent illusions created a false sky and sun on the ceiling of the cavern that was always in the position of high noon, though it brightened and dimmed to the lumosity of moonlight depending on the time of day. All of this was done so the survivors could look up at something other than stone in despair. 
+Solace was the last coalition of surviving nations, built into the earth's hollow because there was nowhere else to go but down. Legions of geomancers carved through the rock, artificers and architecture mages laid the streets and buildings, and glamourers used potent illusions created a false sky and sun on the ceiling of the cavern that was always in the position of high noon, though it brightened and dimmed to the luminosity of moonlight depending on the time of day. All of this was done so the survivors could look up at something other than stone in despair. 
 
 Unfortunately, despair was an old friend of everyone here, so it was felt, regardless. How could anything else be expected? The world was overrun with literal monsters, and the only place left to hide from them was in a cave. 
 
@@ -228,7 +228,7 @@ But in two hours and ten minutes, none of it will matter anymore. You find, to y
 
 Almost...
 
-*page_break One hour and forty-five minutes later.
+*page_break One hour and thirty-five minutes later.
 
 *label malphas_warning
 
@@ -254,12 +254,12 @@ Almost...
 You are playing poker with Matt when the notification appears.
 
 *system
-WARNING: [b]Highest Demon Lord, Malphas (Tier-10 World Boss)[/b] has been detected within 10 kilometers of your location and is moving in your general direction.
+WARNING: [b][legendary]Highest Demon Lord, Malphas[/legendary] (Tier-10 Legendary Infernal World Boss)[/b] has been detected within 10 kilometers of your location and is moving in your general direction.
 *end_system
 
 There have been countless times in the past eight years when you have experienced such overwhelming fear that you thought the physical weight of it may suffocate you. Seeing that notification has let you know that you haven't had a true understanding of how strong the sensation of fear could be until this very moment. You don't just feel it in your chest, stomach, and tightness of your shoulders. This fear has reached into your bones, into the very marrow, and has crossed into the metaphysical realm of your soul where it has taken root. 
 
-What you feel in this moment is beyond the primal, fundamental emotion of fear or even terror. This is the pure, distilled and unadulterated essence of a dread so supreme and encompassing that it has no name, because no one in the approximately 300,000 years of homo sapien existance has anyone ever experienced what the three of you are experiencing in this moment.
+What you feel in this moment is beyond the primal, fundamental emotion of fear or even terror. This is the pure, distilled and unadulterated essence of a dread so supreme and encompassing that it has no name, because no one in the approximately 300,000 years of Homo sapien existence has anyone ever experienced what the three of you are experiencing in this moment.
 
 "My God," you hear Matt whisper. "They actually did it. Tier-10."
 
@@ -299,7 +299,6 @@ You mentally call up the screen for this place.
 *system
 [legendary][b]Last Bastion[/b][/legendary]
 [legendary]Legendary[/legendary]
-Bastions have served the same purpose for thousands of years: they are the places where the desperate make their stand, where supplies outlast siege engines, where time itself becomes a weapon. This skill is the answer to that ancient need. After countless battles where hordes of monsters have pressed in and retreat meant death for those behind you, you have proven yourself willing and capable of holding the line and have been awarded this skill. 
 Description: Creates an underground bunker at the safest location within 2 kilometers, chosen by the [System]. The entrance is a 5-meter stairwell lined with wards and runes to damage intruders. Below it, an enchanted tunnel ends at a reinforced blast door. The chamber beyond provides 10 square meters per person, stocked with food, water, recycled air, and medical supplies for six months.
 Capacity: 10 per skill level. Only those you designate at the time of casting may enter and exit freely.
 The bunker draws from a separate and dedicated mana reserve that charges at the speed of your mana regeneration, but only when your personal mana pool is full. Allies may contribute their mana directly to the reserve, and mana stones may be used to add up to 1,000,000 mana per year.
@@ -320,7 +319,7 @@ Matt appears beside you. "It won't come alone," he says.
 *goto matt_assessment
 
 *label look_at_matt_first
-You look at Matt, and he's already looking at you. He has the coin in his hand that he was playing with before. A moment of silent communication passes between you, and you both understand what this means for the three of you. A clock none of you can see is now counting down, racing against the clock of the time machine being ready in sixty-two minutes.
+You look at Matt, and he's already looking at you. He has the coin in his hand that he was playing with before. A moment of silent communication passes between you, and you both understand what this means for the three of you. A clock none of you can see is now counting down, racing against the clock of the time machine being ready in thirty-three minutes.
 
 Neither of you know which will hit zero first, but the monumental weight of understanding that whatever happens in the next hour will be the most important actions any humans have ever taken settles across you. What happens in that time will determine not just the fate of the three of you, but the fate of every human being who has lived since the [System] arrived, and every human being who potentially ever will live. The stakes are so high that they break your brain more than a little bit, and you have to take a moment to let it all sink in.
 
@@ -359,6 +358,57 @@ So this place will certainly fall, but if it can hold out long enough for the ma
 
 If the monsters manage to get through the blast door before the three of you are on your way to the past, though...
 
-*page_break Eighteen minutes later.
+*page_break Eight minutes later.
+
+You receive a notification that the entrance barrier has taken damage. You check the status of that particular ward, and it's still holding, but its integrity is dropping at roughly 1% per second. The monsters have arrived.
+
+*award_essence 14
+*notify "[b][epic]Greater Demon Legionnaire[/epic] (Tier-6 Epic Infernal Minion)[/b] has been defeated. 2 Essence awarded (2,000 Essence * 0.001 due to level disparity.)" 1000
+
+*notify "[b][epic]Greater Demon Legionnaire[/epic] (Tier-6 Epic Infernal Minion)[/b] has been defeated. 2 Essence awarded (2,000 Essence * 0.001 due to level disparity.)" 1000
+
+*notify "[b][epic]Greater Demon Legionnaire[/epic] (Tier-6 Epic Infernal Minion)[/b] has been defeated. 2 Essence awarded (2,000 Essence * 0.001 due to level disparity.)" 1000
+
+*notify "[b][epic]Greater Demon Legionnaire[/epic] (Tier-6 Epic Infernal Minion)[/b] has been defeated. 2 Essence awarded (2,000 Essence * 0.001 due to level disparity.)" 1000
+
+Those kill notifications are going to get really old, really fast. You mentally create a filter to stop the notifications from flooding your HUD, but you can still see the status of the barrier dropping from the monsters throwing themselves against it.
+
+"They're here," you say to your companions. "Looks like it's just the minions so far, but we know what's coming next."
+
+*choice
+  #Keep an eye on the barrier status and let Callie know when it gets below 10%.
+    *set trust_instinct +1
+    You keep a close eye on the status of the barrier, ready to alert Callie when it drops below 10%. That'll be when this situation goes from not being a problem to being a imminent threat. You could pump more mana into the wards protecting the entrance, but that would drain the mana reserves for the rest of the defenses. It's probably best not to start messing with the mana flow until you know for sure it's necessary. 
+
+    You don't want to accidentally cause the defenses to fail early by draining too much of the reserves, but you also don't want to hesitate too long and get everyone killed. It's a delicate balance.
+
+    Matt approaches the blast door, and you walk over to him.
+    *goto at_the_door
+  #Go to the door and prepare to defend it.
+    *set trust_instinct -1
+    Realizing that this door is the last line of defense between hordes of demonic creatures and the three of you, you decide that it's best to reinforce it as much as possible and let the Bastion's normal defenses do their job without interference. You head to the blast door, and see Matt has the same idea. He takes a deep breath and nods to you, the looks out the magi-steel glass toward the end of the corridor where the monsters will eventually throw themselves into a magical meat grinder of wards and traps.
+    *goto at_the_door
+  #Increase the mana flow to the entrance wards to try to hold them off longer.
+    *set trust_instinct -1
+    You mentally call up the mana flow controls on your HUD and study them for a moment. Thankfully, most things with [System] are incredibly intuitive, which has kept people theorizing on the origins of it. It seems so specifically tailored to human use that it's hard to imagine it was designed for anything else. It automatically translated all information into your native language, and every control is laid out in a way that makes perfect sense to you, even if you have no prior experience with the specific function.
+
+    You find the controls for the mana flow to the entrance wards after only a moment of searching. You bump up the flow by 20%, and thanks to your Mind stat, you perform the mental math instantly. It'll buy you a few more minutes, at most, but dedicating any more to the very first line of defense would be reckless. The heavy hitters haven't even arrived yet, and by the time they do, you expect the entrance to be breached.
+
+    Matt approaches the blast door, and you walk over to him.
+    *goto at_the_door
+
+*label at_the_door
+
+"How long, you reckon?" Matt asks, slipping into his deep Appalachian drawl while looking through the window.
+
+"Not long," you say. You throw together a predictive algorithm in your HUD to try to estimate how long it'll be until the monsters get through the entrance, make it through the corridor, and reach the blast door. The algorithm is based on the rate at which the entrance barrier is taking damage, the rate at which the mana reserves are depleting, and a whole lot of guesswork based on your experience of monster hordes and how World Bosses and their Commanders operate. You make your screen visible to Matt.
+
+*system
+Estimated time to breach: 15 - 37 minutes.
+*end_system
+
+*page_break
+
+
 
 *ending "You've Reached the End (so far)" "Thank you so much for playing what I have so far of this game. This project is ongoing and will be updated with new content as I write it, so if you enjoyed this, please consider following me for updates."
