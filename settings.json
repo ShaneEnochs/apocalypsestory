@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const f=process.env.CLAUDE_TOOL_INPUT_PATH||''; const isTxt=f.endsWith('.txt')&&!f.includes('node_modules'); const isTs=f.endsWith('.ts')&&!f.includes('node_modules')&&!f.startsWith('dist/'); if(isTxt){require('child_process').execSync('npm run lint',{stdio:'inherit'})} if(isTs){require('child_process').execSync('npx tsc --noEmit',{stdio:'inherit'})}\"",
+            "description": "After editing a .txt scene file: run linter. After editing a .ts source file: run type-check."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx tsc --noEmit && npm run lint",
+            "description": "Full type-check + lint gate before Claude marks the task complete."
+          }
+        ]
+      }
+    ]
+  }
+}
